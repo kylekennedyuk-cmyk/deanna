@@ -1,0 +1,21 @@
+# Destinations With Deanna — Plesk / Phusion Passenger
+# Document root should be this folder (httpdocs/public).
+# Real files (css/js/uploads) are served as static assets.
+# Everything else is handled by the Node app in the parent folder.
+
+PassengerEnabled On
+Options -MultiViews -Indexes
+
+# Block leftover WordPress front controllers if they still exist on disk.
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+
+  # Existing files and directories pass through unchanged.
+  RewriteCond %{REQUEST_FILENAME} -f [OR]
+  RewriteCond %{REQUEST_FILENAME} -d
+  RewriteRule ^ - [L]
+
+  # Never hand routes to PHP / WordPress — Node owns all app URLs.
+  RewriteRule ^index\.php$ - [F,L]
+  RewriteRule ^wp-.*$ - [F,L]
+</IfModule>
