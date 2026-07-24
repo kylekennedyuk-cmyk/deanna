@@ -265,11 +265,13 @@
   }
 
   .site-header {
-    /* Always light ivory glass — mostly white so the logo reads clearly */
-    background-color: rgb(251 248 243 / 0.85) !important;
-    border-color: rgb(26 43 64 / 0.12);
-    -webkit-backdrop-filter: blur(18px) saturate(1.15);
-    backdrop-filter: blur(18px) saturate(1.15);
+    /* Solid white bar at the top over every page */
+    position: sticky;
+    top: 0;
+    z-index: 40;
+    background-color: #ffffff !important;
+    border-color: rgb(26 43 64 / 0.1);
+    box-shadow: 0 1px 0 rgb(26 43 64 / 0.06);
   }
 
   .site-header a:not(.btn-primary):not(.btn),
@@ -286,24 +288,16 @@
     border-color: rgb(26 43 64 / 0.2);
   }
 
-  /* Homepage: float the light menu over the hero */
-  body.public-home .site-header {
-    position: fixed !important;
-    inset-inline: 0;
-    top: 0;
-    width: 100%;
-  }
-
+  /* Hero fills the space under the white menu; copy box centred */
   body.public-home .home-hero {
-    min-height: 100svh;
+    min-height: calc(100svh - 4.75rem);
   }
 
-  /* Vertically centre the copy box in the viewport under the menu */
   body.public-home .home-hero-content {
-    min-height: 100svh;
+    min-height: calc(100svh - 4.75rem);
     box-sizing: border-box;
-    padding-top: 5.75rem;
-    padding-bottom: 3.5rem;
+    padding-top: 2.5rem;
+    padding-bottom: 2.5rem;
   }
 
   .hero-copy-panel {
