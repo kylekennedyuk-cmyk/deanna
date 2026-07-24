@@ -225,6 +225,7 @@ Do **not** re-run `node prisma/seed.js` on an existing live site unless you inte
 | **Site loads unstyled / no CSS** | Document root is wrong. Set it to `/httpdocs/public`, then Restart App |
 | **`/health` says “file not found”** | Same cause — set document root to `/httpdocs/public` |
 | **Home works, every other page is Apache 500** | Leftover WordPress. Delete `public/.htaccess` (WordPress one), `public/index.php`, and `wp-*` folders. Pull so the repo’s `public/.htaccess` is installed, then Restart App |
+| **Guide pages only show a CTA / missing hotels & dining** | Run script `update` (includes content sync) or `content:sync`, then Restart App. Admin → Pages can also rebuild sections |
 | `npm error Missing script: "npx"` | Plesk's Run script box takes a script **name** only. Use `deploy` or `update` |
 | `DATABASE_URL is missing` when running a script | Create `httpdocs/.env` with `DATABASE_URL=file:../data/deanna.db` — panel env vars are often ignored by Run script |
 | `EADDRINUSE :::3000` | Do not run script `start`. Passenger already runs the app. Use `deploy`, then **Restart App**. Remove any `PORT` variable |

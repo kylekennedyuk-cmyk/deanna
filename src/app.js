@@ -117,7 +117,8 @@ function createApp() {
       !isStaff &&
       !alwaysAllowed.includes(req.path) &&
       !req.path.startsWith('/admin') &&
-      !req.path.startsWith('/reset-password')
+      !req.path.startsWith('/reset-password') &&
+      !req.path.startsWith('/setup-account')
     ) {
       return res.status(503).render('pages/maintenance', {
         title: 'Back shortly',

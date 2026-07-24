@@ -199,7 +199,13 @@ async function main() {
   for (const [slug, page] of Object.entries(publicPages)) {
     await prisma.page.upsert({
       where: { slug },
-      update: {},
+      update: {
+        title: page.title,
+        seoTitle: page.seoTitle,
+        seoDesc: page.seoDesc,
+        sections: JSON.stringify(page.sections),
+        published: true,
+      },
       create: {
         slug,
         title: page.title,

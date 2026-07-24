@@ -6,6 +6,18 @@ const { pages: defaultPages } = require('../../content/publicPages');
 
 const router = express.Router();
 
+const RICH_SECTION_TYPES = new Set([
+  'hero',
+  'cards',
+  'split',
+  'hotelGrid',
+  'timeline',
+  'tips',
+  'faq',
+  'cta',
+  'intro',
+]);
+
 function parseSections(page) {
   try {
     return JSON.parse(page.sections || '[]');
@@ -14,15 +26,30 @@ function parseSections(page) {
   }
 }
 
+function hasRichSections(sections) {
+  return (sections || []).some((section) => RICH_SECTION_TYPES.has(section.type) && section.type !== 'intro');
+}
+
 async function getPage(slug) {
   const stored = await prisma.page.findUnique({ where: { slug } });
-  if (stored) {
-    return {
-      ...stored,
-      sections: parseSections(stored),
-    };
-  }
   const fallback = defaultPages[slug];
+
+  if (stored) {
+    const sections = parseSections(stored);
+    // Seed stubs used type "intro" only — fall back to full default content so
+    // hotels/dining/guide sections still appear until content:sync is run.
+    if (!hasRichSections(sections) && fallback && Array.isArray(fallback.sections)) {
+      return {
+        ...stored,
+        title: stored.title || fallback.title,
+        seoTitle: stored.seoTitle || fallback.seoTitle,
+        seoDesc: stored.seoDesc || fallback.seoDesc,
+        sections: fallback.sections,
+      };
+    }
+    return { ...stored, sections };
+  }
+
   return fallback ? { slug, ...fallback } : null;
 }
 

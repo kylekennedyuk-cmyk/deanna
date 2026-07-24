@@ -4,6 +4,12 @@
     <p class="badge bg-secondary-50 text-secondary-800">Welcome back</p>
     <h1 class="mt-4 text-display-sm">Log in</h1>
     <p class="mt-2 text-primary-700">Access your planning portal with Deanna.</p>
+    <% if (typeof planned !== 'undefined' && planned) { %>
+      <div class="mt-4 rounded-2xl border border-secondary-200 bg-secondary-50 px-4 py-3 text-sm text-primary-800">Your plan is saved. Log in with your email to open it.</div>
+    <% } %>
+    <% if (typeof reset !== 'undefined' && reset) { %>
+      <div class="mt-4 rounded-2xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">Password updated. You can log in now.</div>
+    <% } %>
     <% if (typeof error !== 'undefined' && error) { %>
       <div class="mt-4 rounded-2xl border border-danger-100 bg-danger-50 px-4 py-3 text-sm text-danger-700" role="alert"><%= error %></div>
     <% } %>

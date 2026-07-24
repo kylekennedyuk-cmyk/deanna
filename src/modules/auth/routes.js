@@ -22,6 +22,8 @@ router.get('/login', guestOnly, (req, res) => {
   res.render('auth/login', {
     title: 'Login',
     error: null,
+    planned: req.query.planned === '1',
+    reset: req.query.reset === '1',
   });
 });
 
@@ -37,6 +39,8 @@ router.post(
       return res.status(400).render('auth/login', {
         title: 'Login',
         error: errors.array()[0].msg,
+        planned: false,
+        reset: false,
       });
     }
 
@@ -46,6 +50,8 @@ router.post(
         return res.status(401).render('auth/login', {
           title: 'Login',
           error: (info && info.message) || 'Invalid username or password.',
+          planned: false,
+          reset: false,
         });
       }
 
@@ -97,6 +103,7 @@ router.post(
         data: {
           name: req.body.name.trim(),
           email,
+          username: email,
           passwordHash,
           role: 'customer',
           phone: req.body.phone ? String(req.body.phone).trim() : null,
@@ -236,6 +243,97 @@ router.post(
         }),
       ]);
       return res.redirect('/login?reset=1');
+    } catch (err) {
+      return next(err);
+    }
+  }
+);
+
+router.get('/setup-account/:token', guestOnly, async (req, res, next) => {
+  try {
+    const tokenHash = crypto
+      .createHash('sha256')
+      .update(String(req.params.token))
+      .digest('hex');
+    const record = await prisma.passwordResetToken.findFirst({
+      where: {
+        tokenHash,
+        usedAt: null,
+        expiresAt: { gt: new Date() },
+      },
+      include: { user: true },
+    });
+    return res.render('auth/setup-account', {
+      title: 'Set up your account',
+      token: req.params.token,
+      valid: Boolean(record),
+      email: record ? record.user.email : '',
+      error: null,
+    });
+  } catch (err) {
+    return next(err);
+  }
+});
+
+router.post(
+  '/setup-account/:token',
+  guestOnly,
+  authLimiter,
+  body('password')
+    .isLength({ min: 8 })
+    .withMessage('Password must be at least 8 characters'),
+  body('passwordConfirm').custom((value, { req }) => {
+    if (value !== req.body.password) {
+      throw new Error('Passwords do not match');
+    }
+    return true;
+  }),
+  async (req, res, next) => {
+    try {
+      const tokenHash = crypto
+        .createHash('sha256')
+        .update(String(req.params.token))
+        .digest('hex');
+      const record = await prisma.passwordResetToken.findFirst({
+        where: {
+          tokenHash,
+          usedAt: null,
+          expiresAt: { gt: new Date() },
+        },
+        include: { user: true },
+      });
+      const errors = validationResult(req);
+      if (!record || !errors.isEmpty()) {
+        return res.status(400).render('auth/setup-account', {
+          title: 'Set up your account',
+          token: req.params.token,
+          valid: Boolean(record),
+          email: record ? record.user.email : '',
+          error: !record
+            ? 'This setup link is invalid or has expired.'
+            : errors.array()[0].msg,
+        });
+      }
+
+      const passwordHash = await bcrypt.hash(req.body.password, 12);
+      const user = await prisma.user.update({
+        where: { id: record.userId },
+        data: {
+          passwordHash,
+          username: record.user.email,
+        },
+      });
+      await prisma.passwordResetToken.update({
+        where: { id: record.id },
+        data: { usedAt: new Date() },
+      });
+
+      req.logIn(user, (loginErr) => {
+        if (loginErr) return next(loginErr);
+        const redirectTo = req.session.returnTo || '/customer';
+        delete req.session.returnTo;
+        return res.redirect(redirectTo);
+      });
     } catch (err) {
       return next(err);
     }

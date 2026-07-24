@@ -76,6 +76,8 @@ router.post('/submit', plannerLimiter, async (req, res, next) => {
   try {
     const draft = getDraft(req);
     const data = { ...draft.data, ...req.body };
+    const crypto = require('crypto');
+    const bcrypt = require('bcryptjs');
 
     if (!data.name || !data.email) {
       return res.status(400).render('planner/wizard', {
@@ -87,25 +89,27 @@ router.post('/submit', plannerLimiter, async (req, res, next) => {
       });
     }
 
+    const email = String(data.email).trim().toLowerCase();
     let customer = null;
+    let needsAccountSetup = false;
+
     if (req.user) {
       customer = req.user;
     } else {
-      customer = await prisma.user.findUnique({
-        where: { email: String(data.email).trim().toLowerCase() },
-      });
+      customer = await prisma.user.findUnique({ where: { email } });
       if (!customer) {
-        const bcrypt = require('bcryptjs');
-        const tempPass = await bcrypt.hash(`temp-${Date.now()}`, 12);
+        const tempPass = await bcrypt.hash(`temp-${Date.now()}-${crypto.randomBytes(8).toString('hex')}`, 12);
         customer = await prisma.user.create({
           data: {
             name: String(data.name).trim(),
-            email: String(data.email).trim().toLowerCase(),
+            email,
+            username: email,
             phone: data.phone ? String(data.phone).trim() : null,
             passwordHash: tempPass,
             role: 'customer',
           },
         });
+        needsAccountSetup = true;
       }
     }
 
@@ -127,6 +131,8 @@ router.post('/submit', plannerLimiter, async (req, res, next) => {
       process.env.SUPPORT_EMAIL ||
       'hello@destinationswithdeanna.com';
     const planName = `${data.occasion || 'Disneyland Paris holiday'} · Plan #${plan.id}`;
+    const appUrl = process.env.APP_URL || 'http://localhost:3000';
+
     await sendNotification('new_request', {
       to: support,
       values: {
@@ -135,8 +141,38 @@ router.post('/submit', plannerLimiter, async (req, res, next) => {
       },
       body: `Travel dates: ${plan.travelDates}\nParty size: ${plan.partySize}\nBudget: £${plan.budget || 0}\nEmail: ${customer.email}`,
       buttonLabel: 'Open request',
-      buttonUrl: `${process.env.APP_URL || 'http://localhost:3000'}/agent/plans/${plan.id}`,
+      buttonUrl: `${appUrl}/agent/plans/${plan.id}`,
     });
+
+    delete req.session.plannerDraft;
+
+    if (needsAccountSetup) {
+      const token = crypto.randomBytes(32).toString('hex');
+      const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+      await prisma.passwordResetToken.deleteMany({
+        where: { userId: customer.id, usedAt: null },
+      });
+      await prisma.passwordResetToken.create({
+        data: {
+          tokenHash,
+          userId: customer.id,
+          expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+        },
+      });
+      req.session.returnTo = `/customer/plans/${plan.id}?created=1`;
+      await sendNotification('customer_confirmation', {
+        to: customer.email,
+        values: {
+          customerName: customer.name,
+          planTitle: planName,
+        },
+        body: `Travel dates: ${plan.travelDates}\nParty size: ${plan.partySize}\n\nFinish setting your password so you can return to your plan anytime. Your login username is your email address.`,
+        buttonLabel: 'Set up your account',
+        buttonUrl: `${appUrl}/setup-account/${token}`,
+      });
+      return res.redirect(`/setup-account/${token}`);
+    }
+
     await sendNotification('customer_confirmation', {
       to: customer.email,
       values: {
@@ -144,11 +180,9 @@ router.post('/submit', plannerLimiter, async (req, res, next) => {
         planTitle: planName,
       },
       body: `Travel dates: ${plan.travelDates}\nParty size: ${plan.partySize}\n\nDeanna will review your preferences and contact you with the next step.`,
-      buttonLabel: 'Log in to your portal',
-      buttonUrl: `${process.env.APP_URL || 'http://localhost:3000'}/login`,
+      buttonLabel: 'Open your plan',
+      buttonUrl: `${appUrl}/customer/plans/${plan.id}`,
     });
-
-    delete req.session.plannerDraft;
 
     if (!req.user) {
       req.session.returnTo = `/customer/plans/${plan.id}`;

@@ -1,0 +1,21 @@
+<%
+  const role = currentUser && currentUser.role;
+  const portalHome = role === 'admin' ? '/admin' : (role === 'agent' ? '/agent' : '/customer');
+  const portalLabel = role === 'admin' ? 'Admin dashboard' : (role === 'agent' ? 'Agent dashboard' : 'My dashboard');
+%>
+<nav class="mb-6 flex flex-wrap items-center gap-2 border-b border-primary-100/80 pb-4" aria-label="Portal">
+  <a href="<%= portalHome %>" class="btn-ghost btn-sm">← <%= portalLabel %></a>
+  <% if (typeof backHref !== 'undefined' && backHref) { %>
+    <a href="<%= backHref %>" class="btn-ghost btn-sm">← <%= typeof backLabel !== 'undefined' && backLabel ? backLabel : 'Back' %></a>
+  <% } %>
+  <% if (role === 'admin') { %>
+    <a href="/admin/pages" class="btn-ghost btn-sm">Pages</a>
+    <a href="/admin/users" class="btn-ghost btn-sm">Users</a>
+    <a href="/admin/settings" class="btn-ghost btn-sm">Settings</a>
+    <a href="/agent" class="btn-ghost btn-sm">Agent workspace</a>
+  <% } else if (role === 'agent') { %>
+    <a href="/agent/plans" class="btn-ghost btn-sm">All plans</a>
+    <a href="/agent/inbox" class="btn-ghost btn-sm">Inbox</a>
+  <% } %>
+  <a href="/" class="btn-ghost btn-sm ml-auto">View website</a>
+</nav>

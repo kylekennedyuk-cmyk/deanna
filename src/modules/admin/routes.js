@@ -160,6 +160,7 @@ router.get('/users', async (req, res, next) => {
       title: 'Users',
       users,
       saved: req.query.saved === '1',
+      passwordSaved: req.query.password === '1',
       error: null,
     });
   } catch (err) {
@@ -170,7 +171,9 @@ router.get('/users', async (req, res, next) => {
 router.post('/users', async (req, res, next) => {
   try {
     const email = String(req.body.email || '').trim().toLowerCase();
-    const username = req.body.username ? String(req.body.username).trim().toLowerCase() : null;
+    const username = req.body.username
+      ? String(req.body.username).trim().toLowerCase()
+      : email;
     const password = String(req.body.password || '');
     if (!email || !password || password.length < 8) {
       const users = await prisma.user.findMany({ orderBy: { createdAt: 'desc' } });
@@ -178,6 +181,7 @@ router.post('/users', async (req, res, next) => {
         title: 'Users',
         users,
         saved: false,
+        passwordSaved: false,
         error: 'Email and password (min 8 characters) are required.',
       });
     }
@@ -193,6 +197,32 @@ router.post('/users', async (req, res, next) => {
       },
     });
     res.redirect('/admin/users?saved=1');
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/users/:id/password', async (req, res, next) => {
+  try {
+    const userId = Number(req.params.id);
+    const password = String(req.body.password || '');
+    if (!userId || password.length < 8) {
+      const users = await prisma.user.findMany({ orderBy: { createdAt: 'desc' } });
+      return res.status(400).render('admin/users', {
+        title: 'Users',
+        users,
+        saved: false,
+        passwordSaved: false,
+        error: 'Password must be at least 8 characters.',
+      });
+    }
+
+    const passwordHash = await bcrypt.hash(password, 12);
+    await prisma.user.update({
+      where: { id: userId },
+      data: { passwordHash },
+    });
+    res.redirect('/admin/users?password=1');
   } catch (err) {
     next(err);
   }

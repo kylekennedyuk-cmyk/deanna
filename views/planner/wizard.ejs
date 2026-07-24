@@ -224,13 +224,18 @@
         </div>
         <div>
           <label class="label" for="email">Email</label>
-          <input class="field" id="email" name="email" type="email" value="<%= data.email || (currentUser && currentUser.email) || '' %>" required />
-          <p class="help">We’ll email a confirmation and a link back to your plan.</p>
+          <input class="field" id="email" name="email" type="email" value="<%= data.email || (currentUser && currentUser.email) || '' %>" required <%= currentUser ? 'readonly' : '' %> />
+          <p class="help"><%= currentUser ? 'We’ll confirm to this email.' : 'After you submit, you’ll set a password. Your email is your login username.' %></p>
         </div>
         <div>
           <label class="label" for="phone">Phone</label>
           <input class="field" id="phone" name="phone" value="<%= data.phone || (currentUser && currentUser.phone) || '' %>" />
         </div>
+        <% if (!currentUser) { %>
+          <div class="rounded-2xl border border-secondary-200 bg-secondary-50/60 px-4 py-3 text-sm text-primary-800">
+            Next step: create your password on the account setup page. Use your email to log in later.
+          </div>
+        <% } %>
         <label class="flex items-start gap-3 text-sm text-primary-700">
           <input type="checkbox" name="terms" value="yes" required class="mt-1 rounded border-primary-300 text-primary-900 focus:ring-secondary-400" />
           <span>I’m happy for Destinations With Deanna to contact me about this holiday plan.</span>

@@ -166,6 +166,14 @@
         </div>
       </div>
     </section>
+
+  <% } else if (section.type === 'intro') { %>
+    <section>
+      <div class="section max-w-3xl">
+        <h2 class="mt-2"><%= section.heading || section.title || title %></h2>
+        <% if (section.text) { %><p class="mt-4 text-lg leading-relaxed text-primary-700"><%= section.text %></p><% } %>
+      </div>
+    </section>
   <% } %>
 <% }) %>
 

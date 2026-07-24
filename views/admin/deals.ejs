@@ -1,6 +1,7 @@
-<%- include('../partials/shell-start') %>
-<section class="section">
-  <h1 class="text-4xl">Deals</h1>
+<%- include('../partials/shell-start', { bodyClass: 'portal-shell' }) %>
+<section class="section-sm">
+  <%- include('../partials/portal-nav', { backHref: '/admin', backLabel: 'Admin home' }) %>
+  <h1 class="text-display-md">Deals</h1>
   <% if (saved) { %><div class="mt-4 rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-green-800">Saved.</div><% } %>
   <form method="post" action="/admin/deals" class="card mt-8 space-y-4">
     <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
