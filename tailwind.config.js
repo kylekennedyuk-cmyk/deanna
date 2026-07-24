@@ -60,14 +60,14 @@ module.exports = {
         },
       },
       fontFamily: {
-        display: ['"Cormorant Garamond"', 'Georgia', 'serif'],
-        body: ['"DM Sans"', 'system-ui', 'sans-serif'],
+        display: ['Fraunces', 'Georgia', 'serif'],
+        body: ['Outfit', 'system-ui', 'sans-serif'],
       },
       fontSize: {
-        'display-xl': ['3.75rem', { lineHeight: '1.1', letterSpacing: '-0.02em' }],
-        'display-lg': ['3rem', { lineHeight: '1.15', letterSpacing: '-0.015em' }],
-        'display-md': ['2.25rem', { lineHeight: '1.2', letterSpacing: '-0.01em' }],
-        'display-sm': ['1.75rem', { lineHeight: '1.25', letterSpacing: '0.01em' }],
+        'display-xl': ['3.75rem', { lineHeight: '1.12', letterSpacing: '-0.025em' }],
+        'display-lg': ['3rem', { lineHeight: '1.15', letterSpacing: '-0.02em' }],
+        'display-md': ['2.25rem', { lineHeight: '1.2', letterSpacing: '-0.015em' }],
+        'display-sm': ['1.75rem', { lineHeight: '1.3', letterSpacing: '-0.01em' }],
       },
       boxShadow: {
         soft: '0 8px 30px rgba(15, 26, 40, 0.06)',

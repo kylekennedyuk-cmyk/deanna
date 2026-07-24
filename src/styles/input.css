@@ -11,14 +11,18 @@
     @apply font-body text-base leading-relaxed text-primary-900 antialiased;
     background-color: var(--brand-bg, #fbf8f3);
     color: color-mix(in srgb, var(--brand-primary, #1a2b40) 88%, #111);
+    font-feature-settings: 'ss01' on, 'kern' on;
+    letter-spacing: 0.01em;
   }
 
   h1,
   h2,
   h3,
   h4 {
-    @apply font-display font-semibold tracking-wide;
+    @apply font-display font-semibold;
     color: color-mix(in srgb, var(--brand-primary, #1a2b40) 92%, #000);
+    letter-spacing: -0.02em;
+    font-optical-sizing: auto;
   }
 
   h1 {
