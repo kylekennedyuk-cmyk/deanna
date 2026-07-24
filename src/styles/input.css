@@ -273,36 +273,60 @@
     border-color: color-mix(in srgb, var(--brand-primary, #1a2b40) 10%, transparent);
     -webkit-backdrop-filter: blur(16px) saturate(1.2);
     backdrop-filter: blur(16px) saturate(1.2);
+    transition: color 180ms ease, border-color 180ms ease, box-shadow 180ms ease, background-color 180ms ease;
   }
 
-  /* Homepage: float the menu over the hero so transparency is visible */
+  /* Homepage: float the menu over the hero so the image continues under it */
   body.public-home .site-header {
-    position: fixed;
+    position: fixed !important;
     inset-inline: 0;
     top: 0;
+    width: 100%;
+    background-color: rgb(255 255 255 / 0.14) !important;
     border-color: rgb(255 255 255 / 0.18);
   }
 
-  body.public-home .site-header a:not(.btn-primary),
-  body.public-home .site-header button:not(.btn-primary),
-  body.public-home .site-header .font-display,
-  body.public-home .site-header .text-primary-950,
-  body.public-home .site-header .text-primary-800,
-  body.public-home .site-header .text-primary-600 {
+  body.public-home .site-header:not(.site-header-scrolled) a:not(.btn-primary),
+  body.public-home .site-header:not(.site-header-scrolled) button:not(.btn-primary),
+  body.public-home .site-header:not(.site-header-scrolled) .font-display,
+  body.public-home .site-header:not(.site-header-scrolled) .text-primary-950,
+  body.public-home .site-header:not(.site-header-scrolled) .text-primary-800,
+  body.public-home .site-header:not(.site-header-scrolled) .text-primary-600 {
     color: rgb(255 255 255 / 0.95) !important;
   }
 
-  body.public-home .site-header .btn-ghost {
+  body.public-home .site-header:not(.site-header-scrolled) .btn-ghost {
     color: rgb(255 255 255 / 0.95) !important;
   }
 
-  body.public-home .site-header [data-menu-toggle] {
+  body.public-home .site-header:not(.site-header-scrolled) [data-menu-toggle] {
     border-color: rgb(255 255 255 / 0.35);
     color: rgb(255 255 255 / 0.95);
   }
 
-  body.public-home > main > section:first-child > .section {
-    padding-top: 6.5rem;
+  body.public-home .site-header.site-header-scrolled {
+    background-color: rgb(
+      from var(--brand-header-bg, var(--brand-bg, #fbf8f3)) r g b / 0.2
+    ) !important;
+    border-color: color-mix(in srgb, var(--brand-primary, #1a2b40) 14%, transparent);
+    box-shadow: 0 8px 30px rgb(26 43 64 / 0.08);
+  }
+
+  /* Keep copy clear of the fixed menu; leave the image full-bleed behind it */
+  body.public-home .home-hero-content {
+    padding-top: 7.5rem;
+  }
+
+  @media (min-width: 1024px) {
+    body.public-home .home-hero-content {
+      padding-top: 8.5rem;
+    }
+  }
+
+  .hero-copy-panel {
+    background-color: rgb(15 26 40 / 0.2) !important;
+    -webkit-backdrop-filter: blur(14px) saturate(1.15);
+    backdrop-filter: blur(14px) saturate(1.15);
   }
 
   .brand-logo {
