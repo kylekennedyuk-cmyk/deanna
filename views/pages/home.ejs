@@ -7,11 +7,15 @@
   const img = {
     hero: 'https://images.unsplash.com/photo-1733424775835-1c7f7bebb1bb?auto=format&fit=crop&w=2000&q=85',
     castleDay: 'https://images.unsplash.com/photo-1742079741493-fd9845d816f9?auto=format&fit=crop&w=1200&q=85',
-    castleDayWide: 'https://images.unsplash.com/photo-1615470834591-79343b8cc869?auto=format&fit=crop&w=1200&q=85',
     castleNight: 'https://images.unsplash.com/photo-1742079727590-4f7682f67d89?auto=format&fit=crop&w=1200&q=85',
     fireworks: 'https://images.unsplash.com/photo-1733424775835-1c7f7bebb1bb?auto=format&fit=crop&w=1200&q=85',
     illuminations: 'https://images.unsplash.com/photo-1685134404136-e797d7a5df4a?auto=format&fit=crop&w=1200&q=85',
     parkCrowd: 'https://images.unsplash.com/photo-1690097232120-a59669ee0989?auto=format&fit=crop&w=1200&q=85',
+    disneyHotel: '/images/disney/disney-hotel-newport.jpg',
+    disneyHotelAlt: '/images/disney/disney-hotel-new-york.jpg',
+    hotelGrounds: '/images/disney/disney-hotels-park.jpg',
+    lakeDisney: '/images/disney/disney-lake.jpg',
+    eurostar: '/images/disney/eurostar.jpg',
   };
 %>
 
@@ -106,9 +110,9 @@
   </div>
   <div class="grid gap-6 md:grid-cols-3">
     <% [
-      ['Disney Hotels', 'Themed rooms, Extra Magic Time and the shortest walk (or hop) to the parks — ideal when waking up “inside the magic” matters most.', img.castleNight],
-      ['Disney Partner Hotels', 'On-property partner stays with free shuttles, strong facilities and excellent value for families who still want park convenience.', img.castleDay],
-      ['Nearby trusted bases', 'Off-site hotels Deanna recommends for comfort, transport links and more budget left for dining, Premier Access and extras.', img.castleDayWide]
+      ['Disney Hotels', 'Themed rooms, Extra Magic Time and the shortest walk (or hop) to the parks — ideal when waking up inside the magic matters most.', img.disneyHotel],
+      ['Disney Partner Hotels', 'On-property partner stays with free shuttles, strong facilities and excellent value for families who still want park convenience.', img.disneyHotelAlt],
+      ['Nearby trusted bases', 'Off-site hotels Deanna recommends for comfort, transport links and more budget left for dining, Premier Access and extras.', img.hotelGrounds]
     ].forEach(function(item) { %>
       <article class="card-hover card-accent overflow-hidden p-0">
         <div class="relative aspect-[4/3] overflow-hidden">
@@ -155,8 +159,8 @@
       <% [
         ['Disneyland Park', 'Sleeping Beauty Castle, classic attractions, daytime entertainment and the evening spectacular.', img.castleDay],
         ['Walt Disney Studios Park', 'Pixar, Marvel and evolving worlds in the second park — paced so you are not racing between lands.', img.parkCrowd],
-        ['Disney hotels & Extra Magic Time', 'Stay on-site for themed rooms and quieter early park entry when it is available on your dates.', img.castleNight],
-        ['Easy from the UK', 'Eurostar, flights and packages that fit half-terms and long weekends — with arrival day planned realistically.', img.fireworks]
+        ['Disney Hotels & Extra Magic Time', 'Stay on-site for themed rooms and quieter early park entry when it is available on your dates.', img.disneyHotel],
+        ['Easy from the UK', 'Eurostar, flights and packages that fit half-terms and long weekends — with arrival day planned realistically.', img.eurostar]
       ].forEach(function(item) { %>
         <article class="group overflow-hidden rounded-card border border-white/10 bg-white/5">
           <div class="aspect-[4/3] overflow-hidden">

@@ -1,0 +1,14 @@
+# Disneyland Paris brand images
+
+Local files under `public/images/disney/`:
+
+| File | Source | Subject |
+|------|--------|---------|
+| disney-hotel-newport.jpg | Wikimedia Commons | Disney Newport Bay Club |
+| disney-hotel-new-york.jpg | Wikimedia Commons | Disney Hotel New York |
+| disney-hotels-park.jpg | Wikimedia Commons | Disney hotel grounds, Disneyland Paris |
+| disney-lake.jpg | Wikimedia Commons | Lake Disney |
+| disney-sequoia.jpg | Wikimedia Commons | Sequoia Lodge gardens |
+| eurostar.jpg | Unsplash | Train travel (UK to Paris / Disney) |
+
+Castle / fireworks / park crowd images remain remote Unsplash URLs verified as Coupvray / Chessy.

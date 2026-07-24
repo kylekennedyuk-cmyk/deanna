@@ -111,17 +111,17 @@ const pages = {
       {
         type: 'split',
         eyebrow: 'First-time visitor advice',
-        heading: 'Start with your priorities, not a packed checklist',
+        heading: 'Decide what matters most — then build the days around it',
         text:
-          'The best plan protects the experiences that matter most and leaves realistic time for meals, queues, weather and tired travellers. Families with young children often benefit from an afternoon pause; thrill-seekers may prefer early starts and carefully chosen Premier Access.',
+          'You do not need to do everything. Pick the moments your family will remember — a castle morning, a character meal, fireworks, a favourite ride — and let Deanna shape park days, rest time and reservations around those.',
         points: [
-          'Book popular dining as soon as your booking window opens',
-          'Use Extra Magic Time for priority attractions when available',
-          'Plan one or two headline experiences per half-day',
-          'Check seasonal entertainment before fixing your itinerary',
+          'Book must-do dining as soon as your reservation window opens',
+          'Use Extra Magic Time for the rides that matter most to you',
+          'Keep each half-day to one or two headline experiences',
+          'Check seasonal shows and fireworks before locking the itinerary',
         ],
-        image: images.fireworks,
-        imageAlt: 'Fireworks over Disneyland Paris castle',
+        image: images.parkCrowd,
+        imageAlt: 'Guests enjoying Disneyland Park near Sleeping Beauty Castle',
       },
       {
         type: 'faq',
@@ -160,8 +160,8 @@ const pages = {
         heading: 'Choose a hotel that improves the whole holiday',
         text:
           'The right hotel is about more than the room. Walking distance, transport, theming, breakfast, pool time and your daily pace all affect which option represents the best value.',
-        image: images.fireworks,
-        imageAlt: 'Fireworks over Sleeping Beauty Castle at Disneyland Paris',
+        image: images.disneyHotel,
+        imageAlt: 'Disney Newport Bay Club at Disneyland Paris',
         primaryLabel: 'Get a tailored recommendation',
         primaryHref: '/planner',
       },
