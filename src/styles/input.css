@@ -265,51 +265,20 @@
   }
 
   .site-header {
-    /* ~80% transparent so page/hero shows through */
-    background-color: rgb(251 248 243 / 0.2) !important;
-    background-color: rgb(
-      from var(--brand-header-bg, var(--brand-bg, #fbf8f3)) r g b / 0.2
-    ) !important;
-    border-color: color-mix(in srgb, var(--brand-primary, #1a2b40) 10%, transparent);
-    -webkit-backdrop-filter: blur(16px) saturate(1.2);
-    backdrop-filter: blur(16px) saturate(1.2);
-    transition: color 180ms ease, border-color 180ms ease, box-shadow 180ms ease, background-color 180ms ease;
+    /* Light bar at ~40% opacity — dark logo/text stay readable */
+    background-color: rgb(251 248 243 / 0.4) !important;
+    background-color: rgb(from var(--brand-bg, #fbf8f3) r g b / 0.4) !important;
+    border-color: color-mix(in srgb, var(--brand-primary, #1a2b40) 12%, transparent);
+    -webkit-backdrop-filter: blur(16px) saturate(1.15);
+    backdrop-filter: blur(16px) saturate(1.15);
   }
 
-  /* Homepage: float the menu over the hero so the image continues under it */
+  /* Homepage: float the menu over the hero; keep the same light bar */
   body.public-home .site-header {
     position: fixed !important;
     inset-inline: 0;
     top: 0;
     width: 100%;
-    background-color: rgb(255 255 255 / 0.14) !important;
-    border-color: rgb(255 255 255 / 0.18);
-  }
-
-  body.public-home .site-header:not(.site-header-scrolled) a:not(.btn-primary),
-  body.public-home .site-header:not(.site-header-scrolled) button:not(.btn-primary),
-  body.public-home .site-header:not(.site-header-scrolled) .font-display,
-  body.public-home .site-header:not(.site-header-scrolled) .text-primary-950,
-  body.public-home .site-header:not(.site-header-scrolled) .text-primary-800,
-  body.public-home .site-header:not(.site-header-scrolled) .text-primary-600 {
-    color: rgb(255 255 255 / 0.95) !important;
-  }
-
-  body.public-home .site-header:not(.site-header-scrolled) .btn-ghost {
-    color: rgb(255 255 255 / 0.95) !important;
-  }
-
-  body.public-home .site-header:not(.site-header-scrolled) [data-menu-toggle] {
-    border-color: rgb(255 255 255 / 0.35);
-    color: rgb(255 255 255 / 0.95);
-  }
-
-  body.public-home .site-header.site-header-scrolled {
-    background-color: rgb(
-      from var(--brand-header-bg, var(--brand-bg, #fbf8f3)) r g b / 0.2
-    ) !important;
-    border-color: color-mix(in srgb, var(--brand-primary, #1a2b40) 14%, transparent);
-    box-shadow: 0 8px 30px rgb(26 43 64 / 0.08);
   }
 
   /* Keep copy clear of the fixed menu; leave the image full-bleed behind it */

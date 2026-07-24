@@ -74,19 +74,6 @@
     });
   }
 
-  const homeHeader = document.querySelector('body.public-home .site-header');
-  const homeHero = document.querySelector('[data-home-hero]');
-  if (homeHeader && homeHero) {
-    const syncHeaderContrast = () => {
-      const headerBottom = homeHeader.getBoundingClientRect().bottom;
-      const heroBottom = homeHero.getBoundingClientRect().bottom;
-      homeHeader.classList.toggle('site-header-scrolled', heroBottom <= headerBottom);
-    };
-    syncHeaderContrast();
-    window.addEventListener('scroll', syncHeaderContrast, { passive: true });
-    window.addEventListener('resize', syncHeaderContrast);
-  }
-
   document.querySelectorAll('[data-collapsible]').forEach((panel) => {
     const trigger = panel.querySelector('[data-collapsible-trigger]');
     const body = panel.querySelector('[data-collapsible-body]');
