@@ -35,11 +35,12 @@ async function ensureReady() {
 }
 
 async function start() {
+  // Never exit on a failed check: under Passenger/Plesk that surfaces as an
+  // opaque "application could not be started" page instead of a readable error.
   try {
     await ensureReady();
   } catch (err) {
-    console.error('Startup failed:', err.message);
-    process.exit(1);
+    console.error('Startup check failed:', err.message);
   }
 
   const port = Number(process.env.PORT || 3000);
