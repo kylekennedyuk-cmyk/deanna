@@ -88,18 +88,27 @@ Notes:
 - `APP_URL` must be your live HTTPS URL (used in emails and reset links).
 - Do **not** commit `.env` to Git.
 
-### 5) One-time setup commands
+### 5) One-time setup
 
-In Plesk **Run Node.js commands**, or SSH from the app folder:
+**In Plesk (easiest):** Node.js panel → **Run script** → type just:
 
-```bash
-npx prisma generate
-npx prisma db push
-node prisma/seed.js
-npm run build
+```text
+deploy
 ```
 
-What this does:
+Leave the parameters box empty and click Run.
+
+> Plesk's "Run script" box runs `npm run <name>`, so it only accepts script names from `package.json`.
+> Typing `npx prisma generate` there fails with `Missing script: "npx"`.
+
+**Via SSH instead:**
+
+```bash
+cd /path/to/app
+npm run deploy
+```
+
+What `deploy` does:
 
 - generates the Prisma client
 - creates `data/deanna.db`
@@ -163,15 +172,21 @@ SMTP can be configured entirely in the dashboard. The password is encrypted with
 
 ## Updating the site later
 
+1. Pull the latest code (Plesk **Git** → Pull, or `git pull origin main` over SSH)
+2. Click **NPM install** in the Node.js panel
+3. Run script: `update`
+4. **Restart App**
+
+Over SSH the equivalent is:
+
 ```bash
 cd /path/to/app
 git pull origin main
 npm install
-npx prisma generate
-npx prisma db push
-npm run build
-# Restart Node.js app in Plesk
+npm run update
 ```
+
+`update` refreshes the Prisma client, applies schema changes and rebuilds CSS — without re-running the seed.
 
 Do **not** re-run `node prisma/seed.js` on an existing live site unless you intend to re-seed missing defaults only (seed is upsert-safe for many keys, but `npm run content:sync` overwrites public page content deliberately).
 
@@ -181,6 +196,7 @@ Do **not** re-run `node prisma/seed.js` on an existing live site unless you inte
 
 | Problem | Fix |
 |--------|-----|
+| `npm error Missing script: "npx"` | Plesk's Run script box takes a script **name** only. Use `deploy` or `update` |
 | App won’t start | Check Node.js logs in Plesk; confirm startup file is `server.js` and Node 20+ |
 | Blank / unstyled pages | Run `npm run build` so `public/css/app.css` exists |
 | Login fails after redeploy | Do not delete `data/`; the SQLite DB and sessions live there |
