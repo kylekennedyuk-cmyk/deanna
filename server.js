@@ -14,7 +14,7 @@ async function ensureReady() {
 
   if (!process.env.DATABASE_URL) {
     throw new Error(
-      'DATABASE_URL is missing. Add DATABASE_URL=file:../data/deanna.db to your .env (or Plesk environment variables).'
+      'DATABASE_URL is missing. Create a .env file in httpdocs with DATABASE_URL=file:../data/deanna.db (Plesk Run script often ignores panel env vars).'
     );
   }
 
@@ -35,19 +35,30 @@ async function ensureReady() {
 }
 
 async function start() {
-  // Never exit on a failed check: under Passenger/Plesk that surfaces as an
-  // opaque "application could not be started" page instead of a readable error.
   try {
     await ensureReady();
   } catch (err) {
     console.error('Startup check failed:', err.message);
   }
 
+  // Passenger/Plesk injects PORT. Do not hardcode 3000 when PORT is unset under
+  // a managed process — but keep 3000 as a local-dev fallback only.
   const port = Number(process.env.PORT || 3000);
   const app = createApp();
-  app.listen(port, () => {
+  const server = app.listen(port, () => {
     console.log(`Destinations With Deanna listening on port ${port}`);
     console.log('Admin login: username admin / password password');
+  });
+
+  server.on('error', (err) => {
+    if (err && err.code === 'EADDRINUSE') {
+      console.error(
+        `Port ${port} is already in use. Do not run "start" in Plesk while Passenger is managing the app. Use Run script "deploy", then click Restart App.`
+      );
+      process.exit(0);
+    }
+    console.error(err);
+    process.exit(1);
   });
 }
 

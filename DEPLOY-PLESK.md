@@ -68,14 +68,18 @@ git clone https://github.com/kylekennedyuk-cmyk/deanna.git .
 
 3. Click **NPM install**
 
-### 4) Environment variables
+### 4) Environment variables (important)
 
-Create a `.env` file in the application root (same folder as `package.json`), or use Plesk **Custom environment variables**:
+Plesk’s **Run script** box often does **not** pass the Node.js panel environment variables to Prisma.  
+Create a real `.env` file so both Passenger and scripts can see the settings.
+
+1. Open **File Manager** → `httpdocs`
+2. Add a new file named `.env`
+3. Paste this (replace the two secrets with your own):
 
 ```env
 NODE_ENV=production
 APP_URL=https://destinationswithdeanna.com
-PORT=3000
 SESSION_SECRET=paste-your-long-random-string-here
 SETTINGS_ENCRYPTION_KEY=paste-a-different-long-random-string-here
 DATABASE_URL=file:../data/deanna.db
@@ -84,9 +88,10 @@ SUPPORT_EMAIL=hello@destinationswithdeanna.com
 
 Notes:
 
-- If Plesk shows a specific port for the Node app, set `PORT` to that value (or leave blank only if Plesk injects it for you).
-- `APP_URL` must be your live HTTPS URL (used in emails and reset links).
-- Do **not** commit `.env` to Git.
+- `DATABASE_URL` **must** start with `file:`
+- Do **not** set `PORT` — Passenger chooses the port
+- Keep the same values in the Node.js panel if you like, but `.env` is required for `deploy`
+- A template is also in the repo as `.env.plesk`
 
 ### 5) One-time setup
 
@@ -197,8 +202,10 @@ Do **not** re-run `node prisma/seed.js` on an existing live site unless you inte
 | Problem | Fix |
 |--------|-----|
 | `npm error Missing script: "npx"` | Plesk's Run script box takes a script **name** only. Use `deploy` or `update` |
-| **Internal Server Error** | Almost always means the database was never created. Pull latest code, run script `deploy`, then **Restart App**. Also confirm `DATABASE_URL=file:../data/deanna.db` is set and `data/` is writable |
-| App won’t start | Check Node.js logs in Plesk; confirm startup file is `server.js` and Node 20+. If logs say “Database is not ready”, run `deploy` |
+| `DATABASE_URL is missing` when running a script | Create `httpdocs/.env` with `DATABASE_URL=file:../data/deanna.db` — panel env vars are often ignored by Run script |
+| `EADDRINUSE :::3000` | Do not run script `start`. Passenger already runs the app. Use `deploy`, then **Restart App**. Remove any `PORT` variable |
+| **Internal Server Error** | Almost always means the database was never created. Pull latest code, create `.env`, run script `deploy`, then **Restart App**. Also confirm `DATABASE_URL=file:../data/deanna.db` and `data/` is writable |
+| App won’t start / Passenger error | Use Node **20 or 22 LTS** (not 25). Check logs. Create `.env`, run `deploy`, Restart App |
 | Blank / unstyled pages | Run `npm run build` so `public/css/app.css` exists |
 | Login fails after redeploy | Do not delete `data/`; the SQLite DB and sessions live there |
 | 502 / proxy errors | Confirm the Node app is enabled and listening on the port Plesk expects |
