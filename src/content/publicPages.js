@@ -1,16 +1,27 @@
 const images = {
-  paris:
-    'https://images.unsplash.com/photo-1502602898657-3e91760cbb34?auto=format&fit=crop&w=1600&q=82',
+  castleNight:
+    'https://images.unsplash.com/photo-1565865519537-fac387237f9c?auto=format&fit=crop&w=1600&q=85',
+  fireworks:
+    'https://images.unsplash.com/photo-1733424775835-1c7f7bebb1bb?auto=format&fit=crop&w=1600&q=85',
+  castleFireworks:
+    'https://images.unsplash.com/photo-1737040504436-d638f8316c73?auto=format&fit=crop&w=1600&q=85',
+  parkDay:
+    'https://images.unsplash.com/photo-1597466599360-3b9775841aec?auto=format&fit=crop&w=1600&q=85',
+  adventure:
+    'https://images.unsplash.com/photo-1624138784614-87fd1b6528f8?auto=format&fit=crop&w=1600&q=85',
   family:
-    'https://images.unsplash.com/photo-1504150558240-0b4fd8946624?auto=format&fit=crop&w=1600&q=82',
-  hotel:
-    'https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=1600&q=82',
+    'https://images.unsplash.com/photo-1504150558240-0b4fd8946624?auto=format&fit=crop&w=1600&q=85',
   dining:
-    'https://images.unsplash.com/photo-1414235077428-338989a2e8c0?auto=format&fit=crop&w=1600&q=82',
+    'https://images.unsplash.com/photo-1414235077428-338989a2e8c0?auto=format&fit=crop&w=1600&q=85',
+  // Backwards-compatible aliases used across sections
+  paris:
+    'https://images.unsplash.com/photo-1565865519537-fac387237f9c?auto=format&fit=crop&w=1600&q=85',
+  hotel:
+    'https://images.unsplash.com/photo-1737040504436-d638f8316c73?auto=format&fit=crop&w=1600&q=85',
   train:
-    'https://images.unsplash.com/photo-1473445361085-b9a07f55608b?auto=format&fit=crop&w=1600&q=82',
+    'https://images.unsplash.com/photo-1597466599360-3b9775841aec?auto=format&fit=crop&w=1600&q=85',
   planning:
-    'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=1600&q=82',
+    'https://images.unsplash.com/photo-1733424775835-1c7f7bebb1bb?auto=format&fit=crop&w=1600&q=85',
 };
 
 const pages = {
@@ -27,14 +38,14 @@ const pages = {
         text:
           'From choosing the right hotel to balancing park days, dining and travel from the UK, Deanna brings every part of your holiday together around the people travelling.',
         image: images.family,
-        imageAlt: 'A family enjoying time together on holiday',
+        imageAlt: 'Family enjoying a holiday together',
         primaryLabel: 'Start your holiday plan',
         primaryHref: '/planner',
       },
       {
         type: 'split',
         eyebrow: 'Why work with a specialist',
-        heading: 'Less searching. Better decisions.',
+        heading: 'Less searching. Better Disney decisions.',
         text:
           'Disneyland Paris offers many combinations of hotels, ticket lengths, meal plans and travel options. Deanna helps you compare what genuinely suits your party instead of simply choosing the first package that appears.',
         points: [
@@ -42,8 +53,8 @@ const pages = {
           'Practical guidance on hotels, dining reservations and park time',
           'One place to review plans, messages and updates',
         ],
-        image: images.paris,
-        imageAlt: 'Paris skyline at sunset',
+        image: images.castleNight,
+        imageAlt: 'Disneyland castle lit up at night',
       },
       {
         type: 'cards',
@@ -89,8 +100,8 @@ const pages = {
         heading: 'Build a Disneyland Paris trip that works for your family',
         text:
           'Understand the parks, compare hotels, plan dining and make confident choices before you travel. Start with the essentials, then ask Deanna to tailor everything to your party.',
-        image: images.paris,
-        imageAlt: 'Paris illuminated in the evening',
+        image: images.castleNight,
+        imageAlt: 'Disneyland Paris castle at night with fireworks',
         primaryLabel: 'Start planning',
         primaryHref: '/planner',
         secondaryLabel: 'Compare hotels',
@@ -133,8 +144,8 @@ const pages = {
           'Plan one or two headline experiences per half-day',
           'Check seasonal entertainment before fixing your itinerary',
         ],
-        image: images.planning,
-        imageAlt: 'Travel planning notes and a laptop',
+        image: images.fireworks,
+        imageAlt: 'Fireworks over Disneyland Paris castle',
       },
       {
         type: 'faq',
@@ -173,8 +184,8 @@ const pages = {
         heading: 'Choose a hotel that improves the whole holiday',
         text:
           'The right hotel is about more than the room. Walking distance, transport, theming, breakfast, pool time and your daily pace all affect which option represents the best value.',
-        image: images.hotel,
-        imageAlt: 'Premium hotel bedroom with warm lighting',
+        image: images.castleFireworks,
+        imageAlt: 'Illuminated Disneyland castle during the evening spectacular',
         primaryLabel: 'Get a tailored recommendation',
         primaryHref: '/planner',
       },
@@ -413,8 +424,8 @@ const pages = {
           'Give younger children space for meals and rest',
           'Use an extra day to absorb weather or attraction closures',
         ],
-        image: images.train,
-        imageAlt: 'Rail journey through the countryside',
+        image: images.parkDay,
+        imageAlt: 'Guests enjoying Disneyland Park on a bright day',
       },
       {
         type: 'tips',
@@ -466,8 +477,8 @@ const pages = {
         heading: 'Tell Deanna where you are in your planning',
         text:
           'Whether you have fixed dates, a shortlist of hotels or only the idea of a trip, share what you know so far. Deanna will help identify the next useful step.',
-        image: images.paris,
-        imageAlt: 'Paris skyline and river',
+        image: images.fireworks,
+        imageAlt: 'Night-time fireworks above the Disneyland Paris castle',
       },
     ],
   },

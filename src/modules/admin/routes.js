@@ -280,9 +280,13 @@ router.post('/settings', async (req, res, next) => {
       'tiktok_url',
       'logo_url',
       'logo_mode',
+      'logo_height',
+      'logo_max_width',
       'footer_intro',
       'primary_colour',
       'secondary_colour',
+      'background_colour',
+      'header_background',
       'planner_enabled',
       'maintenance_mode',
     ];

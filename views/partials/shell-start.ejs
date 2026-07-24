@@ -14,7 +14,7 @@
 </head>
 <body
   class="min-h-screen flex flex-col<%= typeof bodyClass !== 'undefined' && bodyClass ? ' ' + bodyClass : '' %>"
-  style="--brand-primary:<%= settings.primary_colour || '#1a2b40' %>;--brand-secondary:<%= settings.secondary_colour || '#d1a24a' %>"
+  style="--brand-primary:<%= settings.primary_colour || '#1a2b40' %>;--brand-secondary:<%= settings.secondary_colour || '#d1a24a' %>;--brand-bg:<%= settings.background_colour || '#fbf8f3' %>;--brand-header-bg:<%= settings.header_background || settings.background_colour || '#fbf8f3' %>;--logo-height:<%= Math.min(140, Math.max(40, Number(settings.logo_height) || 72)) %>px;--logo-max-width:<%= Math.min(480, Math.max(120, Number(settings.logo_max_width) || 320)) %>px"
 >
 <%- include('../partials/header') %>
 <main class="flex-1">

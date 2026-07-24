@@ -1,8 +1,8 @@
-<header class="sticky top-0 z-40 border-b border-primary-100/60 bg-ivory/90 backdrop-blur-md">
+<header class="site-header sticky top-0 z-40 border-b backdrop-blur-md">
   <div class="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3.5 sm:px-6 lg:px-8">
     <a href="/" class="group flex min-w-0 items-center gap-3">
       <% if (settings.logo_url && (settings.logo_mode === 'logo' || settings.logo_mode === 'both')) { %>
-        <img src="<%= settings.logo_url %>" alt="<%= siteName %>" class="h-14 w-auto max-w-[220px] shrink-0 object-contain sm:h-16 sm:max-w-[280px]" />
+        <img src="<%= settings.logo_url %>" alt="<%= siteName %>" class="brand-logo" />
       <% } %>
       <% if (!settings.logo_url || settings.logo_mode !== 'logo') { %>
         <span class="min-w-0">

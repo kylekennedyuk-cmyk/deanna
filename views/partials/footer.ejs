@@ -3,7 +3,7 @@
     <div>
       <% if (settings.logo_url && (settings.logo_mode === 'logo' || settings.logo_mode === 'both')) { %>
         <div class="mb-4 inline-flex rounded-2xl bg-white px-4 py-3 shadow-soft">
-          <img src="<%= settings.logo_url %>" alt="<%= siteName %>" class="h-14 w-auto max-w-[240px] object-contain sm:h-16 sm:max-w-[280px]" loading="lazy" />
+          <img src="<%= settings.logo_url %>" alt="<%= siteName %>" class="brand-logo-footer" loading="lazy" />
         </div>
       <% } %>
       <% if (!settings.logo_url || settings.logo_mode !== 'logo') { %><div class="font-display text-2xl text-white"><%= siteName %></div><% } %>
