@@ -1,15 +1,52 @@
 <%- include('../partials/shell-start') %>
-<section class="section max-w-2xl">
-  <h1 class="text-4xl">Contact</h1>
-  <% (sections || []).forEach(function(block) { %>
-    <% if (block.text) { %><p class="mt-4 text-lg text-primary-700"><%= block.text %></p><% } %>
-  <% }) %>
+<%
+  const hero = (sections || []).find(function(section) { return section.type === 'hero'; }) || {};
+%>
+<section class="relative overflow-hidden bg-primary-950 text-white">
+  <% if (hero.image) { %><img src="<%= hero.image %>" alt="<%= hero.imageAlt || '' %>" class="absolute inset-0 h-full w-full object-cover opacity-25" /><% } %>
+  <div class="absolute inset-0 bg-gradient-to-r from-primary-950 via-primary-950/90 to-primary-950/40"></div>
+  <div class="section relative max-w-6xl">
+    <p class="badge bg-secondary-400/20 text-secondary-200"><%= hero.eyebrow || 'Contact' %></p>
+    <h1 class="mt-5 max-w-3xl text-white"><%= hero.heading || 'Speak to Deanna about your Disneyland Paris trip' %></h1>
+    <p class="mt-5 max-w-2xl text-lg text-primary-100"><%= hero.text || 'Share what you know so far and Deanna will help identify the next useful step.' %></p>
+  </div>
+</section>
+
+<section class="section grid gap-10 lg:grid-cols-[.8fr_1.2fr]">
+  <div>
+    <p class="badge bg-secondary-50 text-secondary-800">Before you send</p>
+    <h2 class="mt-4">What is helpful to include</h2>
+    <ul class="mt-6 space-y-3 text-primary-700">
+      <li class="flex gap-3"><span class="text-secondary-600">✦</span> Your approximate travel dates</li>
+      <li class="flex gap-3"><span class="text-secondary-600">✦</span> Number and ages of travellers</li>
+      <li class="flex gap-3"><span class="text-secondary-600">✦</span> Any hotel or experience priorities</li>
+      <li class="flex gap-3"><span class="text-secondary-600">✦</span> Your approximate total budget</li>
+    </ul>
+    <p class="mt-6 text-primary-700">For a full recommendation, the <a href="/planner" class="font-semibold text-secondary-700 underline">guided holiday planner</a> captures everything Deanna needs.</p>
+
+    <% if (settings.support_email || settings.phone || settings.address) { %>
+      <div class="card mt-8">
+        <h3 class="text-xl">Contact details</h3>
+        <dl class="mt-4 space-y-3 text-sm">
+          <% if (settings.support_email) { %>
+            <div><dt class="text-primary-500">Email</dt><dd><a class="font-semibold text-secondary-700 hover:underline" href="mailto:<%= settings.support_email %>"><%= settings.support_email %></a></dd></div>
+          <% } %>
+          <% if (settings.phone) { %>
+            <div><dt class="text-primary-500">Phone</dt><dd class="font-semibold text-primary-900"><%= settings.phone %></dd></div>
+          <% } %>
+          <% if (settings.address) { %>
+            <div><dt class="text-primary-500">Address</dt><dd class="whitespace-pre-line text-primary-800"><%= settings.address %></dd></div>
+          <% } %>
+        </dl>
+      </div>
+    <% } %>
+  </div>
 
   <% if (sent) { %>
-    <div class="mt-6 rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-green-800">Thanks — your message was received.</div>
+    <div class="rounded-card border border-success-100 bg-success-50 px-4 py-3 text-success-700">Thank you — your message has been sent to Deanna.</div>
   <% } %>
 
-  <form method="post" action="/contact" class="card mt-8 space-y-4">
+  <form method="post" action="/contact" class="card space-y-4">
     <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
     <div>
       <label class="label" for="name">Name</label>
@@ -20,8 +57,8 @@
       <input class="field" id="email" name="email" type="email" required />
     </div>
     <div>
-      <label class="label" for="message">Message</label>
-      <textarea class="field min-h-[140px]" id="message" name="message" required></textarea>
+      <label class="label" for="message">How can Deanna help?</label>
+      <textarea class="field min-h-[160px]" id="message" name="message" required placeholder="Tell us about your dates, party and priorities…"></textarea>
     </div>
     <button class="btn-primary" type="submit">Send message</button>
   </form>

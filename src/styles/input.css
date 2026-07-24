@@ -8,51 +8,205 @@
   }
 
   body {
-    @apply bg-ivory text-primary-900 font-body antialiased;
+    @apply bg-ivory font-body text-base leading-relaxed text-primary-900 antialiased;
   }
 
   h1,
   h2,
   h3,
   h4 {
-    @apply font-display font-medium tracking-tight text-primary-950;
+    @apply font-display font-semibold tracking-wide text-primary-950;
+  }
+
+  h1 {
+    @apply text-display-lg sm:text-display-xl;
+  }
+
+  h2 {
+    @apply text-display-md;
+  }
+
+  h3 {
+    @apply text-display-sm;
+  }
+
+  h4 {
+    @apply text-xl tracking-wide;
+  }
+
+  :focus-visible {
+    @apply outline-none ring-2 ring-secondary-400 ring-offset-2 ring-offset-ivory;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
   }
 }
 
 @layer components {
   .btn {
-    @apply inline-flex items-center justify-center gap-2 rounded-full px-6 py-3 text-sm font-semibold tracking-wide transition duration-200;
+    @apply inline-flex items-center justify-center gap-2 rounded-full px-6 py-3 text-sm font-semibold tracking-wide transition duration-250 ease-out;
   }
 
   .btn-primary {
-    @apply btn bg-primary-900 text-white shadow-soft hover:-translate-y-0.5 hover:bg-primary-800 hover:shadow-lift;
+    @apply btn bg-primary-900 text-white shadow-soft hover:-translate-y-0.5 hover:bg-primary-800 hover:shadow-lift active:translate-y-0;
+    background-color: var(--brand-primary, #1a2b40);
   }
 
   .btn-secondary {
-    @apply btn border border-secondary-400/60 bg-secondary-50 text-primary-900 hover:-translate-y-0.5 hover:bg-secondary-100;
+    @apply btn border border-secondary-400/80 bg-transparent text-primary-900 hover:-translate-y-0.5 hover:border-secondary-500 hover:bg-secondary-50 hover:shadow-soft active:translate-y-0;
+    border-color: color-mix(in srgb, var(--brand-secondary, #d1a24a) 80%, transparent);
   }
 
   .btn-ghost {
     @apply btn text-primary-800 hover:bg-primary-50;
   }
 
+  .btn-destructive {
+    @apply btn bg-danger-700 text-white hover:bg-red-800;
+  }
+
+  .btn-sm {
+    @apply px-4 py-2 text-xs;
+  }
+
   .card {
-    @apply rounded-2xl border border-primary-100/80 bg-white/90 p-6 shadow-soft;
+    @apply rounded-card border border-primary-100/70 bg-white/95 p-6 shadow-soft transition duration-250;
+  }
+
+  .card-hover {
+    @apply card hover:-translate-y-1 hover:border-secondary-300/60 hover:shadow-lift;
+  }
+
+  .card-accent {
+    @apply relative overflow-hidden;
+  }
+
+  .card-accent::before {
+    content: '';
+    @apply absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-transparent via-secondary-400 to-transparent opacity-0 transition duration-250;
+  }
+
+  .card-accent:hover::before {
+    @apply opacity-100;
   }
 
   .field {
-    @apply w-full rounded-xl border border-primary-200 bg-white px-4 py-3 text-primary-900 outline-none transition focus:border-secondary-400 focus:ring-2 focus:ring-secondary-200;
+    @apply w-full rounded-xl border border-primary-200 bg-white px-4 py-3 text-primary-900 shadow-inset outline-none transition duration-250 placeholder:text-primary-400 focus:border-secondary-400 focus:shadow-focus;
+  }
+
+  .field-error {
+    @apply border-danger-700 focus:border-danger-700 focus:shadow-[0_0_0_3px_rgba(185,28,28,0.2)];
   }
 
   .label {
     @apply mb-1.5 block text-sm font-semibold text-primary-800;
   }
 
+  .help {
+    @apply mt-1.5 text-sm text-primary-600;
+  }
+
+  .error-text {
+    @apply mt-1.5 text-sm text-danger-700;
+  }
+
   .section {
-    @apply mx-auto w-full max-w-6xl px-4 py-16 sm:px-6 lg:px-8;
+    @apply mx-auto w-full max-w-6xl px-4 py-20 sm:px-6 lg:px-8 lg:py-28;
+  }
+
+  .section-sm {
+    @apply mx-auto w-full max-w-6xl px-4 py-12 sm:px-6 lg:px-8 lg:py-16;
   }
 
   .badge {
-    @apply inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wider;
+    @apply inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold tracking-wide;
+  }
+
+  .badge-status-new {
+    @apply badge bg-accent-100 text-accent-700;
+  }
+
+  .badge-status-in_progress {
+    @apply badge bg-primary-100 text-primary-800;
+  }
+
+  .badge-status-sent {
+    @apply badge bg-secondary-100 text-secondary-800;
+  }
+
+  .badge-status-completed {
+    @apply badge bg-success-100 text-success-700;
+  }
+
+  .badge-status-archived {
+    @apply badge bg-primary-50 text-primary-500;
+  }
+
+  .chip {
+    @apply inline-flex cursor-pointer items-center gap-2 rounded-full border border-primary-200 bg-white px-4 py-2 text-sm font-medium text-primary-800 transition duration-250 hover:border-secondary-400 hover:bg-secondary-50;
+  }
+
+  .chip-active {
+    @apply border-primary-900 bg-primary-900 text-white hover:border-primary-900 hover:bg-primary-800;
+  }
+
+  .chip-input {
+    @apply sr-only;
+  }
+
+  .stepper-track {
+    @apply h-1.5 w-full overflow-hidden rounded-full bg-primary-100;
+  }
+
+  .stepper-fill {
+    @apply h-full rounded-full bg-gradient-to-r from-secondary-400 to-primary-800 transition-all duration-300;
+  }
+
+  .portal-shell {
+    @apply bg-[linear-gradient(180deg,#fbf8f3_0%,#f8efe8_40%,#f3f6fa_100%)];
+  }
+
+  .kv-row {
+    @apply flex flex-wrap items-start justify-between gap-2 border-b border-primary-50 py-3 last:border-0;
+  }
+
+  .kv-label {
+    @apply text-sm font-medium text-primary-500;
+  }
+
+  .kv-value {
+    @apply max-w-md text-right text-sm font-semibold text-primary-900;
+  }
+
+  .sticky-panel {
+    @apply sticky top-24;
+  }
+
+  .toast {
+    @apply pointer-events-none fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-full bg-primary-950 px-5 py-3 text-sm font-medium text-white shadow-lift animate-toastIn;
+  }
+
+  .icon-bubble {
+    @apply flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-secondary-50 text-secondary-700;
+  }
+
+  .mobile-cta-bar {
+    @apply fixed inset-x-0 bottom-0 z-40 border-t border-primary-100 bg-ivory/95 p-4 backdrop-blur lg:hidden;
+  }
+
+  .hero-scene {
+    @apply relative overflow-hidden rounded-[1.75rem] shadow-lift;
+    background:
+      radial-gradient(circle at 20% 20%, rgba(222, 188, 114, 0.45), transparent 40%),
+      radial-gradient(circle at 80% 30%, rgba(243, 214, 222, 0.55), transparent 45%),
+      linear-gradient(145deg, #1a2b40 0%, #334a63 42%, #5aa8a1 100%);
   }
 }

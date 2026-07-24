@@ -1,0 +1,15 @@
+<%
+  const entries = typeof items !== 'undefined' ? items : preferenceEntries(prefs || {});
+%>
+<% if (!entries.length) { %>
+  <p class="text-sm text-primary-600">No preferences captured yet.</p>
+<% } else { %>
+  <div class="divide-y divide-primary-50">
+    <% entries.forEach(function(entry) { %>
+      <div class="kv-row">
+        <span class="kv-label"><%= entry.label %></span>
+        <span class="kv-value"><%= entry.value %></span>
+      </div>
+    <% }) %>
+  </div>
+<% } %>

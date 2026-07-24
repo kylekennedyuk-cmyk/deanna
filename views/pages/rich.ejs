@@ -1,0 +1,184 @@
+<%- include('../partials/shell-start') %>
+<%
+  const hero = (sections || []).find(function(section) { return section.type === 'hero'; });
+  const bodySections = (sections || []).filter(function(section) { return section.type !== 'hero'; });
+%>
+
+<% if (hero) { %>
+<section class="relative overflow-hidden bg-primary-950 text-white">
+  <div class="absolute inset-0">
+    <% if (hero.image) { %>
+      <img src="<%= hero.image %>" alt="<%= hero.imageAlt || '' %>" class="h-full w-full object-cover opacity-35" fetchpriority="high" />
+    <% } %>
+    <div class="absolute inset-0 bg-gradient-to-r from-primary-950 via-primary-950/85 to-primary-950/30"></div>
+    <div class="absolute inset-0 opacity-20" style="background-image:radial-gradient(circle at 20% 25%,rgba(222,188,114,.7) 0 1px,transparent 2px);background-size:42px 42px"></div>
+  </div>
+  <div class="section relative">
+    <div class="max-w-3xl py-6 lg:py-12">
+      <p class="badge bg-secondary-400/20 text-secondary-200 ring-1 ring-secondary-300/30"><%= hero.eyebrow || title %></p>
+      <h1 class="mt-6 max-w-3xl text-white"><%= hero.heading || hero.headline || title %></h1>
+      <p class="mt-5 max-w-2xl text-lg leading-relaxed text-primary-100 sm:text-xl"><%= hero.text || hero.subheadline || '' %></p>
+      <% if (hero.primaryHref || hero.secondaryHref) { %>
+        <div class="mt-8 flex flex-wrap gap-3">
+          <% if (hero.primaryHref) { %>
+            <a href="<%= hero.primaryHref %>" class="btn bg-secondary-400 text-primary-950 shadow-gold hover:-translate-y-0.5 hover:bg-secondary-300"><%= hero.primaryLabel || 'Start planning' %></a>
+          <% } %>
+          <% if (hero.secondaryHref) { %>
+            <a href="<%= hero.secondaryHref %>" class="btn border border-white/40 bg-white/10 text-white hover:bg-white/20"><%= hero.secondaryLabel || 'Learn more' %></a>
+          <% } %>
+        </div>
+      <% } %>
+    </div>
+  </div>
+</section>
+<% } %>
+
+<% bodySections.forEach(function(section, index) { %>
+  <% if (section.type === 'cards') { %>
+    <section class="<%= index % 2 ? 'bg-blush/60' : '' %>">
+      <div class="section">
+        <div class="mb-12 max-w-3xl">
+          <% if (section.eyebrow) { %><p class="badge bg-secondary-50 text-secondary-800"><%= section.eyebrow %></p><% } %>
+          <h2 class="mt-4"><%= section.heading %></h2>
+          <% if (section.text) { %><p class="mt-4 text-lg text-primary-700"><%= section.text %></p><% } %>
+        </div>
+        <div class="grid gap-6 md:grid-cols-3">
+          <% (section.cards || []).forEach(function(card, cardIndex) { %>
+            <article class="card-hover card-accent flex h-full flex-col">
+              <div class="icon-bubble mb-5"><%= ['✦','⌂','◎'][cardIndex % 3] %></div>
+              <h3 class="text-2xl"><%= card.title %></h3>
+              <p class="mt-3 flex-1 leading-relaxed text-primary-700"><%= card.text %></p>
+              <% if (card.href) { %><a href="<%= card.href %>" class="mt-5 text-sm font-semibold text-secondary-700 hover:underline"><%= card.label || 'Read more' %> →</a><% } %>
+            </article>
+          <% }) %>
+        </div>
+      </div>
+    </section>
+
+  <% } else if (section.type === 'split') { %>
+    <section class="<%= index % 2 ? 'bg-primary-50/70' : '' %>">
+      <div class="section grid items-center gap-10 lg:grid-cols-2 lg:gap-16">
+        <div class="<%= index % 2 ? 'lg:order-2' : '' %>">
+          <% if (section.eyebrow) { %><p class="badge bg-secondary-50 text-secondary-800"><%= section.eyebrow %></p><% } %>
+          <h2 class="mt-4"><%= section.heading %></h2>
+          <p class="mt-4 text-lg leading-relaxed text-primary-700"><%= section.text %></p>
+          <% if (section.points && section.points.length) { %>
+            <ul class="mt-6 space-y-3">
+              <% section.points.forEach(function(point) { %>
+                <li class="flex gap-3 text-primary-800"><span class="mt-1 text-secondary-600">✦</span><span><%= point %></span></li>
+              <% }) %>
+            </ul>
+          <% } %>
+        </div>
+        <div class="<%= index % 2 ? 'lg:order-1' : '' %>">
+          <div class="overflow-hidden rounded-[1.75rem] shadow-lift">
+            <img src="<%= section.image %>" alt="<%= section.imageAlt || '' %>" class="aspect-[4/3] h-full w-full object-cover" loading="lazy" />
+          </div>
+        </div>
+      </div>
+    </section>
+
+  <% } else if (section.type === 'hotelGrid') { %>
+    <section class="bg-primary-950 text-white">
+      <div class="section">
+        <div class="mb-12 max-w-3xl">
+          <% if (section.eyebrow) { %><p class="badge bg-secondary-400/20 text-secondary-200"><%= section.eyebrow %></p><% } %>
+          <h2 class="mt-4 text-white"><%= section.heading %></h2>
+        </div>
+        <div class="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+          <% (section.hotels || []).forEach(function(hotel) { %>
+            <article class="rounded-card border border-white/10 bg-white/5 p-6 backdrop-blur transition duration-250 hover:-translate-y-1 hover:border-secondary-300/50 hover:bg-white/10">
+              <span class="badge bg-secondary-400/15 text-secondary-200"><%= hotel.level %></span>
+              <h3 class="mt-4 text-2xl text-white"><%= hotel.name %></h3>
+              <p class="mt-3 text-primary-100"><%= hotel.description %></p>
+              <div class="mt-5 border-t border-white/10 pt-4">
+                <p class="text-xs font-semibold uppercase tracking-wider text-secondary-300">Best for</p>
+                <p class="mt-1 text-sm text-primary-100"><%= hotel.bestFor %></p>
+              </div>
+            </article>
+          <% }) %>
+        </div>
+      </div>
+    </section>
+
+  <% } else if (section.type === 'timeline') { %>
+    <section>
+      <div class="section">
+        <div class="mb-12 max-w-3xl">
+          <% if (section.eyebrow) { %><p class="badge bg-secondary-50 text-secondary-800"><%= section.eyebrow %></p><% } %>
+          <h2 class="mt-4"><%= section.heading %></h2>
+        </div>
+        <ol class="relative border-l border-secondary-300/70 pl-8">
+          <% (section.items || []).forEach(function(item, itemIndex) { %>
+            <li class="relative pb-9 last:pb-0">
+              <span class="absolute -left-[2.65rem] top-0 flex h-8 w-8 items-center justify-center rounded-full bg-primary-900 text-sm font-semibold text-white ring-4 ring-ivory"><%= itemIndex + 1 %></span>
+              <h3 class="text-2xl"><%= item.title %></h3>
+              <p class="mt-2 max-w-3xl text-primary-700"><%= item.text %></p>
+            </li>
+          <% }) %>
+        </ol>
+      </div>
+    </section>
+
+  <% } else if (section.type === 'tips') { %>
+    <section class="bg-blush/60">
+      <div class="section grid gap-10 lg:grid-cols-[.8fr_1.2fr]">
+        <div>
+          <% if (section.eyebrow) { %><p class="badge bg-white text-secondary-800"><%= section.eyebrow %></p><% } %>
+          <h2 class="mt-4"><%= section.heading %></h2>
+        </div>
+        <div class="grid gap-4 sm:grid-cols-2">
+          <% (section.items || []).forEach(function(item) { %>
+            <div class="card flex items-start gap-3"><span class="text-secondary-600">✓</span><span class="font-medium text-primary-800"><%= item %></span></div>
+          <% }) %>
+        </div>
+      </div>
+    </section>
+
+  <% } else if (section.type === 'faq') { %>
+    <section>
+      <div class="section grid gap-10 lg:grid-cols-[.75fr_1.25fr]">
+        <div>
+          <% if (section.eyebrow) { %><p class="badge bg-secondary-50 text-secondary-800"><%= section.eyebrow %></p><% } %>
+          <h2 class="mt-4"><%= section.heading %></h2>
+        </div>
+        <div class="space-y-4">
+          <% (section.items || []).forEach(function(item, itemIndex) { %>
+            <details class="card group" <%= itemIndex === 0 ? 'open' : '' %>>
+              <summary class="cursor-pointer list-none font-display text-xl font-semibold text-primary-950"><%= item.question %></summary>
+              <p class="mt-3 leading-relaxed text-primary-700"><%= item.answer %></p>
+            </details>
+          <% }) %>
+        </div>
+      </div>
+    </section>
+
+  <% } else if (section.type === 'cta') { %>
+    <section>
+      <div class="section">
+        <div class="overflow-hidden rounded-[2rem] bg-primary-950 px-6 py-14 text-center text-white shadow-lift sm:px-12">
+          <h2 class="text-white"><%= section.heading %></h2>
+          <p class="mx-auto mt-4 max-w-2xl text-lg text-primary-100"><%= section.text %></p>
+          <div class="mt-8 flex flex-wrap justify-center gap-3">
+            <% if (section.primaryHref) { %><a href="<%= section.primaryHref %>" class="btn bg-secondary-400 text-primary-950 hover:bg-secondary-300"><%= section.primaryLabel || 'Start planning' %></a><% } %>
+            <% if (section.secondaryHref) { %><a href="<%= section.secondaryHref %>" class="btn border border-white/30 text-white hover:bg-white/10"><%= section.secondaryLabel || 'Learn more' %></a><% } %>
+          </div>
+        </div>
+      </div>
+    </section>
+  <% } %>
+<% }) %>
+
+<% if (!bodySections.some(function(section) { return section.type === 'cta'; })) { %>
+<section>
+  <div class="section pt-4">
+    <div class="rounded-[2rem] bg-primary-950 px-6 py-12 text-center text-white sm:px-12">
+      <h2 class="text-white">Ready for recommendations built around you?</h2>
+      <p class="mx-auto mt-4 max-w-2xl text-primary-100">Share your dates, party and priorities with Deanna through the guided holiday planner.</p>
+      <a href="/planner" class="btn mt-7 bg-secondary-400 text-primary-950 hover:bg-secondary-300">Start your holiday plan</a>
+    </div>
+  </div>
+</section>
+<% } %>
+
+<%- include('../partials/shell-end') %>

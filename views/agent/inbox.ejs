@@ -1,11 +1,28 @@
-<%- include('../partials/shell-start') %>
-<section class="section">
-  <h1 class="text-4xl">Inbox</h1>
-  <div class="mt-8 space-y-3">
+<%- include('../partials/shell-start', { bodyClass: 'portal-shell' }) %>
+<section class="section-sm">
+  <div class="mb-8 flex flex-wrap items-end justify-between gap-4">
+    <div>
+      <p class="badge bg-white text-secondary-800 shadow-soft">Inbox</p>
+      <h1 class="mt-3 text-display-md">Messages</h1>
+      <p class="mt-2 text-primary-700">Every client conversation, organised by holiday plan.</p>
+    </div>
+    <form method="get" action="/agent/inbox" class="flex gap-2">
+      <label class="sr-only" for="q">Search messages</label>
+      <input class="field min-w-[220px]" id="q" name="q" value="<%= q || '' %>" placeholder="Search client or message…" />
+      <button class="btn-secondary" type="submit">Search</button>
+    </form>
+  </div>
+  <div class="space-y-3">
+    <% if (!messages.length) { %>
+      <div class="card text-primary-600">No messages match your search.</div>
+    <% } %>
     <% messages.forEach(function(msg) { %>
-      <a href="/agent/plans/<%= msg.planId %>?tab=messages" class="card block">
-        <div class="text-sm font-semibold"><%= msg.sender.name %> → Plan #<%= msg.planId %> (<%= msg.plan.customer.name %>)</div>
-        <p class="mt-1 text-primary-700"><%= msg.content %></p>
+      <a href="/agent/plans/<%= msg.planId %>?tab=messages" class="card-hover card-accent block">
+        <div class="flex flex-wrap items-center justify-between gap-2">
+          <div class="text-sm font-semibold text-primary-950"><%= msg.sender.name %> → <%= msg.plan.customer.name %> · Plan #<%= msg.planId %></div>
+          <div class="text-xs text-primary-500"><%= formatDateTime(msg.createdAt) %></div>
+        </div>
+        <p class="mt-2 text-primary-700"><%= msg.content %></p>
       </a>
     <% }) %>
   </div>

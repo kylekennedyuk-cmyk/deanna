@@ -1,7 +1,8 @@
 const express = require('express');
 const rateLimit = require('express-rate-limit');
 const { prisma } = require('../../config/database');
-const { sendMail } = require('../../config/email');
+const { sendNotification } = require('../../config/email');
+const { getSettings } = require('../../config/settings');
 const { ensureLoggedIn } = require('../../middleware/auth');
 
 const router = express.Router();
@@ -47,7 +48,12 @@ router.get('/', (req, res) => {
 router.post('/step/:step', plannerLimiter, (req, res) => {
   const step = Number(req.params.step);
   const draft = getDraft(req);
-  draft.data = { ...draft.data, ...req.body, stepSaved: step };
+  const cleaned = { ...req.body };
+  delete cleaned._csrf;
+  delete cleaned.action;
+  delete cleaned.paceChip;
+  delete cleaned.flexChip;
+  draft.data = { ...draft.data, ...cleaned, stepSaved: step };
 
   if (req.body.action === 'back') {
     draft.step = Math.max(step - 1, 1);
@@ -115,16 +121,31 @@ router.post('/submit', plannerLimiter, async (req, res, next) => {
       },
     });
 
-    const support = process.env.SUPPORT_EMAIL || 'hello@destinationswithdeanna.com';
-    await sendMail({
+    const settings = await getSettings();
+    const support =
+      settings.support_email ||
+      process.env.SUPPORT_EMAIL ||
+      'hello@destinationswithdeanna.com';
+    const planName = `${data.occasion || 'Disneyland Paris holiday'} · Plan #${plan.id}`;
+    await sendNotification('new_request', {
       to: support,
-      subject: `New planning request #${plan.id}`,
-      text: `New holiday plan from ${customer.name} (${customer.email}). Plan ID: ${plan.id}`,
+      values: {
+        customerName: customer.name,
+        planTitle: planName,
+      },
+      body: `Travel dates: ${plan.travelDates}\nParty size: ${plan.partySize}\nBudget: £${plan.budget || 0}\nEmail: ${customer.email}`,
+      buttonLabel: 'Open request',
+      buttonUrl: `${process.env.APP_URL || 'http://localhost:3000'}/agent/plans/${plan.id}`,
     });
-    await sendMail({
+    await sendNotification('customer_confirmation', {
       to: customer.email,
-      subject: 'We received your Disneyland Paris planning request',
-      text: `Hi ${customer.name},\n\nThanks for starting your plan with Destinations With Deanna. Deanna will review your details and be in touch soon.\n\nYou can log in anytime to follow progress.`,
+      values: {
+        customerName: customer.name,
+        planTitle: planName,
+      },
+      body: `Travel dates: ${plan.travelDates}\nParty size: ${plan.partySize}\n\nDeanna will review your preferences and contact you with the next step.`,
+      buttonLabel: 'Log in to your portal',
+      buttonUrl: `${process.env.APP_URL || 'http://localhost:3000'}/login`,
     });
 
     delete req.session.plannerDraft;

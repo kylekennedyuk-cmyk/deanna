@@ -1,40 +1,94 @@
-<%- include('../partials/shell-start') %>
-<section class="section">
+<%- include('../partials/shell-start', { bodyClass: 'portal-shell' }) %>
+<%
+  const title = planTitle(plan, preferences || {});
+  const sections = [
+    { id: 'preferences', label: 'Preferences', icon: '♡', body: 'prefs', status: 'Shared with Deanna' },
+    { id: 'flights', label: 'Flights', icon: '✈', body: 'flights', status: plan.flights ? 'Added' : 'Being prepared' },
+    { id: 'hotel', label: 'Hotel', icon: '⌂', body: 'hotel', status: plan.hotel ? 'Added' : 'Being prepared' },
+    { id: 'itinerary', label: 'Itinerary', icon: '▣', body: 'itinerary', status: plan.itinerary ? 'Added' : 'Being prepared' },
+    { id: 'pricing', label: 'Pricing', icon: '£', body: 'pricing', status: plan.pricing ? 'Added' : 'Being prepared' },
+  ];
+%>
+<section class="section-sm">
   <% if (created) { %>
-    <div class="mb-6 rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-green-800">Your planning request was submitted. Deanna has been notified.</div>
+    <div class="mb-6 rounded-card border border-success-100 bg-success-50 px-4 py-3 text-success-700">Your planning request was submitted. Deanna has been notified and will be in touch soon.</div>
   <% } %>
-  <div class="mb-6 flex flex-wrap items-center justify-between gap-3">
-    <div>
-      <h1 class="text-4xl">Plan #<%= plan.id %></h1>
-      <p class="mt-1 text-primary-600"><%= plan.travelDates %> · <%= plan.status.replace('_', ' ') %></p>
+
+  <div class="mb-8 flex flex-wrap items-start justify-between gap-4">
+    <div class="max-w-2xl">
+      <p class="badge bg-white text-secondary-800 shadow-soft">Plan detail</p>
+      <h1 class="mt-3 text-display-md"><%= title %></h1>
+      <p class="mt-2 text-primary-600"><%= plan.travelDates %> · updated <%= formatDateTime(plan.updatedAt) %></p>
+      <div class="mt-3"><%- include('../partials/status-badge', { status: plan.status }) %></div>
     </div>
-    <a href="/customer/plans/<%= plan.id %>/messages" class="btn-secondary">Messages</a>
+    <div class="flex flex-wrap gap-2">
+      <a href="/customer" class="btn-ghost">All plans</a>
+      <a href="/customer/plans/<%= plan.id %>/messages" class="btn-secondary">Messages</a>
+    </div>
   </div>
 
-  <div class="grid gap-6 lg:grid-cols-2">
-    <div class="card">
-      <h2 class="text-xl">Your preferences</h2>
-      <pre class="mt-4 overflow-auto rounded-xl bg-primary-50 p-4 text-xs text-primary-800"><%= JSON.stringify(preferences, null, 2) %></pre>
-    </div>
-    <div class="card space-y-4">
-      <h2 class="text-xl">Proposal details</h2>
-      <div>
-        <h3 class="text-sm font-semibold uppercase tracking-wider text-primary-500">Hotel</h3>
-        <p class="mt-1 text-primary-800"><%= plan.hotel || 'Deanna will add hotel options soon.' %></p>
+  <div class="mb-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+    <div class="card"><p class="text-sm text-primary-500">Status</p><p class="mt-2 font-semibold"><%= statusLabel(plan.status) %></p></div>
+    <div class="card"><p class="text-sm text-primary-500">Next action</p><p class="mt-2 font-semibold"><%= nextAction(plan.status) %></p></div>
+    <div class="card"><p class="text-sm text-primary-500">Party size</p><p class="mt-2 font-semibold"><%= plan.partySize %> travellers</p></div>
+    <div class="card"><p class="text-sm text-primary-500">Budget</p><p class="mt-2 font-semibold"><%= formatMoney(plan.budget) %></p></div>
+  </div>
+
+  <div class="space-y-4">
+    <% sections.forEach(function(section, idx) { %>
+      <section class="card" data-collapsible data-open="<%= idx === 0 ? 'true' : 'false' %>">
+        <button type="button" class="flex w-full items-center justify-between gap-3 text-left" data-collapsible-trigger aria-expanded="<%= idx === 0 ? 'true' : 'false' %>">
+          <div class="flex items-center gap-3">
+            <div class="icon-bubble"><%= section.icon %></div>
+            <div>
+              <h2 class="text-2xl"><%= section.label %></h2>
+              <p class="text-sm text-primary-500"><%= section.status %></p>
+            </div>
+          </div>
+          <span class="text-sm font-semibold text-secondary-700" aria-hidden="true">Details</span>
+        </button>
+        <div class="mt-5 border-t border-primary-50 pt-5" data-collapsible-body <%= idx === 0 ? '' : 'hidden' %>>
+          <% if (section.body === 'prefs') { %>
+            <%- include('../partials/preferences-list', { prefs: preferences }) %>
+            <div class="mt-5 flex flex-wrap gap-2">
+              <a href="/customer/plans/<%= plan.id %>/messages" class="btn-secondary btn-sm">Request a change</a>
+            </div>
+          <% } else if (section.body === 'flights') { %>
+            <p class="whitespace-pre-wrap leading-relaxed text-primary-800"><%= plan.flights || 'Deanna will add flight options here once she’s reviewed your dates and airport preference.' %></p>
+          <% } else if (section.body === 'hotel') { %>
+            <p class="whitespace-pre-wrap leading-relaxed text-primary-800"><%= plan.hotel || 'Hotel suggestions will appear here — Disney or partner options matched to your style and budget.' %></p>
+          <% } else if (section.body === 'itinerary') { %>
+            <p class="whitespace-pre-wrap leading-relaxed text-primary-800"><%= plan.itinerary || 'Your day-by-day pacing plan is being prepared.' %></p>
+          <% } else if (section.body === 'pricing') { %>
+            <p class="whitespace-pre-wrap leading-relaxed text-primary-800"><%= plan.pricing || 'A clear pricing breakdown will appear here when your proposal is ready.' %></p>
+          <% } %>
+        </div>
+      </section>
+    <% }) %>
+
+    <section class="card">
+      <div class="flex flex-wrap items-center justify-between gap-3">
+        <div class="flex items-center gap-3">
+          <div class="icon-bubble">✉</div>
+          <div>
+            <h2 class="text-2xl">Messages</h2>
+            <p class="text-sm text-primary-500"><%= plan.messages.length %> in this thread</p>
+          </div>
+        </div>
+        <a href="/customer/plans/<%= plan.id %>/messages" class="btn-primary btn-sm">Open messages</a>
       </div>
-      <div>
-        <h3 class="text-sm font-semibold uppercase tracking-wider text-primary-500">Flights</h3>
-        <p class="mt-1 text-primary-800"><%= plan.flights || 'Flight options will appear here.' %></p>
+      <div class="mt-5 space-y-3">
+        <% if (!plan.messages.length) { %>
+          <p class="text-primary-600">No messages yet — say hello anytime if you have a question.</p>
+        <% } %>
+        <% plan.messages.slice(-3).forEach(function(msg) { %>
+          <div class="rounded-2xl <%= msg.senderId === currentUser.id ? 'bg-secondary-50' : 'bg-primary-50' %> px-4 py-3">
+            <div class="text-xs font-semibold uppercase tracking-wider text-primary-500"><%= msg.sender.name %> · <%= formatDateTime(msg.createdAt) %></div>
+            <p class="mt-1 text-primary-900"><%= msg.content %></p>
+          </div>
+        <% }) %>
       </div>
-      <div>
-        <h3 class="text-sm font-semibold uppercase tracking-wider text-primary-500">Itinerary</h3>
-        <p class="mt-1 text-primary-800"><%= plan.itinerary || 'Your day-by-day plan is being prepared.' %></p>
-      </div>
-      <div>
-        <h3 class="text-sm font-semibold uppercase tracking-wider text-primary-500">Pricing</h3>
-        <p class="mt-1 text-primary-800"><%= plan.pricing || 'Pricing breakdown coming soon.' %></p>
-      </div>
-    </div>
+    </section>
   </div>
 </section>
 <%- include('../partials/shell-end') %>

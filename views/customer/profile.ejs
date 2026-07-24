@@ -1,7 +1,9 @@
-<%- include('../partials/shell-start') %>
-<section class="section max-w-lg">
-  <h1 class="text-3xl">Profile</h1>
-  <% if (saved) { %><div class="mt-4 rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-green-800">Saved.</div><% } %>
+<%- include('../partials/shell-start', { bodyClass: 'portal-shell' }) %>
+<section class="section-sm max-w-lg">
+  <p class="badge bg-white text-secondary-800 shadow-soft">Profile</p>
+  <h1 class="mt-3 text-display-md">Your details</h1>
+  <p class="mt-2 text-primary-700">Keep your contact details up to date so Deanna can reach you easily.</p>
+  <% if (saved) { %><div class="mt-4 rounded-card border border-success-100 bg-success-50 px-4 py-3 text-success-700">Saved.</div><% } %>
   <form method="post" action="/customer/profile" class="card mt-6 space-y-4">
     <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
     <div>
@@ -11,12 +13,20 @@
     <div>
       <label class="label" for="email">Email</label>
       <input class="field" id="email" value="<%= currentUser.email %>" disabled />
+      <p class="help">Email is used for login and plan updates.</p>
     </div>
     <div>
       <label class="label" for="phone">Phone</label>
       <input class="field" id="phone" name="phone" value="<%= currentUser.phone || '' %>" />
     </div>
-    <button class="btn-primary" type="submit">Save</button>
+    <label class="flex items-start gap-3 rounded-2xl bg-primary-50/70 px-4 py-3 text-sm text-primary-800">
+      <input type="checkbox" name="emailNotify" value="1" class="mt-1 rounded border-primary-300 text-primary-900 focus:ring-secondary-400" <%= typeof emailNotify === 'undefined' || emailNotify ? 'checked' : '' %> />
+      <span>
+        <span class="block font-semibold">Email notifications</span>
+        <span class="block text-primary-600">Get an email when Deanna replies or updates your plan.</span>
+      </span>
+    </label>
+    <button class="btn-primary" type="submit">Save profile</button>
   </form>
 </section>
 <%- include('../partials/shell-end') %>

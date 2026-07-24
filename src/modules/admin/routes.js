@@ -1,10 +1,42 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
+const path = require('path');
+const fs = require('fs');
+const multer = require('multer');
 const { prisma } = require('../../config/database');
+const { createTransport } = require('../../config/email');
+const { encryptSecret, getSettings, setSettings } = require('../../config/settings');
 const { requireRole } = require('../../middleware/auth');
 
 const router = express.Router();
 router.use(requireRole(['admin']));
+
+const uploadDirectory = path.join(__dirname, '..', '..', '..', 'public', 'uploads');
+fs.mkdirSync(uploadDirectory, { recursive: true });
+
+const mediaUpload = multer({
+  storage: multer.diskStorage({
+    destination: uploadDirectory,
+    filename: (req, file, callback) => {
+      const extension = path.extname(file.originalname).toLowerCase();
+      const base = path
+        .basename(file.originalname, extension)
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-|-$/g, '')
+        .slice(0, 60);
+      callback(null, `${Date.now()}-${base || 'image'}${extension}`);
+    },
+  }),
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (req, file, callback) => {
+    const allowed = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/svg+xml']);
+    if (!allowed.has(file.mimetype)) {
+      return callback(new Error('Only JPG, PNG, WebP, GIF and SVG images are accepted.'));
+    }
+    return callback(null, true);
+  },
+});
 
 router.get('/', async (req, res, next) => {
   try {
@@ -34,26 +66,84 @@ router.get('/pages', async (req, res, next) => {
 
 router.get('/pages/:id', async (req, res, next) => {
   try {
-    const page = await prisma.page.findUnique({ where: { id: Number(req.params.id) } });
+    const [page, media] = await Promise.all([
+      prisma.page.findUnique({ where: { id: Number(req.params.id) } }),
+      prisma.media.findMany({ orderBy: { uploadedAt: 'desc' } }),
+    ]);
     if (!page) {
       return res.status(404).render('pages/error', { title: 'Not found', message: 'Page not found.', status: 404 });
     }
-    res.render('admin/page-edit', { title: `Edit ${page.title}`, page, error: null });
+    let sections = [];
+    try {
+      sections = JSON.parse(page.sections || '[]');
+    } catch {
+      sections = [];
+    }
+    res.render('admin/page-edit', {
+      title: `Edit ${page.title}`,
+      page,
+      sections,
+      media,
+      error: null,
+    });
   } catch (err) {
     next(err);
+  }
+});
+
+router.get('/pages/:id/preview', async (req, res, next) => {
+  try {
+    const page = await prisma.page.findUnique({ where: { id: Number(req.params.id) } });
+    if (!page) {
+      return res.status(404).render('pages/error', {
+        title: 'Not found',
+        message: 'Page not found.',
+        status: 404,
+      });
+    }
+    let sections = [];
+    try {
+      sections = JSON.parse(page.sections || '[]');
+    } catch {
+      sections = [];
+    }
+    return res.render(page.slug === 'home' ? 'pages/home' : 'pages/rich', {
+      title: `${page.title} preview`,
+      seoDesc: page.seoDesc,
+      sections,
+    });
+  } catch (err) {
+    return next(err);
   }
 });
 
 router.post('/pages/:id', async (req, res, next) => {
   try {
     const id = Number(req.params.id);
+    let sections;
+    try {
+      sections = JSON.parse(String(req.body.sections || '[]'));
+      if (!Array.isArray(sections)) throw new Error('Sections must be an array');
+    } catch {
+      const [page, media] = await Promise.all([
+        prisma.page.findUnique({ where: { id } }),
+        prisma.media.findMany({ orderBy: { uploadedAt: 'desc' } }),
+      ]);
+      return res.status(400).render('admin/page-edit', {
+        title: `Edit ${page ? page.title : 'page'}`,
+        page,
+        sections: [],
+        media,
+        error: 'The page sections could not be saved. Please review the section fields.',
+      });
+    }
     await prisma.page.update({
       where: { id },
       data: {
         title: String(req.body.title || '').trim(),
         seoTitle: req.body.seoTitle ? String(req.body.seoTitle).trim() : null,
         seoDesc: req.body.seoDesc ? String(req.body.seoDesc).trim() : null,
-        sections: String(req.body.sections || '[]'),
+        sections: JSON.stringify(sections),
         published: req.body.published === 'on',
       },
     });
@@ -149,7 +239,23 @@ router.get('/settings', async (req, res, next) => {
 
 router.post('/settings', async (req, res, next) => {
   try {
-    const keys = ['site_name', 'site_tagline', 'support_email', 'planner_enabled', 'maintenance_mode'];
+    const keys = [
+      'site_name',
+      'site_tagline',
+      'support_email',
+      'phone',
+      'address',
+      'facebook_url',
+      'instagram_url',
+      'tiktok_url',
+      'logo_url',
+      'logo_mode',
+      'footer_intro',
+      'primary_colour',
+      'secondary_colour',
+      'planner_enabled',
+      'maintenance_mode',
+    ];
     for (const key of keys) {
       if (req.body[key] === undefined) continue;
       await prisma.siteSetting.upsert({
@@ -170,6 +276,218 @@ router.get('/navigation', async (req, res, next) => {
     res.render('admin/navigation', { title: 'Navigation', items, saved: req.query.saved === '1' });
   } catch (err) {
     next(err);
+  }
+});
+
+router.post('/navigation', async (req, res, next) => {
+  try {
+    await prisma.navItem.create({
+      data: {
+        label: String(req.body.label || '').trim(),
+        href: String(req.body.href || '/').trim(),
+        location: req.body.location === 'footer' ? 'footer' : 'header',
+        sortOrder: Number(req.body.sortOrder || 0),
+        visible: req.body.visible === 'on',
+      },
+    });
+    return res.redirect('/admin/navigation?saved=1');
+  } catch (err) {
+    return next(err);
+  }
+});
+
+router.post('/navigation/:id', async (req, res, next) => {
+  try {
+    await prisma.navItem.update({
+      where: { id: Number(req.params.id) },
+      data: {
+        label: String(req.body.label || '').trim(),
+        href: String(req.body.href || '/').trim(),
+        location: req.body.location === 'footer' ? 'footer' : 'header',
+        sortOrder: Number(req.body.sortOrder || 0),
+        visible: req.body.visible === 'on',
+      },
+    });
+    return res.redirect('/admin/navigation?saved=1');
+  } catch (err) {
+    return next(err);
+  }
+});
+
+router.post('/navigation/:id/delete', async (req, res, next) => {
+  try {
+    await prisma.navItem.delete({ where: { id: Number(req.params.id) } });
+    return res.redirect('/admin/navigation?saved=1');
+  } catch (err) {
+    return next(err);
+  }
+});
+
+router.get('/media', async (req, res, next) => {
+  try {
+    const media = await prisma.media.findMany({
+      orderBy: [{ folder: 'asc' }, { uploadedAt: 'desc' }],
+    });
+    return res.render('admin/media', {
+      title: 'Media library',
+      media,
+      saved: req.query.saved === '1',
+      error: null,
+    });
+  } catch (err) {
+    return next(err);
+  }
+});
+
+router.post('/media', (req, res, next) => {
+  mediaUpload.single('image')(req, res, async (uploadError) => {
+    if (uploadError) {
+      try {
+        const media = await prisma.media.findMany({ orderBy: { uploadedAt: 'desc' } });
+        return res.status(400).render('admin/media', {
+          title: 'Media library',
+          media,
+          saved: false,
+          error: uploadError.message,
+        });
+      } catch (err) {
+        return next(err);
+      }
+    }
+
+    if (!req.file) {
+      const media = await prisma.media.findMany({ orderBy: { uploadedAt: 'desc' } });
+      return res.status(400).render('admin/media', {
+        title: 'Media library',
+        media,
+        saved: false,
+        error: 'Choose an image to upload.',
+      });
+    }
+
+    try {
+      await prisma.media.create({
+        data: {
+          url: `/uploads/${req.file.filename}`,
+          alt: req.body.alt ? String(req.body.alt).trim() : null,
+          caption: req.body.caption ? String(req.body.caption).trim() : null,
+          folder: req.body.folder ? String(req.body.folder).trim() : 'General',
+        },
+      });
+      return res.redirect('/admin/media?saved=1');
+    } catch (err) {
+      return next(err);
+    }
+  });
+});
+
+router.post('/media/:id', async (req, res, next) => {
+  try {
+    await prisma.media.update({
+      where: { id: Number(req.params.id) },
+      data: {
+        alt: req.body.alt ? String(req.body.alt).trim() : null,
+        caption: req.body.caption ? String(req.body.caption).trim() : null,
+        folder: req.body.folder ? String(req.body.folder).trim() : 'General',
+      },
+    });
+    return res.redirect('/admin/media?saved=1');
+  } catch (err) {
+    return next(err);
+  }
+});
+
+router.post('/media/:id/delete', async (req, res, next) => {
+  try {
+    const item = await prisma.media.delete({ where: { id: Number(req.params.id) } });
+    if (item.url.startsWith('/uploads/')) {
+      const filePath = path.join(uploadDirectory, path.basename(item.url));
+      fs.unlink(filePath, () => {});
+    }
+    return res.redirect('/admin/media?saved=1');
+  } catch (err) {
+    return next(err);
+  }
+});
+
+router.get('/notifications', async (req, res, next) => {
+  try {
+    const settings = await getSettings();
+    return res.render('admin/notifications', {
+      title: 'Email & notifications',
+      settings,
+      passwordConfigured: Boolean(settings.smtp_pass || process.env.SMTP_PASS),
+      saved: req.query.saved === '1',
+      tested: req.query.tested === '1',
+      error: req.query.error || null,
+    });
+  } catch (err) {
+    return next(err);
+  }
+});
+
+router.post('/notifications', async (req, res, next) => {
+  try {
+    const values = {
+      email_notifications_enabled:
+        req.body.email_notifications_enabled === 'on' ? 'true' : 'false',
+      smtp_host: String(req.body.smtp_host || '').trim(),
+      smtp_port: String(req.body.smtp_port || '587').trim(),
+      smtp_secure: req.body.smtp_secure === 'on' ? 'true' : 'false',
+      smtp_user: String(req.body.smtp_user || '').trim(),
+      smtp_from_name: String(req.body.smtp_from_name || '').trim(),
+      smtp_from_email: String(req.body.smtp_from_email || '').trim(),
+      smtp_reply_to: String(req.body.smtp_reply_to || '').trim(),
+      email_new_request_subject: String(req.body.email_new_request_subject || '').trim(),
+      email_new_request_heading: String(req.body.email_new_request_heading || '').trim(),
+      email_new_request_intro: String(req.body.email_new_request_intro || '').trim(),
+      email_customer_confirmation_subject: String(req.body.email_customer_confirmation_subject || '').trim(),
+      email_customer_confirmation_heading: String(req.body.email_customer_confirmation_heading || '').trim(),
+      email_customer_confirmation_intro: String(req.body.email_customer_confirmation_intro || '').trim(),
+      email_new_message_subject: String(req.body.email_new_message_subject || '').trim(),
+      email_new_message_heading: String(req.body.email_new_message_heading || '').trim(),
+      email_new_message_intro: String(req.body.email_new_message_intro || '').trim(),
+      email_status_update_subject: String(req.body.email_status_update_subject || '').trim(),
+      email_status_update_heading: String(req.body.email_status_update_heading || '').trim(),
+      email_status_update_intro: String(req.body.email_status_update_intro || '').trim(),
+      email_password_reset_subject: String(req.body.email_password_reset_subject || '').trim(),
+      email_password_reset_heading: String(req.body.email_password_reset_heading || '').trim(),
+      email_password_reset_intro: String(req.body.email_password_reset_intro || '').trim(),
+      email_contact_subject: String(req.body.email_contact_subject || '').trim(),
+      email_contact_heading: String(req.body.email_contact_heading || '').trim(),
+      email_contact_intro: String(req.body.email_contact_intro || '').trim(),
+    };
+
+    if (req.body.smtp_pass) {
+      values.smtp_pass = encryptSecret(req.body.smtp_pass);
+    }
+    await setSettings(values);
+    return res.redirect('/admin/notifications?saved=1');
+  } catch (err) {
+    return next(err);
+  }
+});
+
+router.post('/notifications/test', async (req, res, next) => {
+  try {
+    const destination = String(req.body.test_email || req.user.email).trim();
+    const { transport, settings } = await createTransport();
+    if (!transport) {
+      return res.redirect(
+        `/admin/notifications?error=${encodeURIComponent('SMTP is not configured or notifications are disabled.')}`
+      );
+    }
+    await transport.sendMail({
+      from: `"${settings.fromName}" <${settings.fromEmail}>`,
+      replyTo: settings.replyTo || undefined,
+      to: destination,
+      subject: 'Destinations With Deanna email test',
+      html: `<div style="font-family:Arial,sans-serif;padding:32px"><h1 style="color:#1a2b40">Email is working</h1><p>Your website can now send planning and portal notifications.</p></div>`,
+      text: 'Email is working. Your website can now send planning and portal notifications.',
+    });
+    return res.redirect('/admin/notifications?tested=1');
+  } catch (err) {
+    return res.redirect(`/admin/notifications?error=${encodeURIComponent(err.message)}`);
   }
 });
 

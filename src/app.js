@@ -6,11 +6,12 @@ const morgan = require('morgan');
 const cookieParser = require('cookie-parser');
 const methodOverride = require('method-override');
 const passport = require('passport');
-const csrf = require('csurf');
+const { csrfSync } = require('csrf-sync');
 
 const { prisma } = require('./config/database');
 const { configurePassport } = require('./config/passport');
 const { createSessionMiddleware } = require('./config/session');
+const format = require('./utils/format');
 
 const authRoutes = require('./modules/auth/routes');
 const cmsRoutes = require('./modules/cms/routes');
@@ -46,12 +47,13 @@ function createApp() {
   app.use(passport.initialize());
   app.use(passport.session());
 
-  const csrfProtection = csrf();
-  app.use((req, res, next) => {
-    // Skip CSRF for health checks
-    if (req.path === '/health') return next();
-    return csrfProtection(req, res, next);
+  const { csrfSynchronisedProtection } = csrfSync({
+    getTokenFromRequest: (req) =>
+      (req.body && req.body._csrf) ||
+      (req.query && req.query._csrf) ||
+      req.headers['x-csrf-token'],
   });
+  app.use(csrfSynchronisedProtection);
 
   app.use(async (req, res, next) => {
     try {
@@ -70,6 +72,14 @@ function createApp() {
       res.locals.currentUser = req.user || null;
       res.locals.csrfToken = req.csrfToken ? req.csrfToken() : null;
       res.locals.appUrl = process.env.APP_URL || '';
+      res.locals.format = format;
+      res.locals.statusLabel = format.statusLabel;
+      res.locals.nextAction = format.nextAction;
+      res.locals.statusBadgeClass = format.statusBadgeClass;
+      res.locals.formatMoney = format.formatMoney;
+      res.locals.formatDateTime = format.formatDateTime;
+      res.locals.preferenceEntries = format.preferenceEntries;
+      res.locals.planTitle = format.planTitle;
       next();
     } catch (err) {
       next(err);
@@ -78,6 +88,36 @@ function createApp() {
 
   app.get('/health', (req, res) => {
     res.json({ ok: true });
+  });
+
+  app.use((req, res, next) => {
+    const settings = res.locals.settings || {};
+    const role = req.user && req.user.role;
+    const isStaff = role === 'admin' || role === 'agent';
+    const alwaysAllowed = ['/login', '/logout', '/forgot-password'];
+
+    if (
+      settings.maintenance_mode === 'true' &&
+      !isStaff &&
+      !alwaysAllowed.includes(req.path) &&
+      !req.path.startsWith('/admin') &&
+      !req.path.startsWith('/reset-password')
+    ) {
+      return res.status(503).render('pages/maintenance', {
+        title: 'Back shortly',
+      });
+    }
+
+    if (settings.planner_enabled === 'false' && req.path.startsWith('/planner') && !isStaff) {
+      return res.status(403).render('pages/error', {
+        title: 'Planner unavailable',
+        message:
+          'The holiday planner is temporarily closed. Please use the contact page and Deanna will get back to you.',
+        status: 403,
+      });
+    }
+
+    return next();
   });
 
   app.use(authRoutes);

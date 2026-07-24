@@ -14,6 +14,7 @@
     "build": "npm run build:css",
     "db:push": "prisma db push",
     "db:seed": "node prisma/seed.js",
+    "content:sync": "node scripts/sync-public-content.js",
     "setup": "npm install && npx prisma generate && npx prisma db push && node prisma/seed.js && npm run build:css",
     "postinstall": "prisma generate"
   },
@@ -21,7 +22,7 @@
     "@prisma/client": "^6.9.0",
     "bcryptjs": "^3.0.2",
     "cookie-parser": "^1.4.7",
-    "csurf": "^1.11.0",
+    "csrf-sync": "^4.2.1",
     "dotenv": "^16.5.0",
     "ejs": "^3.1.10",
     "express": "^4.21.2",
@@ -32,7 +33,7 @@
     "method-override": "^3.0.0",
     "morgan": "^1.10.0",
     "multer": "^2.0.1",
-    "nodemailer": "^7.0.3",
+    "nodemailer": "^9.0.3",
     "passport": "^0.7.0",
     "passport-local": "^1.0.0",
     "session-file-store": "^1.5.0"

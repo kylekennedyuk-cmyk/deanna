@@ -1,0 +1,79 @@
+<%- include('../partials/shell-start', { bodyClass: 'portal-shell' }) %>
+<section class="section-sm max-w-5xl">
+  <div class="mb-8">
+    <p class="badge bg-secondary-100 text-secondary-800">Communication</p>
+    <h1 class="mt-3 text-display-md">Email & notifications</h1>
+    <p class="mt-2 text-primary-700">Configure delivery, test SMTP and edit the wording used in branded emails.</p>
+  </div>
+
+  <% if (saved) { %><div class="mb-5 rounded-card border border-success-100 bg-success-50 px-4 py-3 text-success-700">Email settings saved.</div><% } %>
+  <% if (tested) { %><div class="mb-5 rounded-card border border-success-100 bg-success-50 px-4 py-3 text-success-700">Test email sent successfully.</div><% } %>
+  <% if (error) { %><div class="mb-5 rounded-card border border-danger-100 bg-danger-50 px-4 py-3 text-danger-700" role="alert"><%= error %></div><% } %>
+
+  <form method="post" action="/admin/notifications" class="space-y-6">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+    <section class="card">
+      <div class="flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <h2 class="text-2xl">SMTP delivery</h2>
+          <p class="mt-1 text-sm text-primary-600">Your SMTP password is encrypted before it is stored.</p>
+        </div>
+        <label class="flex items-center gap-3 rounded-full bg-primary-50 px-4 py-2 text-sm font-semibold">
+          <input type="checkbox" name="email_notifications_enabled" <%= settings.email_notifications_enabled !== 'false' ? 'checked' : '' %> />
+          Notifications enabled
+        </label>
+      </div>
+
+      <div class="mt-6 grid gap-4 md:grid-cols-2">
+        <div><label class="label" for="smtp_host">SMTP host</label><input class="field" id="smtp_host" name="smtp_host" value="<%= settings.smtp_host || '' %>" placeholder="smtp.example.com" /></div>
+        <div class="grid grid-cols-[1fr_auto] gap-3">
+          <div><label class="label" for="smtp_port">Port</label><input class="field" id="smtp_port" name="smtp_port" type="number" value="<%= settings.smtp_port || '587' %>" /></div>
+          <label class="mt-7 flex items-center gap-2 text-sm"><input type="checkbox" name="smtp_secure" <%= settings.smtp_secure === 'true' ? 'checked' : '' %> /> SSL/TLS</label>
+        </div>
+        <div><label class="label" for="smtp_user">Username</label><input class="field" id="smtp_user" name="smtp_user" value="<%= settings.smtp_user || '' %>" autocomplete="off" /></div>
+        <div>
+          <label class="label" for="smtp_pass">Password</label>
+          <input class="field" id="smtp_pass" name="smtp_pass" type="password" placeholder="<%= passwordConfigured ? 'Password saved — leave blank to keep it' : 'SMTP password' %>" autocomplete="new-password" />
+        </div>
+        <div><label class="label" for="smtp_from_name">From name</label><input class="field" id="smtp_from_name" name="smtp_from_name" value="<%= settings.smtp_from_name || 'Destinations With Deanna' %>" /></div>
+        <div><label class="label" for="smtp_from_email">From email</label><input class="field" id="smtp_from_email" name="smtp_from_email" type="email" value="<%= settings.smtp_from_email || '' %>" /></div>
+        <div class="md:col-span-2"><label class="label" for="smtp_reply_to">Reply-to email</label><input class="field" id="smtp_reply_to" name="smtp_reply_to" type="email" value="<%= settings.smtp_reply_to || settings.support_email || '' %>" /></div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2 class="text-2xl">Email templates</h2>
+      <p class="mt-1 text-sm text-primary-600">Available placeholders include {{customerName}}, {{senderName}}, {{planTitle}} and {{status}}.</p>
+
+      <% [
+        ['new_request', 'New planning request', 'New holiday planning request: {{planTitle}}', 'A new planning request has arrived', '{{customerName}} has submitted a Disneyland Paris holiday request.'],
+        ['customer_confirmation', 'Customer request confirmation', 'We have received your holiday plan', 'Your planning request is with Deanna', 'Thank you, {{customerName}}. Deanna will review your dates and preferences before getting in touch.'],
+        ['new_message', 'Portal message', 'New message about {{planTitle}}', 'You have a new message', '{{senderName}} has sent a message about {{planTitle}}.'],
+        ['status_update', 'Plan status update', 'Your holiday plan is now {{status}}', 'Your plan has been updated', 'The status of {{planTitle}} is now {{status}}.'],
+        ['password_reset', 'Password reset', 'Reset your password', 'Reset your portal password', 'Use the secure link below to choose a new password. The link expires in one hour.'],
+        ['contact', 'Website enquiry', 'New website enquiry from {{customerName}}', 'A new website enquiry has arrived', '{{customerName}} has sent a message through the contact page.']
+      ].forEach(function(template) { %>
+        <details class="mt-4 rounded-card border border-primary-100 bg-primary-50/40 p-5">
+          <summary class="cursor-pointer font-display text-xl font-semibold text-primary-950"><%= template[1] %></summary>
+          <div class="mt-5 grid gap-4">
+            <div><label class="label">Subject</label><input class="field" name="email_<%= template[0] %>_subject" value="<%= settings['email_' + template[0] + '_subject'] || template[2] %>" /></div>
+            <div><label class="label">Heading</label><input class="field" name="email_<%= template[0] %>_heading" value="<%= settings['email_' + template[0] + '_heading'] || template[3] %>" /></div>
+            <div><label class="label">Introduction</label><textarea class="field min-h-[85px]" name="email_<%= template[0] %>_intro"><%= settings['email_' + template[0] + '_intro'] || template[4] %></textarea></div>
+          </div>
+        </details>
+      <% }) %>
+    </section>
+
+    <button class="btn-primary" type="submit">Save email settings</button>
+  </form>
+
+  <form method="post" action="/admin/notifications/test" class="card mt-6">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+    <h2 class="text-2xl">Send a test</h2>
+    <div class="mt-4 flex flex-col gap-3 sm:flex-row">
+      <input class="field flex-1" name="test_email" type="email" value="<%= currentUser.email %>" required />
+      <button class="btn-secondary" type="submit">Send test email</button>
+    </div>
+  </form>
+</section>
+<%- include('../partials/shell-end') %>

@@ -1,10 +1,20 @@
-<footer class="mt-auto border-t border-primary-100 bg-primary-950 text-primary-100">
+<footer class="mt-auto border-t border-primary-100 bg-primary-950 text-primary-100" style="background-color:var(--brand-primary,#0f1a28)">
   <div class="mx-auto grid max-w-6xl gap-8 px-4 py-12 sm:grid-cols-2 sm:px-6 lg:grid-cols-3 lg:px-8">
     <div>
-      <div class="font-display text-2xl text-white"><%= siteName %></div>
+      <% if (settings.logo_url && (settings.logo_mode === 'logo' || settings.logo_mode === 'both')) { %>
+        <img src="<%= settings.logo_url %>" alt="<%= siteName %>" class="mb-3 h-12 w-auto max-w-[180px] object-contain brightness-0 invert" loading="lazy" />
+      <% } %>
+      <% if (!settings.logo_url || settings.logo_mode !== 'logo') { %><div class="font-display text-2xl text-white"><%= siteName %></div><% } %>
       <p class="mt-3 max-w-sm text-sm text-primary-200">
-        Disneyland Paris specialist planning — thoughtful itineraries, calm support, and a private portal for your holiday.
+        <%= settings.footer_intro || 'Disneyland Paris specialist planning — practical advice, tailored itineraries and one place to manage your holiday.' %>
       </p>
+      <% if (settings.instagram_url || settings.facebook_url || settings.tiktok_url) { %>
+        <div class="mt-5 flex flex-wrap gap-3 text-sm">
+          <% if (settings.instagram_url) { %><a href="<%= settings.instagram_url %>" rel="noopener noreferrer" target="_blank" class="text-secondary-300 hover:text-white">Instagram</a><% } %>
+          <% if (settings.facebook_url) { %><a href="<%= settings.facebook_url %>" rel="noopener noreferrer" target="_blank" class="text-secondary-300 hover:text-white">Facebook</a><% } %>
+          <% if (settings.tiktok_url) { %><a href="<%= settings.tiktok_url %>" rel="noopener noreferrer" target="_blank" class="text-secondary-300 hover:text-white">TikTok</a><% } %>
+        </div>
+      <% } %>
     </div>
     <div>
       <h3 class="mb-3 text-sm font-semibold uppercase tracking-wider text-secondary-300">Explore</h3>

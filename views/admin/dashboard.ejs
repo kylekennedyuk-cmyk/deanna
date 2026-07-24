@@ -1,19 +1,30 @@
-<%- include('../partials/shell-start') %>
-<section class="section">
-  <h1 class="text-4xl">Admin</h1>
-  <p class="mt-2 text-primary-700">Site content, users, deals, and settings.</p>
+<%- include('../partials/shell-start', { bodyClass: 'portal-shell' }) %>
+<section class="section-sm">
+  <p class="badge bg-secondary-100 text-secondary-800">Control centre</p>
+  <h1 class="mt-3 text-display-md">Website admin</h1>
+  <p class="mt-2 text-primary-700">Manage pages, images, branding, navigation, offers, users and email delivery.</p>
   <div class="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
     <div class="card"><div class="text-sm text-primary-500">Users</div><div class="font-display text-4xl"><%= stats.users %></div></div>
     <div class="card"><div class="text-sm text-primary-500">Plans</div><div class="font-display text-4xl"><%= stats.plans %></div></div>
     <div class="card"><div class="text-sm text-primary-500">Pages</div><div class="font-display text-4xl"><%= stats.pages %></div></div>
     <div class="card"><div class="text-sm text-primary-500">Active deals</div><div class="font-display text-4xl"><%= stats.deals %></div></div>
   </div>
-  <div class="mt-8 flex flex-wrap gap-3">
-    <a class="btn-secondary" href="/admin/pages">Pages</a>
-    <a class="btn-secondary" href="/admin/users">Users</a>
-    <a class="btn-secondary" href="/admin/deals">Deals</a>
-    <a class="btn-secondary" href="/admin/settings">Settings</a>
-    <a class="btn-secondary" href="/admin/navigation">Navigation</a>
+  <div class="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+    <% [
+      ['/admin/pages', 'Pages & sections', 'Build public pages with the visual section editor.'],
+      ['/admin/media', 'Media library', 'Upload logos and page imagery with alt text.'],
+      ['/admin/navigation', 'Navigation & footer', 'Add, rename, order and hide links.'],
+      ['/admin/settings', 'Brand settings', 'Company details, logo, colours and social links.'],
+      ['/admin/notifications', 'Email & notifications', 'SMTP, test delivery and branded templates.'],
+      ['/admin/deals', 'Offers', 'Publish and manage current offers.'],
+      ['/admin/users', 'Users', 'Manage customer, agent and admin access.'],
+      ['/agent', 'Agent workspace', 'Open requests, plans and messages.']
+    ].forEach(function(item) { %>
+      <a href="<%= item[0] %>" class="card-hover card-accent block">
+        <h2 class="text-2xl"><%= item[1] %></h2>
+        <p class="mt-2 text-sm text-primary-700"><%= item[2] %></p>
+      </a>
+    <% }) %>
   </div>
 </section>
 <%- include('../partials/shell-end') %>

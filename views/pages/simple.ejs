@@ -1,13 +1,20 @@
 <%- include('../partials/shell-start') %>
-<section class="section max-w-3xl">
-  <% (sections || []).forEach(function(block) { %>
-    <div class="mb-8">
-      <h1 class="text-4xl"><%= block.title || title %></h1>
-      <% if (block.text) { %>
-        <p class="mt-4 text-lg leading-relaxed text-primary-700"><%= block.text %></p>
-      <% } %>
+<section class="section">
+  <div class="grid items-start gap-10 lg:grid-cols-2">
+    <div class="max-w-xl">
+      <% (sections || []).forEach(function(block) { %>
+        <h1><%= block.title || title %></h1>
+        <% if (block.text) { %>
+          <p class="mt-4 text-lg leading-relaxed text-primary-700"><%= block.text %></p>
+        <% } %>
+      <% }) %>
+      <a href="/planner" class="btn-primary mt-8">Start planning</a>
     </div>
-  <% }) %>
-  <a href="/planner" class="btn-primary">Start planning</a>
+    <div class="card bg-gradient-to-br from-white to-blush/60">
+      <p class="badge bg-white text-secondary-800">Concierge note</p>
+      <h2 class="mt-4 text-2xl">A more personal way to plan</h2>
+      <p class="mt-3 text-primary-700">Share what matters most — Deanna shapes hotels, tickets, and pacing around your family.</p>
+    </div>
+  </div>
 </section>
 <%- include('../partials/shell-end') %>

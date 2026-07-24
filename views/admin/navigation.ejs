@@ -1,30 +1,42 @@
-<%- include('../partials/shell-start') %>
-<section class="section">
-  <h1 class="text-4xl">Navigation</h1>
-  <% if (saved) { %><div class="mt-4 rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-green-800">Saved.</div><% } %>
-  <div class="mt-8 overflow-x-auto card">
-    <table class="w-full text-left text-sm">
-      <thead>
-        <tr class="border-b border-primary-100 text-primary-500">
-          <th class="py-2">Label</th>
-          <th>Href</th>
-          <th>Location</th>
-          <th>Order</th>
-          <th>Visible</th>
-        </tr>
-      </thead>
-      <tbody>
-        <% items.forEach(function(item) { %>
-          <tr class="border-b border-primary-50">
-            <td class="py-3"><%= item.label %></td>
-            <td><%= item.href %></td>
-            <td><%= item.location %></td>
-            <td><%= item.sortOrder %></td>
-            <td><%= item.visible ? 'Yes' : 'No' %></td>
-          </tr>
-        <% }) %>
-      </tbody>
-    </table>
+<%- include('../partials/shell-start', { bodyClass: 'portal-shell' }) %>
+<section class="section-sm">
+  <div class="mb-8">
+    <p class="badge bg-secondary-100 text-secondary-800">Site structure</p>
+    <h1 class="mt-3 text-display-md">Navigation & footer links</h1>
+    <p class="mt-2 text-primary-700">Add, rename, reorder, hide or remove links without changing code.</p>
+  </div>
+  <% if (saved) { %><div class="mb-5 rounded-card border border-success-100 bg-success-50 px-4 py-3 text-success-700">Navigation updated.</div><% } %>
+
+  <form method="post" action="/admin/navigation" class="card mb-8">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+    <h2 class="text-2xl">Add a link</h2>
+    <div class="mt-5 grid gap-4 md:grid-cols-5">
+      <div><label class="label" for="new-label">Label</label><input class="field" id="new-label" name="label" required /></div>
+      <div><label class="label" for="new-href">Link</label><input class="field" id="new-href" name="href" placeholder="/about" required /></div>
+      <div><label class="label" for="new-location">Location</label><select class="field" id="new-location" name="location"><option value="header">Header</option><option value="footer">Footer</option></select></div>
+      <div><label class="label" for="new-order">Order</label><input class="field" id="new-order" name="sortOrder" type="number" value="0" /></div>
+      <label class="flex items-center gap-2 self-end rounded-xl bg-primary-50 px-4 py-3 text-sm"><input type="checkbox" name="visible" checked /> Visible</label>
+    </div>
+    <button class="btn-primary mt-5" type="submit">Add link</button>
+  </form>
+
+  <div class="grid gap-4">
+    <% items.forEach(function(item) { %>
+      <form method="post" action="/admin/navigation/<%= item.id %>" class="card">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+        <div class="grid gap-4 md:grid-cols-[1fr_1.5fr_.8fr_.5fr_auto] md:items-end">
+          <div><label class="label">Label</label><input class="field" name="label" value="<%= item.label %>" required /></div>
+          <div><label class="label">Link</label><input class="field" name="href" value="<%= item.href %>" required /></div>
+          <div><label class="label">Location</label><select class="field" name="location"><option value="header" <%= item.location === 'header' ? 'selected' : '' %>>Header</option><option value="footer" <%= item.location === 'footer' ? 'selected' : '' %>>Footer</option></select></div>
+          <div><label class="label">Order</label><input class="field" name="sortOrder" type="number" value="<%= item.sortOrder %>" /></div>
+          <label class="flex items-center gap-2 rounded-xl bg-primary-50 px-4 py-3 text-sm"><input type="checkbox" name="visible" <%= item.visible ? 'checked' : '' %> /> Visible</label>
+        </div>
+        <div class="mt-4 flex flex-wrap gap-2">
+          <button class="btn-primary btn-sm" type="submit">Save link</button>
+          <button class="btn-destructive btn-sm" type="submit" formaction="/admin/navigation/<%= item.id %>/delete" onclick="return confirm('Delete this navigation link?')">Delete</button>
+        </div>
+      </form>
+    <% }) %>
   </div>
 </section>
 <%- include('../partials/shell-end') %>

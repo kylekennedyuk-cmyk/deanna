@@ -1,0 +1,17 @@
+<%- include('../partials/shell-start') %>
+<section class="section max-w-2xl text-center">
+  <p class="badge bg-secondary-50 text-secondary-800">Temporarily offline</p>
+  <h1 class="mt-5">We are making a few improvements</h1>
+  <p class="mt-4 text-lg text-primary-700">
+    The website will be back very shortly. If your holiday plans cannot wait, contact
+    <%= siteName %> directly and we will help straight away.
+  </p>
+  <% if (settings.support_email) { %>
+    <p class="mt-6"><a class="btn-primary" href="mailto:<%= settings.support_email %>">Email <%= settings.support_email %></a></p>
+  <% } %>
+  <% if (settings.phone) { %>
+    <p class="mt-3 text-primary-700">Phone: <strong><%= settings.phone %></strong></p>
+  <% } %>
+  <p class="mt-8"><a href="/login" class="text-sm font-semibold text-secondary-700 hover:underline">Portal login</a></p>
+</section>
+<%- include('../partials/shell-end') %>

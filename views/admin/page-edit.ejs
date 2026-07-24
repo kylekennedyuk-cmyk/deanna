@@ -1,28 +1,184 @@
-<%- include('../partials/shell-start') %>
-<section class="section max-w-3xl">
-  <h1 class="text-3xl">Edit · <%= page.title %></h1>
-  <form method="post" action="/admin/pages/<%= page.id %>" class="card mt-6 space-y-4">
+<%- include('../partials/shell-start', { bodyClass: 'portal-shell' }) %>
+<section class="section-sm">
+  <div class="mb-8 flex flex-wrap items-end justify-between gap-4">
+    <div>
+      <p class="badge bg-secondary-100 text-secondary-800">Visual page editor</p>
+      <h1 class="mt-3 text-display-md">Edit <%= page.title %></h1>
+      <p class="mt-2 text-primary-700">Build the page with structured sections. No JSON editing required.</p>
+    </div>
+    <div class="flex flex-wrap gap-2">
+      <a href="/admin/pages" class="btn-ghost">All pages</a>
+      <a href="/admin/pages/<%= page.id %>/preview" target="_blank" rel="noopener" class="btn-secondary">Preview saved page</a>
+    </div>
+  </div>
+
+  <% if (error) { %>
+    <div class="mb-6 rounded-card border border-danger-100 bg-danger-50 px-4 py-3 text-danger-700" role="alert"><%= error %></div>
+  <% } %>
+
+  <form method="post" action="/admin/pages/<%= page.id %>" id="page-editor" class="space-y-6">
     <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
-    <div>
-      <label class="label" for="title">Title</label>
-      <input class="field" id="title" name="title" value="<%= page.title %>" required />
+    <input type="hidden" id="sections-json" name="sections" value="" />
+
+    <section class="card">
+      <h2 class="text-2xl">Page details</h2>
+      <div class="mt-5 grid gap-4 md:grid-cols-2">
+        <div>
+          <label class="label" for="title">Page title</label>
+          <input class="field" id="title" name="title" value="<%= page.title %>" required />
+        </div>
+        <div>
+          <label class="label" for="seoTitle">Search title</label>
+          <input class="field" id="seoTitle" name="seoTitle" value="<%= page.seoTitle || '' %>" />
+        </div>
+        <div class="md:col-span-2">
+          <label class="label" for="seoDesc">Search description</label>
+          <textarea class="field min-h-[90px]" id="seoDesc" name="seoDesc"><%= page.seoDesc || '' %></textarea>
+          <p class="help">Aim for a useful summary of around 150–160 characters.</p>
+        </div>
+        <label class="flex items-center gap-3 rounded-2xl bg-primary-50 px-4 py-3 text-sm">
+          <input type="checkbox" name="published" <%= page.published ? 'checked' : '' %> />
+          <span><strong>Published</strong><span class="ml-1 text-primary-600">— visible on the public site</span></span>
+        </label>
+      </div>
+    </section>
+
+    <div class="flex flex-wrap items-center justify-between gap-3">
+      <div>
+        <h2 class="text-2xl">Page sections</h2>
+        <p class="text-sm text-primary-600">Drag-free ordering keeps editing reliable: use the arrow buttons to move sections.</p>
+      </div>
+      <select id="new-section-type" class="field w-auto">
+        <option value="hero">Hero banner</option>
+        <option value="split">Text + image</option>
+        <option value="cards">Card grid</option>
+        <option value="hotelGrid">Hotel comparison grid</option>
+        <option value="tips">Tips checklist</option>
+        <option value="timeline">Timeline</option>
+        <option value="faq">FAQs</option>
+        <option value="cta">Call to action</option>
+      </select>
+      <button type="button" id="add-section" class="btn-primary">Add section</button>
     </div>
-    <div>
-      <label class="label" for="seoTitle">SEO title</label>
-      <input class="field" id="seoTitle" name="seoTitle" value="<%= page.seoTitle || '' %>" />
+
+    <div id="section-list" class="space-y-4">
+      <% (sections || []).forEach(function(section, sectionIndex) { %>
+        <%
+          const rows = section.cards || section.items || section.steps || section.hotels || [];
+          const rowsText = rows.map(function(item) {
+            if (section.type === 'faq') return [item.question || '', item.answer || ''].join(' | ');
+            if (section.type === 'hotelGrid') return [item.name || '', item.level || '', item.bestFor || '', item.description || ''].join(' | ');
+            if (section.type === 'timeline') return [item.title || '', item.text || ''].join(' | ');
+            if (typeof item === 'string') return item;
+            return [item.title || '', item.text || '', item.href || '', item.label || ''].join(' | ');
+          }).join('\n');
+          const pointsText = (section.points || []).join('\n');
+        %>
+        <article class="card section-editor" data-section-type="<%= section.type %>">
+          <div class="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <span class="badge bg-primary-100 text-primary-800 section-type-label"><%= section.type %></span>
+              <h3 class="mt-2 text-xl"><%= section.heading || section.title || 'Untitled section' %></h3>
+            </div>
+            <div class="flex gap-1">
+              <button type="button" class="btn-ghost btn-sm move-up" aria-label="Move section up">↑</button>
+              <button type="button" class="btn-ghost btn-sm move-down" aria-label="Move section down">↓</button>
+              <button type="button" class="btn-ghost btn-sm duplicate-section">Duplicate</button>
+              <button type="button" class="btn-destructive btn-sm remove-section">Remove</button>
+            </div>
+          </div>
+
+          <div class="mt-5 grid gap-4 md:grid-cols-2">
+            <input type="hidden" data-field="type" value="<%= section.type %>" />
+            <div>
+              <label class="label">Small label</label>
+              <input class="field" data-field="eyebrow" value="<%= section.eyebrow || '' %>" placeholder="e.g. First-time advice" />
+            </div>
+            <div>
+              <label class="label">Heading</label>
+              <input class="field section-heading" data-field="heading" value="<%= section.heading || section.title || '' %>" />
+            </div>
+            <div class="md:col-span-2">
+              <label class="label">Main text</label>
+              <textarea class="field min-h-[110px]" data-field="text"><%= section.text || '' %></textarea>
+            </div>
+            <div>
+              <label class="label">Image URL</label>
+              <input class="field" data-field="image" value="<%= section.image || '' %>" list="media-urls" placeholder="/uploads/image.jpg or https://…" />
+            </div>
+            <div>
+              <label class="label">Image description</label>
+              <input class="field" data-field="imageAlt" value="<%= section.imageAlt || '' %>" placeholder="Describe the image for screen readers" />
+            </div>
+            <div>
+              <label class="label">Primary button label</label>
+              <input class="field" data-field="primaryLabel" value="<%= section.primaryLabel || (section.primaryCta && section.primaryCta.label) || '' %>" />
+            </div>
+            <div>
+              <label class="label">Primary button link</label>
+              <input class="field" data-field="primaryHref" value="<%= section.primaryHref || (section.primaryCta && section.primaryCta.href) || '' %>" placeholder="/planner" />
+            </div>
+            <div>
+              <label class="label">Secondary button label</label>
+              <input class="field" data-field="secondaryLabel" value="<%= section.secondaryLabel || (section.secondaryCta && section.secondaryCta.label) || '' %>" />
+            </div>
+            <div>
+              <label class="label">Secondary button link</label>
+              <input class="field" data-field="secondaryHref" value="<%= section.secondaryHref || (section.secondaryCta && section.secondaryCta.href) || '' %>" />
+            </div>
+            <div class="md:col-span-2">
+              <label class="label">Bullet points <span class="font-normal text-primary-500">(one per line)</span></label>
+              <textarea class="field min-h-[100px]" data-field="pointsText"><%= pointsText %></textarea>
+            </div>
+            <div class="md:col-span-2">
+              <label class="label">Cards, timeline entries or FAQs <span class="font-normal text-primary-500">(one per line; separate fields with |)</span></label>
+              <textarea class="field min-h-[140px]" data-field="rowsText"><%= rowsText %></textarea>
+              <p class="help section-row-help">Cards: Title | text | optional link | optional link label. FAQs: Question | answer.</p>
+            </div>
+          </div>
+        </article>
+      <% }) %>
     </div>
-    <div>
-      <label class="label" for="seoDesc">SEO description</label>
-      <textarea class="field min-h-[80px]" id="seoDesc" name="seoDesc"><%= page.seoDesc || '' %></textarea>
+
+    <datalist id="media-urls">
+      <% (media || []).forEach(function(item) { %>
+        <option value="<%= item.url %>"><%= item.alt || item.caption || item.url %></option>
+      <% }) %>
+    </datalist>
+
+    <div class="sticky bottom-4 z-30 flex flex-wrap items-center justify-between gap-3 rounded-card border border-primary-100 bg-white/95 p-4 shadow-lift backdrop-blur">
+      <p class="text-sm text-primary-600">Save before opening the public preview.</p>
+      <button class="btn-primary" type="submit">Save page</button>
     </div>
-    <div>
-      <label class="label" for="sections">Sections JSON</label>
-      <textarea class="field min-h-[280px] font-mono text-xs" id="sections" name="sections"><%= page.sections %></textarea>
-    </div>
-    <label class="flex items-center gap-2 text-sm">
-      <input type="checkbox" name="published" <%= page.published ? 'checked' : '' %> /> Published
-    </label>
-    <button class="btn-primary" type="submit">Save page</button>
   </form>
 </section>
+
+<template id="section-template">
+  <article class="card section-editor" data-section-type="cards">
+    <div class="flex flex-wrap items-center justify-between gap-3">
+      <div><span class="badge bg-primary-100 text-primary-800 section-type-label">cards</span><h3 class="mt-2 text-xl">New section</h3></div>
+      <div class="flex gap-1">
+        <button type="button" class="btn-ghost btn-sm move-up">↑</button>
+        <button type="button" class="btn-ghost btn-sm move-down">↓</button>
+        <button type="button" class="btn-ghost btn-sm duplicate-section">Duplicate</button>
+        <button type="button" class="btn-destructive btn-sm remove-section">Remove</button>
+      </div>
+    </div>
+    <div class="mt-5 grid gap-4 md:grid-cols-2">
+      <input type="hidden" data-field="type" value="cards" />
+      <div><label class="label">Small label</label><input class="field" data-field="eyebrow" /></div>
+      <div><label class="label">Heading</label><input class="field section-heading" data-field="heading" /></div>
+      <div class="md:col-span-2"><label class="label">Main text</label><textarea class="field min-h-[110px]" data-field="text"></textarea></div>
+      <div><label class="label">Image URL</label><input class="field" data-field="image" list="media-urls" /></div>
+      <div><label class="label">Image description</label><input class="field" data-field="imageAlt" /></div>
+      <div><label class="label">Primary button label</label><input class="field" data-field="primaryLabel" /></div>
+      <div><label class="label">Primary button link</label><input class="field" data-field="primaryHref" /></div>
+      <div><label class="label">Secondary button label</label><input class="field" data-field="secondaryLabel" /></div>
+      <div><label class="label">Secondary button link</label><input class="field" data-field="secondaryHref" /></div>
+      <div class="md:col-span-2"><label class="label">Bullet points (one per line)</label><textarea class="field min-h-[100px]" data-field="pointsText"></textarea></div>
+      <div class="md:col-span-2"><label class="label">Cards, timeline entries or FAQs</label><textarea class="field min-h-[140px]" data-field="rowsText"></textarea><p class="help section-row-help"></p></div>
+    </div>
+  </article>
+</template>
+<script src="/js/admin-page-editor.js" defer></script>
 <%- include('../partials/shell-end') %>

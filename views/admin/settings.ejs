@@ -1,36 +1,58 @@
-<%- include('../partials/shell-start') %>
-<section class="section max-w-2xl">
-  <h1 class="text-4xl">Settings</h1>
-  <% if (saved) { %><div class="mt-4 rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-green-800">Saved.</div><% } %>
-  <form method="post" action="/admin/settings" class="card mt-8 space-y-4">
+<%- include('../partials/shell-start', { bodyClass: 'portal-shell' }) %>
+<section class="section-sm max-w-4xl">
+  <p class="badge bg-secondary-100 text-secondary-800">Brand controls</p>
+  <h1 class="mt-3 text-display-md">Site settings</h1>
+  <p class="mt-2 text-primary-700">Manage the identity and contact details used across the website.</p>
+  <% if (saved) { %><div class="mt-4 rounded-card border border-success-100 bg-success-50 px-4 py-3 text-success-700">Settings saved.</div><% } %>
+  <form method="post" action="/admin/settings" class="mt-8 space-y-6">
     <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
-    <div>
-      <label class="label" for="site_name">Site name</label>
-      <input class="field" id="site_name" name="site_name" value="<%= settings.site_name || '' %>" />
-    </div>
-    <div>
-      <label class="label" for="site_tagline">Tagline</label>
-      <input class="field" id="site_tagline" name="site_tagline" value="<%= settings.site_tagline || '' %>" />
-    </div>
-    <div>
-      <label class="label" for="support_email">Support email</label>
-      <input class="field" id="support_email" name="support_email" value="<%= settings.support_email || '' %>" />
-    </div>
-    <div>
-      <label class="label" for="planner_enabled">Planner enabled</label>
-      <select class="field" id="planner_enabled" name="planner_enabled">
-        <option value="true" <%= settings.planner_enabled === 'true' ? 'selected' : '' %>>Yes</option>
-        <option value="false" <%= settings.planner_enabled === 'false' ? 'selected' : '' %>>No</option>
-      </select>
-    </div>
-    <div>
-      <label class="label" for="maintenance_mode">Maintenance mode</label>
-      <select class="field" id="maintenance_mode" name="maintenance_mode">
-        <option value="false" <%= settings.maintenance_mode !== 'true' ? 'selected' : '' %>>Off</option>
-        <option value="true" <%= settings.maintenance_mode === 'true' ? 'selected' : '' %>>On</option>
-      </select>
-    </div>
-    <button class="btn-primary" type="submit">Save settings</button>
+    <section class="card">
+      <h2 class="text-2xl">Brand identity</h2>
+      <div class="mt-5 grid gap-4 md:grid-cols-2">
+        <div><label class="label" for="site_name">Company name</label><input class="field" id="site_name" name="site_name" value="<%= settings.site_name || '' %>" /></div>
+        <div><label class="label" for="site_tagline">Tagline</label><input class="field" id="site_tagline" name="site_tagline" value="<%= settings.site_tagline || '' %>" /></div>
+        <div>
+          <label class="label" for="logo_url">Logo image URL</label>
+          <input class="field" id="logo_url" name="logo_url" value="<%= settings.logo_url || '' %>" placeholder="/uploads/logo.svg" />
+          <p class="help"><a href="/admin/media" class="font-semibold underline">Upload a logo in Media</a>, then copy its URL here.</p>
+        </div>
+        <div>
+          <label class="label" for="logo_mode">Header display</label>
+          <select class="field" id="logo_mode" name="logo_mode">
+            <option value="text" <%= (settings.logo_mode || 'text') === 'text' ? 'selected' : '' %>>Text title</option>
+            <option value="logo" <%= settings.logo_mode === 'logo' ? 'selected' : '' %>>Logo only</option>
+            <option value="both" <%= settings.logo_mode === 'both' ? 'selected' : '' %>>Logo and text</option>
+          </select>
+        </div>
+        <div><label class="label" for="primary_colour">Primary colour</label><input class="field h-12" id="primary_colour" name="primary_colour" type="color" value="<%= settings.primary_colour || '#1a2b40' %>" /></div>
+        <div><label class="label" for="secondary_colour">Accent colour</label><input class="field h-12" id="secondary_colour" name="secondary_colour" type="color" value="<%= settings.secondary_colour || '#d1a24a' %>" /></div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2 class="text-2xl">Contact & social</h2>
+      <div class="mt-5 grid gap-4 md:grid-cols-2">
+        <div><label class="label" for="support_email">Public email</label><input class="field" id="support_email" name="support_email" type="email" value="<%= settings.support_email || '' %>" /></div>
+        <div><label class="label" for="phone">Phone</label><input class="field" id="phone" name="phone" value="<%= settings.phone || '' %>" /></div>
+        <div class="md:col-span-2"><label class="label" for="address">Business address</label><textarea class="field min-h-[80px]" id="address" name="address"><%= settings.address || '' %></textarea></div>
+        <div><label class="label" for="instagram_url">Instagram URL</label><input class="field" id="instagram_url" name="instagram_url" value="<%= settings.instagram_url || '' %>" /></div>
+        <div><label class="label" for="facebook_url">Facebook URL</label><input class="field" id="facebook_url" name="facebook_url" value="<%= settings.facebook_url || '' %>" /></div>
+        <div><label class="label" for="tiktok_url">TikTok URL</label><input class="field" id="tiktok_url" name="tiktok_url" value="<%= settings.tiktok_url || '' %>" /></div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2 class="text-2xl">Footer & availability</h2>
+      <div class="mt-5 space-y-4">
+        <div><label class="label" for="footer_intro">Footer introduction</label><textarea class="field min-h-[90px]" id="footer_intro" name="footer_intro"><%= settings.footer_intro || '' %></textarea></div>
+        <div class="grid gap-4 md:grid-cols-2">
+          <div><label class="label" for="planner_enabled">Planner</label><select class="field" id="planner_enabled" name="planner_enabled"><option value="true" <%= settings.planner_enabled === 'true' ? 'selected' : '' %>>Enabled</option><option value="false" <%= settings.planner_enabled === 'false' ? 'selected' : '' %>>Disabled</option></select></div>
+          <div><label class="label" for="maintenance_mode">Maintenance mode</label><select class="field" id="maintenance_mode" name="maintenance_mode"><option value="false" <%= settings.maintenance_mode !== 'true' ? 'selected' : '' %>>Off</option><option value="true" <%= settings.maintenance_mode === 'true' ? 'selected' : '' %>>On</option></select></div>
+        </div>
+      </div>
+    </section>
+
+    <button class="btn-primary" type="submit">Save site settings</button>
   </form>
 </section>
 <%- include('../partials/shell-end') %>

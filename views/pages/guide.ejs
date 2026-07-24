@@ -1,19 +1,29 @@
 <%- include('../partials/shell-start') %>
 <section class="section">
-  <% (sections || []).forEach(function(block) { %>
-    <div class="mb-8 max-w-3xl">
-      <h1 class="text-4xl"><%= block.title || title %></h1>
-      <% if (block.text) { %>
-        <p class="mt-4 text-lg text-primary-700"><%= block.text %></p>
+  <div class="grid items-start gap-10 lg:grid-cols-2">
+    <div class="max-w-xl">
+      <% (sections || []).forEach(function(block) { %>
+        <p class="badge bg-secondary-50 text-secondary-800">Guide</p>
+        <h1 class="mt-4"><%= block.title || title %></h1>
+        <% if (block.text) { %>
+          <p class="mt-4 text-lg leading-relaxed text-primary-700"><%= block.text %></p>
+        <% } %>
+      <% }) %>
+      <% if (typeof links !== 'undefined' && links.length) { %>
+        <div class="mt-8 flex flex-wrap gap-3">
+          <% links.forEach(function(link) { %>
+            <a href="<%= link.href %>" class="<%= link.href === '/planner' ? 'btn-primary' : 'btn-secondary' %>"><%= link.label %></a>
+          <% }) %>
+        </div>
       <% } %>
     </div>
-  <% }) %>
-  <% if (typeof links !== 'undefined' && links.length) { %>
-    <div class="mt-8 flex flex-wrap gap-3">
-      <% links.forEach(function(link) { %>
-        <a href="<%= link.href %>" class="btn-secondary"><%= link.label %></a>
-      <% }) %>
+    <div class="card overflow-hidden p-0">
+      <div class="aspect-[4/3] bg-gradient-to-br from-primary-900 via-accent-500 to-secondary-400"></div>
+      <div class="p-6">
+        <h2 class="text-2xl">Plan with a specialist</h2>
+        <p class="mt-2 text-primary-700">When you’re ready, the holiday planner captures the details Deanna needs in a clear, guided flow.</p>
+      </div>
     </div>
-  <% } %>
+  </div>
 </section>
 <%- include('../partials/shell-end') %>

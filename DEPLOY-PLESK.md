@@ -1,32 +1,96 @@
-# Deploy on Plesk (simple path)
+# Deploy Destinations With Deanna on Plesk
 
-This app is set up so you do **not** need a separate PostgreSQL/MySQL database. It uses a SQLite file under `/data`.
+This is the simplest production path. The app uses **SQLite** (no MySQL/PostgreSQL to set up) and runs as a Node.js application in Plesk.
 
-## 1) Push code to GitHub
+GitHub repo: https://github.com/kylekennedyuk-cmyk/deanna
 
-Repo: https://github.com/kylekennedyuk-cmyk/deanna
+---
 
-## 2) In Plesk — Node.js
+## Before you start
 
-1. Open the domain → **Node.js**
-2. Enable Node.js (20+ if available)
-3. Set:
-   - **Application root:** folder where `package.json` lives (often `httpdocs` or a subfolder)
-   - **Application startup file:** `server.js`
-   - **Application mode:** `production`
-4. Click **NPM install**
-5. Open **Custom environment variables** (or create `.env` in the app root) and set at least:
+Have ready:
 
+- Your domain pointed at the Plesk server (e.g. `destinationswithdeanna.com`)
+- SSH access (recommended) or Plesk’s “Run Node.js commands”
+- Node.js **20+** available in Plesk
+
+Generate two long random secrets (PowerShell examples):
+
+```powershell
+# SESSION_SECRET
+-join ((48..57)+(65..90)+(97..122) | Get-Random -Count 48 | ForEach-Object {[char]$_})
+
+# SETTINGS_ENCRYPTION_KEY (different value)
+-join ((48..57)+(65..90)+(97..122) | Get-Random -Count 48 | ForEach-Object {[char]$_})
 ```
+
+Keep `SETTINGS_ENCRYPTION_KEY` forever once SMTP passwords are saved in admin — changing it breaks decryption.
+
+---
+
+## Option A — Deploy from GitHub (recommended)
+
+### 1) Create or open the domain in Plesk
+
+1. Domains → your domain
+2. Prefer a clean document root for the app (e.g. `httpdocs` or a dedicated folder)
+
+### 2) Pull the code
+
+**Via Git (Plesk Git extension):**
+
+1. Domain → **Git**
+2. Repository URL: `https://github.com/kylekennedyuk-cmyk/deanna.git`
+3. Deploy to your application folder (where `package.json` will live)
+4. Deploy / pull `main`
+
+**Or via SSH:**
+
+```bash
+cd /var/www/vhosts/YOUR-DOMAIN/httpdocs
+# If the folder already has default Plesk files, use a subfolder instead, e.g. app/
+git clone https://github.com/kylekennedyuk-cmyk/deanna.git .
+# or: git clone https://github.com/kylekennedyuk-cmyk/deanna.git app && cd app
+```
+
+### 3) Enable Node.js
+
+1. Domain → **Node.js** → Enable
+2. Set:
+
+| Setting | Value |
+|--------|--------|
+| Node.js version | **20+** |
+| Application root | folder containing `package.json` |
+| Application startup file | `server.js` |
+| Application mode | `production` |
+| Document root | usually the same app folder (or as Plesk requires for Node proxy) |
+
+3. Click **NPM install**
+
+### 4) Environment variables
+
+Create a `.env` file in the application root (same folder as `package.json`), or use Plesk **Custom environment variables**:
+
+```env
 NODE_ENV=production
-PORT=<use the port Plesk shows, or leave blank if managed>
 APP_URL=https://destinationswithdeanna.com
-SESSION_SECRET=<long random string>
+PORT=3000
+SESSION_SECRET=paste-your-long-random-string-here
+SETTINGS_ENCRYPTION_KEY=paste-a-different-long-random-string-here
 DATABASE_URL=file:../data/deanna.db
 SUPPORT_EMAIL=hello@destinationswithdeanna.com
 ```
 
-6. In **Run Node.js commands** (or SSH), run once:
+Notes:
+
+- If Plesk shows a specific port for the Node app, set `PORT` to that value (or leave blank only if Plesk injects it for you).
+- `APP_URL` must be your live HTTPS URL (used in emails and reset links).
+- Do **not** commit `.env` to Git.
+
+### 5) One-time setup commands
+
+In Plesk **Run Node.js commands**, or SSH from the app folder:
 
 ```bash
 npx prisma generate
@@ -35,31 +99,106 @@ node prisma/seed.js
 npm run build
 ```
 
-7. **Restart App**
+What this does:
 
-## 3) Log in
+- generates the Prisma client
+- creates `data/deanna.db`
+- seeds admin user + default pages/nav/settings
+- builds Tailwind CSS into `public/css/app.css`
 
-Visit: `https://your-domain/login`
-
-- Username: `admin`
-- Password: `password`
-
-Change the password after first login (create a new admin user in `/admin/users`, then retire this one).
-
-## 4) File permissions
+### 6) Writable folders
 
 Ensure the app can write to:
 
-- `data/` (database + sessions)
-- `public/uploads/` (future media)
+```text
+data/
+public/uploads/
+```
 
-## 5) Optional email
+SSH example (adjust user/path for your host):
 
-Add SMTP vars when ready (`SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`). Until then, emails are logged and skipped.
+```bash
+mkdir -p data public/uploads
+chmod -R u+rwX data public/uploads
+```
+
+### 7) Restart the Node app
+
+In Plesk Node.js → **Restart App** (or Enable / Disable once).
+
+### 8) First login
+
+Open: `https://your-domain/login`
+
+| Field | Value |
+|-------|--------|
+| Username | `admin` |
+| Password | `password` |
+
+**Change this password immediately** after login (create a new admin in `/admin/users`, then stop using the default credentials).
+
+---
+
+## Option B — Upload ZIP (if you prefer not to use Git on the server)
+
+1. Download the repo ZIP from GitHub → Extract
+2. Upload contents into the app folder via Plesk File Manager
+3. Continue from **Enable Node.js** (step 3 above)
+
+---
+
+## After go-live checklist
+
+1. **Admin → Brand settings** — company name, logo upload (via Media), colours, contact details, social links
+2. **Admin → Navigation** — confirm header/footer links
+3. **Admin → Media** — upload logo and page images
+4. **Admin → Email & notifications** — SMTP host/port/user/password, From name/email, Reply-to, then **Send test email**
+5. **Admin → Pages** — review homepage and guide content in the visual editor
+6. Create the real **agent** login for Deanna if needed (`/admin/users`)
+7. Turn on HTTPS / Let’s Encrypt in Plesk if not already enabled
+
+SMTP can be configured entirely in the dashboard. The password is encrypted with `SETTINGS_ENCRYPTION_KEY`. You can also set env SMTP vars; dashboard settings take priority when filled.
+
+---
+
+## Updating the site later
+
+```bash
+cd /path/to/app
+git pull origin main
+npm install
+npx prisma generate
+npx prisma db push
+npm run build
+# Restart Node.js app in Plesk
+```
+
+Do **not** re-run `node prisma/seed.js` on an existing live site unless you intend to re-seed missing defaults only (seed is upsert-safe for many keys, but `npm run content:sync` overwrites public page content deliberately).
+
+---
 
 ## Troubleshooting
 
-- **App won’t start:** check Node.js logs in Plesk; confirm `server.js` is the startup file.
-- **Login fails after redeploy:** confirm `data/deanna.db` still exists (don’t delete `/data`).
-- **CSS looks unstyled:** run `npm run build` so `public/css/app.css` exists.
-- **Secure cookie issues on HTTP only:** set `NODE_ENV=production` only behind HTTPS (recommended).
+| Problem | Fix |
+|--------|-----|
+| App won’t start | Check Node.js logs in Plesk; confirm startup file is `server.js` and Node 20+ |
+| Blank / unstyled pages | Run `npm run build` so `public/css/app.css` exists |
+| Login fails after redeploy | Do not delete `data/`; the SQLite DB and sessions live there |
+| 502 / proxy errors | Confirm the Node app is enabled and listening on the port Plesk expects |
+| Emails not sending | Configure Admin → Email & notifications and use **Send test email**; check spam |
+| SMTP password “forgotten” | `SETTINGS_ENCRYPTION_KEY` was changed — set the password again in admin |
+| Uploads fail | Ensure `public/uploads` is writable |
+| Planner closed / maintenance page | Turn those off in Admin → Settings |
+
+Health check: `https://your-domain/health` should return `{"ok":true}`.
+
+---
+
+## Default accounts (seed)
+
+| Role | Username | Password |
+|------|----------|----------|
+| Admin | `admin` | `password` |
+| Agent | `deanna` | `password` |
+
+Change both in production.

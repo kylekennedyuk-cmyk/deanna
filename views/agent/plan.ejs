@@ -1,76 +1,220 @@
-<%- include('../partials/shell-start') %>
-<section class="section">
-  <% if (saved) { %><div class="mb-4 rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-green-800">Saved.</div><% } %>
-  <div class="mb-6 flex flex-wrap items-center justify-between gap-3">
+<%- include('../partials/shell-start', { bodyClass: 'portal-shell' }) %>
+<%
+  const title = planTitle(plan, preferences || {});
+  const tabs = [
+    { id: 'overview', label: 'Overview' },
+    { id: 'flights', label: 'Flights' },
+    { id: 'hotel', label: 'Hotel' },
+    { id: 'itinerary', label: 'Itinerary' },
+    { id: 'pricing', label: 'Pricing' },
+    { id: 'messages', label: 'Messages' },
+    { id: 'notes', label: 'Notes' },
+  ];
+%>
+<section class="section-sm">
+  <% if (saved) { %><div class="mb-4 rounded-card border border-success-100 bg-success-50 px-4 py-3 text-success-700">Saved.</div><% } %>
+
+  <div class="mb-6 flex flex-wrap items-start justify-between gap-4">
     <div>
-      <h1 class="text-4xl">Plan #<%= plan.id %></h1>
-      <p class="text-primary-600"><%= plan.customer.name %> · <%= plan.customer.email %></p>
+      <p class="badge bg-white text-secondary-800 shadow-soft">Plan workspace</p>
+      <h1 class="mt-3 text-display-md"><%= title %></h1>
+      <p class="mt-2 text-primary-600"><%= plan.customer.name %> · <%= plan.customer.email %><% if (plan.customer.phone) { %> · <%= plan.customer.phone %><% } %></p>
     </div>
     <a href="/agent/plans" class="btn-ghost">Back to list</a>
   </div>
 
-  <div class="mb-6 flex flex-wrap gap-2">
-    <% ['overview','flights','hotel','itinerary','pricing','messages','notes'].forEach(function(t) { %>
-      <a href="?tab=<%= t %>" class="rounded-full px-4 py-2 text-sm font-semibold <%= tab === t ? 'bg-primary-900 text-white' : 'bg-primary-50 text-primary-700' %>"><%= t %></a>
+  <div class="mb-6 flex gap-2 overflow-x-auto pb-1" role="tablist" aria-label="Plan sections">
+    <% tabs.forEach(function(t) { %>
+      <a href="?tab=<%= t.id %>" role="tab" aria-selected="<%= tab === t.id ? 'true' : 'false' %>" class="whitespace-nowrap rounded-full px-4 py-2 text-sm font-semibold transition <%= tab === t.id ? 'bg-primary-900 text-white' : 'bg-white text-primary-700 shadow-soft hover:bg-secondary-50' %>"><%= t.label %></a>
     <% }) %>
   </div>
 
-  <% if (tab === 'messages') { %>
-    <div class="card space-y-4">
-      <% plan.messages.forEach(function(msg) { %>
-        <div class="rounded-xl bg-primary-50 px-4 py-3">
-          <div class="text-xs font-semibold uppercase tracking-wider text-primary-500"><%= msg.sender.name %></div>
-          <p class="mt-1"><%= msg.content %></p>
+  <div class="grid gap-8 lg:grid-cols-[1.35fr_0.85fr]">
+    <div class="min-w-0 space-y-4">
+      <% if (tab === 'messages') { %>
+        <div class="card space-y-4">
+          <h2 class="text-2xl">Conversation</h2>
+          <% if (!plan.messages.length) { %>
+            <p class="text-primary-600">No messages yet. A warm first note goes a long way.</p>
+          <% } %>
+          <% plan.messages.forEach(function(msg) { %>
+            <div class="rounded-2xl bg-primary-50 px-4 py-3">
+              <div class="text-xs font-semibold uppercase tracking-wider text-primary-500"><%= msg.sender.name %> · <%= formatDateTime(msg.createdAt) %></div>
+              <p class="mt-1 whitespace-pre-wrap"><%= msg.content %></p>
+            </div>
+          <% }) %>
+          <div class="flex flex-wrap gap-2 border-t border-primary-100 pt-4">
+            <button type="button" class="chip" data-quick-reply="Thank you for your details — I’m reviewing hotels and tickets for your dates now." data-target="#agent-message">Reviewing now</button>
+            <button type="button" class="chip" data-quick-reply="I’ve shared a first proposal in your portal. Take a look and tell me what you’d like to tweak." data-target="#agent-message">Proposal ready</button>
+            <button type="button" class="chip" data-quick-reply="Happy to adjust the hotel or park days — what matters most for your party?" data-target="#agent-message">Offer tweak</button>
+          </div>
+          <form method="post" action="/agent/plans/<%= plan.id %>/messages" class="space-y-3">
+            <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+            <label class="label" for="agent-message">Reply</label>
+            <textarea class="field min-h-[120px]" id="agent-message" name="content" required></textarea>
+            <button class="btn-primary" type="submit">Send reply</button>
+          </form>
         </div>
-      <% }) %>
-      <form method="post" action="/agent/plans/<%= plan.id %>/messages" class="space-y-3 border-t border-primary-100 pt-4">
-        <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
-        <textarea class="field min-h-[100px]" name="content" required></textarea>
-        <button class="btn-primary" type="submit">Send reply</button>
-      </form>
+      <% } else if (tab === 'overview') { %>
+        <div class="card">
+          <h2 class="text-2xl">Client preferences</h2>
+          <p class="mt-1 text-sm text-primary-600">Readable summary — no raw data dumps.</p>
+          <div class="mt-5">
+            <%- include('../partials/preferences-list', { prefs: preferences }) %>
+          </div>
+        </div>
+        <div class="grid gap-4 md:grid-cols-2">
+          <div class="card">
+            <h3 class="text-xl">Flights snapshot</h3>
+            <p class="mt-3 whitespace-pre-wrap text-sm text-primary-800"><%= plan.flights || 'Not added yet.' %></p>
+            <a href="?tab=flights" class="btn-ghost btn-sm mt-4 px-0">Edit flights</a>
+          </div>
+          <div class="card">
+            <h3 class="text-xl">Hotel snapshot</h3>
+            <p class="mt-3 whitespace-pre-wrap text-sm text-primary-800"><%= plan.hotel || 'Not added yet.' %></p>
+            <a href="?tab=hotel" class="btn-ghost btn-sm mt-4 px-0">Edit hotel</a>
+          </div>
+        </div>
+      <% } else { %>
+        <form method="post" action="/agent/plans/<%= plan.id %>/update" class="card space-y-5">
+          <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+          <input type="hidden" name="tab" value="<%= tab %>" />
+          <% if (tab === 'flights') { %>
+            <div>
+              <h2 class="text-2xl">Flights</h2>
+              <p class="mt-1 text-sm text-primary-600">Write this in plain language for the client portal.</p>
+            </div>
+            <div class="grid gap-4 sm:grid-cols-2">
+              <div>
+                <label class="label" for="flightAirline">Airline</label>
+                <input class="field" id="flightAirline" name="flightAirline" value="<%= (flightFields && flightFields.airline) || '' %>" placeholder="e.g. easyJet" />
+              </div>
+              <div>
+                <label class="label" for="flightAirport">UK airport</label>
+                <input class="field" id="flightAirport" name="flightAirport" value="<%= (flightFields && flightFields.airport) || '' %>" placeholder="e.g. Manchester" />
+              </div>
+              <div>
+                <label class="label" for="flightOutbound">Outbound</label>
+                <input class="field" id="flightOutbound" name="flightOutbound" value="<%= (flightFields && flightFields.outbound) || '' %>" />
+              </div>
+              <div>
+                <label class="label" for="flightReturn">Return</label>
+                <input class="field" id="flightReturn" name="flightReturn" value="<%= (flightFields && flightFields.return) || '' %>" />
+              </div>
+            </div>
+            <div>
+              <label class="label" for="flightNotes">Notes for client</label>
+              <textarea class="field min-h-[120px]" id="flightNotes" name="flightNotes"><%= (flightFields && flightFields.notes) || '' %></textarea>
+            </div>
+          <% } else if (tab === 'hotel') { %>
+            <div>
+              <h2 class="text-2xl">Hotel</h2>
+              <p class="mt-1 text-sm text-primary-600">Keep it warm and specific — room type, board, and why it suits them.</p>
+            </div>
+            <div class="grid gap-4 sm:grid-cols-2">
+              <div>
+                <label class="label" for="hotelName">Hotel name</label>
+                <input class="field" id="hotelName" name="hotelName" value="<%= (hotelFields && hotelFields.name) || '' %>" />
+              </div>
+              <div>
+                <label class="label" for="hotelRoom">Room type</label>
+                <input class="field" id="hotelRoom" name="hotelRoom" value="<%= (hotelFields && hotelFields.room) || '' %>" />
+              </div>
+              <div>
+                <label class="label" for="hotelBoard">Board</label>
+                <input class="field" id="hotelBoard" name="hotelBoard" value="<%= (hotelFields && hotelFields.board) || '' %>" />
+              </div>
+              <div>
+                <label class="label" for="hotelNights">Nights</label>
+                <input class="field" id="hotelNights" name="hotelNights" value="<%= (hotelFields && hotelFields.nights) || '' %>" />
+              </div>
+            </div>
+            <div>
+              <label class="label" for="hotelNotes">Why this hotel</label>
+              <textarea class="field min-h-[120px]" id="hotelNotes" name="hotelNotes"><%= (hotelFields && hotelFields.notes) || '' %></textarea>
+            </div>
+          <% } else if (tab === 'itinerary') { %>
+            <div>
+              <h2 class="text-2xl">Itinerary</h2>
+              <p class="mt-1 text-sm text-primary-600">Day-by-day pacing in friendly language.</p>
+            </div>
+            <textarea class="field min-h-[280px]" id="itinerary" name="itinerary" placeholder="Day 1 — Arrive and settle…"><%= plan.itinerary || '' %></textarea>
+          <% } else if (tab === 'pricing') { %>
+            <div>
+              <h2 class="text-2xl">Pricing</h2>
+              <p class="mt-1 text-sm text-primary-600">Show totals clearly — clients see this wording.</p>
+            </div>
+            <div class="grid gap-4 sm:grid-cols-2">
+              <div>
+                <label class="label" for="priceTotal">Total (£)</label>
+                <input class="field" id="priceTotal" name="priceTotal" type="number" value="<%= (priceFields && priceFields.total) || '' %>" />
+              </div>
+              <div>
+                <label class="label" for="priceDeposit">Deposit (£)</label>
+                <input class="field" id="priceDeposit" name="priceDeposit" type="number" value="<%= (priceFields && priceFields.deposit) || '' %>" />
+              </div>
+            </div>
+            <div>
+              <label class="label" for="priceIncludes">What’s included</label>
+              <textarea class="field min-h-[140px]" id="priceIncludes" name="priceIncludes"><%= (priceFields && priceFields.includes) || '' %></textarea>
+            </div>
+            <div>
+              <label class="label" for="priceMargin">Internal margin notes</label>
+              <textarea class="field min-h-[90px]" id="priceMargin" name="priceMargin" placeholder="Not shown to client"><%= (priceFields && priceFields.margin) || '' %></textarea>
+              <p class="help">Margin notes stay in your workspace summary only.</p>
+            </div>
+          <% } else if (tab === 'notes') { %>
+            <div>
+              <h2 class="text-2xl">Internal notes</h2>
+              <p class="mt-1 text-sm text-primary-600">Private to the agent workspace.</p>
+            </div>
+            <textarea class="field min-h-[240px]" id="notes" name="notes"><%= plan.notes || '' %></textarea>
+          <% } %>
+          <button class="btn-primary" type="submit">Save <%= tab %></button>
+        </form>
+      <% } %>
     </div>
-  <% } else if (tab === 'overview') { %>
-    <div class="grid gap-6 lg:grid-cols-2">
-      <div class="card">
-        <h2 class="text-xl">Preferences</h2>
-        <pre class="mt-4 overflow-auto rounded-xl bg-primary-50 p-4 text-xs"><%= JSON.stringify(preferences, null, 2) %></pre>
-      </div>
-      <form method="post" action="/agent/plans/<%= plan.id %>/update" class="card space-y-4">
-        <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
-        <input type="hidden" name="tab" value="overview" />
+
+    <aside class="sticky-panel h-fit">
+      <div class="card space-y-5 bg-gradient-to-br from-white to-blush/40">
         <div>
-          <label class="label" for="status">Status</label>
+          <p class="badge bg-white text-secondary-800">Action panel</p>
+          <h2 class="mt-3 text-2xl">Plan summary</h2>
+        </div>
+        <div>
+          <div class="kv-row"><span class="kv-label">Client</span><span class="kv-value"><%= plan.customer.name %></span></div>
+          <div class="kv-row"><span class="kv-label">Dates</span><span class="kv-value"><%= plan.travelDates %></span></div>
+          <div class="kv-row"><span class="kv-label">Party</span><span class="kv-value"><%= plan.partySize %></span></div>
+          <div class="kv-row"><span class="kv-label">Budget</span><span class="kv-value"><%= formatMoney(plan.budget) %></span></div>
+          <div class="kv-row"><span class="kv-label">Updated</span><span class="kv-value"><%= formatDateTime(plan.updatedAt) %></span></div>
+          <% if (priceFields && priceFields.total) { %>
+            <div class="kv-row"><span class="kv-label">Quoted total</span><span class="kv-value"><%= formatMoney(priceFields.total) %></span></div>
+          <% } %>
+          <% if (priceFields && priceFields.margin) { %>
+            <div class="rounded-2xl bg-primary-50 px-3 py-2 text-xs text-primary-700"><strong>Margin:</strong> <%= priceFields.margin %></div>
+          <% } %>
+        </div>
+
+        <form method="post" action="/agent/plans/<%= plan.id %>/update" class="space-y-3 border-t border-primary-100 pt-4">
+          <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+          <input type="hidden" name="tab" value="<%= tab %>" />
+          <label class="label" for="status">Plan status</label>
           <select class="field" id="status" name="status">
             <% ['new','in_progress','sent','completed','archived'].forEach(function(s) { %>
-              <option value="<%= s %>" <%= plan.status === s ? 'selected' : '' %>><%= s %></option>
+              <option value="<%= s %>" <%= plan.status === s ? 'selected' : '' %>><%= statusLabel(s) %></option>
             <% }) %>
           </select>
-        </div>
-        <button class="btn-primary" type="submit">Update status</button>
-      </form>
-    </div>
-  <% } else { %>
-    <form method="post" action="/agent/plans/<%= plan.id %>/update" class="card space-y-4">
-      <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
-      <input type="hidden" name="tab" value="<%= tab %>" />
-      <% if (tab === 'flights') { %>
-        <label class="label" for="flights">Flights (JSON or notes)</label>
-        <textarea class="field min-h-[220px]" id="flights" name="flights"><%= plan.flights || '' %></textarea>
-      <% } else if (tab === 'hotel') { %>
-        <label class="label" for="hotel">Hotel (JSON or notes)</label>
-        <textarea class="field min-h-[220px]" id="hotel" name="hotel"><%= plan.hotel || '' %></textarea>
-      <% } else if (tab === 'itinerary') { %>
-        <label class="label" for="itinerary">Itinerary</label>
-        <textarea class="field min-h-[220px]" id="itinerary" name="itinerary"><%= plan.itinerary || '' %></textarea>
-      <% } else if (tab === 'pricing') { %>
-        <label class="label" for="pricing">Pricing</label>
-        <textarea class="field min-h-[220px]" id="pricing" name="pricing"><%= plan.pricing || '' %></textarea>
-      <% } else if (tab === 'notes') { %>
-        <label class="label" for="notes">Internal notes</label>
-        <textarea class="field min-h-[220px]" id="notes" name="notes"><%= plan.notes || '' %></textarea>
-      <% } %>
-      <button class="btn-primary" type="submit">Save</button>
-    </form>
-  <% } %>
+          <button class="btn-secondary w-full" type="submit">Update status</button>
+        </form>
+
+        <form method="post" action="/agent/plans/<%= plan.id %>/send" onsubmit="return confirm('Mark this plan as sent to the client?');">
+          <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+          <button class="btn-primary w-full" type="submit">Send to client</button>
+        </form>
+
+        <a href="/agent/plans/<%= plan.id %>?tab=messages" class="btn-ghost w-full">Quick message</a>
+      </div>
+    </aside>
+  </div>
 </section>
 <%- include('../partials/shell-end') %>

@@ -1,49 +1,92 @@
-<%- include('../partials/shell-start') %>
-<section class="section">
-  <h1 class="text-4xl">Agent workspace</h1>
-  <p class="mt-2 text-primary-700">New requests, active plans, and recent messages.</p>
-
-  <div class="mt-8 grid gap-6 lg:grid-cols-3">
-    <div class="card lg:col-span-1">
-      <h2 class="text-xl">New requests</h2>
-      <ul class="mt-4 space-y-3">
-        <% if (!newPlans.length) { %><li class="text-sm text-primary-600">None right now.</li><% } %>
-        <% newPlans.forEach(function(plan) { %>
-          <li>
-            <a class="font-semibold text-primary-900 hover:underline" href="/agent/plans/<%= plan.id %>"><%= plan.customer.name %> · #<%= plan.id %></a>
-            <div class="text-xs text-primary-500"><%= plan.travelDates %></div>
-          </li>
-        <% }) %>
-      </ul>
+<%- include('../partials/shell-start', { bodyClass: 'portal-shell' }) %>
+<section class="section-sm">
+  <div class="mb-10 flex flex-wrap items-end justify-between gap-4">
+    <div>
+      <p class="badge bg-secondary-100 text-secondary-800">Agent workspace</p>
+      <h1 class="mt-3 text-display-md sm:text-display-lg">Good to see you, <%= currentUser.name.split(' ')[0] %></h1>
+      <p class="mt-2 text-lg text-primary-700">Prioritised requests, focused tools, and everything you need to craft excellent holiday plans.</p>
     </div>
-    <div class="card lg:col-span-1">
-      <h2 class="text-xl">Active plans</h2>
-      <ul class="mt-4 space-y-3">
-        <% if (!activePlans.length) { %><li class="text-sm text-primary-600">None right now.</li><% } %>
-        <% activePlans.forEach(function(plan) { %>
-          <li>
-            <a class="font-semibold text-primary-900 hover:underline" href="/agent/plans/<%= plan.id %>"><%= plan.customer.name %> · #<%= plan.id %></a>
-            <div class="text-xs text-primary-500"><%= plan.status %></div>
-          </li>
-        <% }) %>
-      </ul>
-    </div>
-    <div class="card lg:col-span-1">
-      <h2 class="text-xl">Recent messages</h2>
-      <ul class="mt-4 space-y-3">
-        <% recentMessages.forEach(function(msg) { %>
-          <li class="text-sm">
-            <a class="font-semibold hover:underline" href="/agent/plans/<%= msg.planId %>?tab=messages"><%= msg.sender.name %></a>
-            <div class="text-primary-600 line-clamp-2"><%= msg.content %></div>
-          </li>
-        <% }) %>
-      </ul>
-      <a href="/agent/inbox" class="btn-ghost mt-4 px-0">Open inbox</a>
+    <div class="flex flex-wrap gap-2">
+      <a href="/agent/inbox" class="btn-secondary">Inbox</a>
+      <a href="/agent/plans" class="btn-primary">All plans</a>
     </div>
   </div>
 
-  <div class="mt-8">
-    <a href="/agent/plans" class="btn-secondary">View all plans</a>
+  <div class="mb-10 grid gap-4 sm:grid-cols-3">
+    <article class="card">
+      <p class="text-sm text-primary-500">Open requests</p>
+      <p class="mt-2 font-display text-4xl text-primary-950"><%= kpis.openRequests %></p>
+      <p class="mt-1 text-sm text-primary-600">New + in progress</p>
+    </article>
+    <article class="card">
+      <p class="text-sm text-primary-500">Needs review</p>
+      <p class="mt-2 font-display text-4xl text-primary-950"><%= kpis.needsReview %></p>
+      <p class="mt-1 text-sm text-primary-600">Sent — awaiting client reply</p>
+    </article>
+    <article class="card">
+      <p class="text-sm text-primary-500">New today</p>
+      <p class="mt-2 font-display text-4xl text-primary-950"><%= kpis.newCount %></p>
+      <p class="mt-1 text-sm text-primary-600">Fresh planning requests</p>
+    </article>
+  </div>
+
+  <div class="grid gap-6 xl:grid-cols-3">
+    <section class="card xl:col-span-1">
+      <div class="mb-4 flex items-center justify-between gap-2">
+        <h2 class="text-2xl">New requests</h2>
+        <span class="badge bg-accent-100 text-accent-700"><%= newPlans.length %></span>
+      </div>
+      <ul class="space-y-3">
+        <% if (!newPlans.length) { %><li class="rounded-2xl bg-primary-50/70 px-4 py-3 text-sm text-primary-600">You’re all caught up.</li><% } %>
+        <% newPlans.forEach(function(plan) { %>
+          <li>
+            <a class="block rounded-2xl border border-transparent px-3 py-3 transition hover:border-secondary-200 hover:bg-secondary-50/50" href="/agent/plans/<%= plan.id %>">
+              <div class="font-semibold text-primary-950"><%= plan.customer.name %></div>
+              <div class="text-sm text-primary-600"><%= plan.travelDates %> · <%= formatMoney(plan.budget) %></div>
+            </a>
+          </li>
+        <% }) %>
+      </ul>
+    </section>
+
+    <section class="card xl:col-span-1">
+      <div class="mb-4 flex items-center justify-between gap-2">
+        <h2 class="text-2xl">In progress</h2>
+        <span class="badge bg-primary-100 text-primary-800"><%= activePlans.length %></span>
+      </div>
+      <ul class="space-y-3">
+        <% if (!activePlans.length) { %><li class="rounded-2xl bg-primary-50/70 px-4 py-3 text-sm text-primary-600">No active builds right now.</li><% } %>
+        <% activePlans.forEach(function(plan) { %>
+          <li>
+            <a class="block rounded-2xl border border-transparent px-3 py-3 transition hover:border-secondary-200 hover:bg-secondary-50/50" href="/agent/plans/<%= plan.id %>">
+              <div class="flex items-center justify-between gap-2">
+                <span class="font-semibold text-primary-950"><%= plan.customer.name %></span>
+                <%- include('../partials/status-badge', { status: plan.status }) %>
+              </div>
+              <div class="mt-1 text-sm text-primary-600"><%= plan.travelDates %></div>
+            </a>
+          </li>
+        <% }) %>
+      </ul>
+    </section>
+
+    <section class="card xl:col-span-1">
+      <div class="mb-4 flex items-center justify-between gap-2">
+        <h2 class="text-2xl">Recent messages</h2>
+        <a href="/agent/inbox" class="text-sm font-semibold text-secondary-700 hover:underline">Open inbox</a>
+      </div>
+      <ul class="space-y-3">
+        <% if (!recentMessages.length) { %><li class="text-sm text-primary-600">No messages yet.</li><% } %>
+        <% recentMessages.forEach(function(msg) { %>
+          <li>
+            <a class="block rounded-2xl bg-primary-50/60 px-3 py-3" href="/agent/plans/<%= msg.planId %>?tab=messages">
+              <div class="text-sm font-semibold text-primary-950"><%= msg.sender.name %> · <%= msg.plan.customer.name %></div>
+              <p class="mt-1 line-clamp-2 text-sm text-primary-700"><%= msg.content %></p>
+            </a>
+          </li>
+        <% }) %>
+      </ul>
+    </section>
   </div>
 </section>
 <%- include('../partials/shell-end') %>

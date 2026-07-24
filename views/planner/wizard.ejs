@@ -1,42 +1,70 @@
-<%- include('../partials/shell-start') %>
-<section class="section">
-  <div class="mb-8">
+<%- include('../partials/shell-start', { bodyClass: 'portal-shell' }) %>
+<%
+  const progress = Math.round((step / steps.length) * 100);
+  const interestOptions = ['Rides', 'Shows', 'Characters', 'Food', 'Shopping', 'Parades', 'Relaxing'];
+  const selectedInterests = String(data.interests || '').split(',').map(function(s){ return s.trim(); }).filter(Boolean);
+  const paceOptions = [
+    { value: 'relaxed', label: 'Relaxed', help: 'Slower mornings, fewer must-dos' },
+    { value: 'balanced', label: 'Balanced', help: 'A mix of magic and downtime' },
+    { value: 'packed', label: 'Packed', help: 'Maximise park time' },
+  ];
+  const currentPace = data.pace || 'balanced';
+%>
+<section class="section-sm pb-28 lg:pb-16">
+  <div class="mb-8 max-w-3xl">
     <p class="badge bg-secondary-100 text-secondary-800">Holiday planner</p>
-    <h1 class="mt-3 text-4xl">Plan your Disneyland Paris adventure</h1>
-    <p class="mt-2 max-w-2xl text-primary-700">A guided journey — a few thoughtful questions, then Deanna takes it from there.</p>
+    <h1 class="mt-4 text-display-md sm:text-display-lg">Plan your Disneyland Paris adventure</h1>
+    <p class="mt-3 max-w-2xl text-lg text-primary-700">A guided journey — a few thoughtful questions, then Deanna takes it from there.</p>
   </div>
 
-  <div class="mb-8 flex flex-wrap gap-2">
-    <% steps.forEach(function(s) { %>
-      <span class="rounded-full px-3 py-1 text-xs font-semibold <%= s.id === step ? 'bg-primary-900 text-white' : (s.id < step ? 'bg-secondary-100 text-secondary-800' : 'bg-primary-50 text-primary-500') %>">
-        <%= s.id %>. <%= s.title %>
-      </span>
-    <% }) %>
+  <div class="mb-8 rounded-card border border-primary-100/80 bg-white/90 p-4 shadow-soft sm:p-5">
+    <div class="mb-3 flex items-center justify-between gap-3">
+      <p class="text-sm font-semibold text-primary-900">Step <%= step %> of <%= steps.length %> · <%= steps[step - 1].title %></p>
+      <p class="text-sm text-primary-500"><%= progress %>%</p>
+    </div>
+    <div class="stepper-track" aria-hidden="true"><div class="stepper-fill" style="width:<%= progress %>%"></div></div>
+    <div class="mt-4 -mx-1 flex gap-2 overflow-x-auto pb-1" role="list" aria-label="Planner steps">
+      <% steps.forEach(function(s) { %>
+        <span role="listitem" class="whitespace-nowrap rounded-full px-3 py-1.5 text-xs font-semibold <%= s.id === step ? 'bg-primary-900 text-white' : (s.id < step ? 'bg-secondary-100 text-secondary-800' : 'bg-primary-50 text-primary-500') %>">
+          <%= s.id %>. <%= s.title %>
+        </span>
+      <% }) %>
+    </div>
   </div>
 
   <% if (error) { %>
-    <div class="mb-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-red-800"><%= error %></div>
+    <div class="mb-6 rounded-card border border-danger-100 bg-danger-50 px-4 py-3 text-danger-700" role="alert"><%= error %></div>
   <% } %>
 
-  <form method="post" action="<%= step === 8 ? '/planner/submit' : '/planner/step/' + step %>" class="grid gap-8 lg:grid-cols-[1.4fr_0.8fr]">
+  <form method="post" action="<%= step === 8 ? '/planner/submit' : '/planner/step/' + step %>" class="grid gap-8 lg:grid-cols-[1.35fr_0.85fr]" data-autosave-toast>
     <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
-    <div class="card space-y-5">
+
+    <div class="card space-y-6">
       <% if (step === 1) { %>
-        <h2 class="text-2xl">Trip basics</h2>
+        <div>
+          <h2 class="text-display-sm">Trip basics</h2>
+          <p class="mt-2 text-primary-700">We’ll shape hotel nights and park days around this window.</p>
+        </div>
         <div>
           <label class="label" for="dates">Travel dates or window</label>
           <input class="field" id="dates" name="dates" value="<%= data.dates || '' %>" placeholder="e.g. Easter half-term 2027, flexible by a week" required />
+          <p class="help">Flexible dates help Deanna find better hotel and ticket value.</p>
         </div>
-        <div>
-          <label class="label" for="nights">Nights</label>
-          <input class="field" id="nights" name="nights" type="number" min="1" value="<%= data.nights || 4 %>" />
-        </div>
-        <div>
-          <label class="label" for="airport">Preferred airport</label>
-          <input class="field" id="airport" name="airport" value="<%= data.airport || '' %>" placeholder="Nearest / Manchester / Gatwick…" />
+        <div class="grid gap-4 sm:grid-cols-2">
+          <div>
+            <label class="label" for="nights">Nights</label>
+            <input class="field" id="nights" name="nights" type="number" min="1" value="<%= data.nights || 4 %>" />
+          </div>
+          <div>
+            <label class="label" for="airport">Preferred airport</label>
+            <input class="field" id="airport" name="airport" value="<%= data.airport || '' %>" placeholder="Nearest / Manchester / Gatwick…" />
+          </div>
         </div>
       <% } else if (step === 2) { %>
-        <h2 class="text-2xl">Travellers</h2>
+        <div>
+          <h2 class="text-display-sm">Travellers</h2>
+          <p class="mt-2 text-primary-700">Ages help with tickets, room setup, and ride suitability.</p>
+        </div>
         <div class="grid gap-4 sm:grid-cols-2">
           <div>
             <label class="label" for="adults">Adults</label>
@@ -50,6 +78,7 @@
         <div>
           <label class="label" for="childAges">Children’s ages</label>
           <input class="field" id="childAges" name="childAges" value="<%= data.childAges || '' %>" placeholder="e.g. 5, 8" />
+          <p class="help">Optional if you don’t have exact ages yet.</p>
         </div>
         <div>
           <label class="label" for="occasion">Occasion</label>
@@ -60,81 +89,115 @@
           </select>
         </div>
       <% } else if (step === 3) { %>
-        <h2 class="text-2xl">Style & preferences</h2>
         <div>
-          <label class="label" for="pace">Pace</label>
-          <select class="field" id="pace" name="pace">
-            <option value="relaxed" <%= data.pace === 'relaxed' ? 'selected' : '' %>>Relaxed</option>
-            <option value="balanced" <%= !data.pace || data.pace === 'balanced' ? 'selected' : '' %>>Balanced</option>
-            <option value="packed" <%= data.pace === 'packed' ? 'selected' : '' %>>Packed days</option>
-          </select>
+          <h2 class="text-display-sm">Style & preferences</h2>
+          <p class="mt-2 text-primary-700">There’s no wrong answer — this helps pace the days kindly.</p>
         </div>
-        <div>
-          <label class="label" for="interests">Interests</label>
-          <textarea class="field min-h-[100px]" id="interests" name="interests" placeholder="Rides, shows, characters, food, shopping…"><%= data.interests || '' %></textarea>
+        <div data-chip-group>
+          <p class="label">Pace</p>
+          <input type="hidden" name="pace" data-chip-value value="<%= currentPace %>" />
+          <div class="mt-2 flex flex-wrap gap-2">
+            <% paceOptions.forEach(function(opt) { %>
+              <label class="chip <%= currentPace === opt.value ? 'chip-active' : '' %>">
+                <input class="chip-input" type="radio" name="paceChip" value="<%= opt.value %>" <%= currentPace === opt.value ? 'checked' : '' %> />
+                <span>
+                  <span class="block"><%= opt.label %></span>
+                  <span class="block text-xs opacity-80"><%= opt.help %></span>
+                </span>
+              </label>
+            <% }) %>
+          </div>
+        </div>
+        <div data-chip-group data-multi="true">
+          <p class="label">Interests</p>
+          <input type="hidden" name="interests" data-chip-value value="<%= data.interests || '' %>" />
+          <div class="mt-2 flex flex-wrap gap-2">
+            <% interestOptions.forEach(function(opt) { %>
+              <label class="chip <%= selectedInterests.indexOf(opt) !== -1 ? 'chip-active' : '' %>">
+                <input class="chip-input" type="checkbox" value="<%= opt %>" <%= selectedInterests.indexOf(opt) !== -1 ? 'checked' : '' %> />
+                <%= opt %>
+              </label>
+            <% }) %>
+          </div>
+          <p class="help">Pick as many as you like — Deanna will prioritise gently.</p>
         </div>
         <div>
           <label class="label" for="mustHaves">Must-haves</label>
-          <input class="field" id="mustHaves" name="mustHaves" value="<%= data.mustHaves || '' %>" />
+          <input class="field" id="mustHaves" name="mustHaves" value="<%= data.mustHaves || '' %>" placeholder="Park Hopper, half-board, transfers…" />
         </div>
         <div>
           <label class="label" for="avoid">Prefer to avoid</label>
-          <input class="field" id="avoid" name="avoid" value="<%= data.avoid || '' %>" />
+          <input class="field" id="avoid" name="avoid" value="<%= data.avoid || '' %>" placeholder="Long queues, early starts, certain rides…" />
         </div>
       <% } else if (step === 4) { %>
-        <h2 class="text-2xl">Disneyland focus</h2>
+        <div>
+          <h2 class="text-display-sm">Disneyland focus</h2>
+          <p class="mt-2 text-primary-700">Tell us where the magic matters most for your party.</p>
+        </div>
         <div>
           <label class="label" for="parks">Park priority</label>
-          <input class="field" id="parks" name="parks" value="<%= data.parks || '' %>" placeholder="Disneyland Park, Walt Disney Studios / Adventure World…" />
+          <input class="field" id="parks" name="parks" value="<%= data.parks || '' %>" placeholder="Disneyland Park, Adventure World…" />
         </div>
         <div>
           <label class="label" for="lands">Lands & experiences</label>
-          <textarea class="field min-h-[100px]" id="lands" name="lands"><%= data.lands || '' %></textarea>
+          <textarea class="field min-h-[100px]" id="lands" name="lands" placeholder="Frozen, Marvel, Pixar, character meets…"><%= data.lands || '' %></textarea>
         </div>
         <div>
           <label class="label" for="diningStyle">Dining style</label>
           <input class="field" id="diningStyle" name="diningStyle" value="<%= data.diningStyle || '' %>" placeholder="Quick service, table service, character dining…" />
         </div>
       <% } else if (step === 5) { %>
-        <h2 class="text-2xl">Budget</h2>
+        <div>
+          <h2 class="text-display-sm">Budget</h2>
+          <p class="mt-2 text-primary-700">A range is perfect — Deanna will suggest options that fit.</p>
+        </div>
         <div>
           <label class="label" for="budget">Total budget (approx, £)</label>
-          <input class="field" id="budget" name="budget" type="number" min="0" value="<%= data.budget || '' %>" />
+          <input class="field" id="budget" name="budget" type="number" min="0" step="50" value="<%= data.budget || '' %>" />
+          <p class="help">Include flights, hotel, tickets, and meals if you can.</p>
         </div>
-        <div>
-          <label class="label" for="flexibility">Flexibility</label>
-          <select class="field" id="flexibility" name="flexibility">
-            <option value="strict">Strict</option>
-            <option value="somewhat" selected>Somewhat flexible</option>
-            <option value="flexible">Very flexible</option>
-          </select>
+        <div data-chip-group>
+          <p class="label">Flexibility</p>
+          <input type="hidden" name="flexibility" data-chip-value value="<%= data.flexibility || 'somewhat' %>" />
+          <div class="mt-2 flex flex-wrap gap-2">
+            <% [['strict','Strict'],['somewhat','Somewhat flexible'],['flexible','Very flexible']].forEach(function(opt) { %>
+              <label class="chip <%= (data.flexibility || 'somewhat') === opt[0] ? 'chip-active' : '' %>">
+                <input class="chip-input" type="radio" name="flexChip" value="<%= opt[0] %>" <%= (data.flexibility || 'somewhat') === opt[0] ? 'checked' : '' %> />
+                <%= opt[1] %>
+              </label>
+            <% }) %>
+          </div>
         </div>
       <% } else if (step === 6) { %>
-        <h2 class="text-2xl">Accommodation</h2>
+        <div>
+          <h2 class="text-display-sm">Accommodation</h2>
+          <p class="mt-2 text-primary-700">Disney hotels are convenient; partners can stretch the budget.</p>
+        </div>
         <div>
           <label class="label" for="hotelType">Hotel type</label>
           <select class="field" id="hotelType" name="hotelType">
-            <option>Disney hotel</option>
-            <option>Partner hotel</option>
-            <option>Apartment / other</option>
-            <option>Open to suggestions</option>
+            <% ['Disney hotel','Partner hotel','Apartment / other','Open to suggestions'].forEach(function(o) { %>
+              <option <%= data.hotelType === o ? 'selected' : '' %>><%= o %></option>
+            <% }) %>
           </select>
         </div>
         <div>
           <label class="label" for="board">Board basis</label>
           <select class="field" id="board" name="board">
-            <option>Room only</option>
-            <option>Breakfast</option>
-            <option>Half board</option>
-            <option>Not sure</option>
+            <% ['Room only','Breakfast','Half board','Not sure'].forEach(function(o) { %>
+              <option <%= data.board === o ? 'selected' : '' %>><%= o %></option>
+            <% }) %>
           </select>
         </div>
         <div>
           <label class="label" for="roomPrefs">Room preferences</label>
-          <input class="field" id="roomPrefs" name="roomPrefs" value="<%= data.roomPrefs || '' %>" />
+          <input class="field" id="roomPrefs" name="roomPrefs" value="<%= data.roomPrefs || '' %>" placeholder="View, connecting rooms, quiet floor…" />
         </div>
       <% } else if (step === 7) { %>
-        <h2 class="text-2xl">Special requirements</h2>
+        <div>
+          <h2 class="text-display-sm">Special requirements</h2>
+          <p class="mt-2 text-primary-700">Anything that helps Deanna look after you well — no detail is too small.</p>
+        </div>
         <div>
           <label class="label" for="accessibility">Accessibility needs</label>
           <textarea class="field min-h-[90px]" id="accessibility" name="accessibility"><%= data.accessibility || '' %></textarea>
@@ -148,8 +211,13 @@
           <textarea class="field min-h-[90px]" id="celebration" name="celebration"><%= data.celebration || '' %></textarea>
         </div>
       <% } else { %>
-        <h2 class="text-2xl">Review & submit</h2>
-        <p class="text-primary-700">Add your contact details so Deanna can start your plan.</p>
+        <div>
+          <h2 class="text-display-sm">Review & submit</h2>
+          <p class="mt-2 text-primary-700">Add your contact details so Deanna can start your plan.</p>
+        </div>
+        <div class="rounded-2xl bg-primary-50/70 p-4">
+          <%- include('../partials/preferences-list', { prefs: data }) %>
+        </div>
         <div>
           <label class="label" for="name">Name</label>
           <input class="field" id="name" name="name" value="<%= data.name || (currentUser && currentUser.name) || '' %>" required />
@@ -157,18 +225,19 @@
         <div>
           <label class="label" for="email">Email</label>
           <input class="field" id="email" name="email" type="email" value="<%= data.email || (currentUser && currentUser.email) || '' %>" required />
+          <p class="help">We’ll email a confirmation and a link back to your plan.</p>
         </div>
         <div>
           <label class="label" for="phone">Phone</label>
           <input class="field" id="phone" name="phone" value="<%= data.phone || (currentUser && currentUser.phone) || '' %>" />
         </div>
         <label class="flex items-start gap-3 text-sm text-primary-700">
-          <input type="checkbox" name="terms" value="yes" required class="mt-1" />
+          <input type="checkbox" name="terms" value="yes" required class="mt-1 rounded border-primary-300 text-primary-900 focus:ring-secondary-400" />
           <span>I’m happy for Destinations With Deanna to contact me about this holiday plan.</span>
         </label>
       <% } %>
 
-      <div class="flex flex-wrap gap-3 pt-2">
+      <div class="hidden flex-wrap gap-3 pt-2 lg:flex">
         <% if (step > 1 && step < 8) { %>
           <button class="btn-ghost" type="submit" name="action" value="back">Back</button>
         <% } %>
@@ -180,16 +249,34 @@
       </div>
     </div>
 
-    <aside class="card h-fit bg-gradient-to-br from-white to-blush/40">
-      <h3 class="text-xl">Your plan so far</h3>
-      <ul class="mt-4 space-y-2 text-sm text-primary-700">
-        <li><strong>Dates:</strong> <%= data.dates || '—' %></li>
-        <li><strong>Party:</strong> <%= (data.adults || '—') %> adults<% if (data.children) { %>, <%= data.children %> children<% } %></li>
-        <li><strong>Budget:</strong> <%= data.budget ? '£' + data.budget : '—' %></li>
-        <li><strong>Pace:</strong> <%= data.pace || '—' %></li>
-      </ul>
-      <p class="mt-6 text-sm text-primary-600">Progress is saved in this browser session while you move through the steps.</p>
+    <aside class="sticky-panel hidden h-fit lg:block">
+      <div class="card bg-gradient-to-br from-white to-blush/50">
+        <p class="badge bg-white text-secondary-800">Your plan so far</p>
+        <h3 class="mt-4 text-2xl">Trip summary</h3>
+        <div class="mt-4 space-y-0">
+          <div class="kv-row"><span class="kv-label">Dates</span><span class="kv-value"><%= data.dates || '—' %></span></div>
+          <div class="kv-row"><span class="kv-label">Party</span><span class="kv-value"><%= (data.adults || '—') %> adults<% if (data.children) { %>, <%= data.children %> children<% } %></span></div>
+          <div class="kv-row"><span class="kv-label">Budget</span><span class="kv-value"><%= data.budget ? formatMoney(data.budget) : '—' %></span></div>
+          <div class="kv-row"><span class="kv-label">Pace</span><span class="kv-value"><%= data.pace || '—' %></span></div>
+          <div class="kv-row"><span class="kv-label">Interests</span><span class="kv-value"><%= data.interests || '—' %></span></div>
+        </div>
+        <p class="mt-5 text-sm text-primary-600">Progress saves automatically in this session. You can continue later from your email confirmation once submitted.</p>
+        <% if (!currentUser) { %>
+          <p class="mt-3 text-sm text-primary-600">Already planning with us? <a class="font-semibold text-primary-900 underline" href="/login">Log in</a> to keep everything in one place.</p>
+        <% } %>
+      </div>
     </aside>
+
+    <div class="mobile-cta-bar flex gap-3 lg:hidden">
+      <% if (step > 1 && step < 8) { %>
+        <button class="btn-ghost flex-1" type="submit" name="action" value="back">Back</button>
+      <% } %>
+      <% if (step === 8) { %>
+        <button class="btn-primary flex-1" type="submit">Submit plan</button>
+      <% } else { %>
+        <button class="btn-primary flex-1" type="submit" name="action" value="next">Continue</button>
+      <% } %>
+    </div>
   </form>
 </section>
 <%- include('../partials/shell-end') %>

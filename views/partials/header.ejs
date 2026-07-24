@@ -1,33 +1,77 @@
-<header class="sticky top-0 z-40 border-b border-primary-100/70 bg-ivory/90 backdrop-blur">
-  <div class="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-4 sm:px-6 lg:px-8">
-    <a href="/" class="group">
-      <div class="font-display text-2xl font-semibold text-primary-950 transition group-hover:text-primary-800">
-        <%= siteName %>
-      </div>
-      <% if (siteTagline) { %>
-      <div class="hidden text-xs text-primary-600 sm:block"><%= siteTagline %></div>
+<header class="sticky top-0 z-40 border-b border-primary-100/60 bg-ivory/90 backdrop-blur-md">
+  <div class="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3.5 sm:px-6 lg:px-8">
+    <a href="/" class="group flex min-w-0 items-center gap-3">
+      <% if (settings.logo_url && (settings.logo_mode === 'logo' || settings.logo_mode === 'both')) { %>
+        <img src="<%= settings.logo_url %>" alt="<%= siteName %>" class="h-10 w-auto max-w-[150px] shrink-0 object-contain" />
+      <% } %>
+      <% if (!settings.logo_url || settings.logo_mode !== 'logo') { %>
+        <span class="min-w-0">
+          <span class="block truncate font-display text-xl font-semibold tracking-wide text-primary-950 transition duration-250 group-hover:text-primary-800 sm:text-2xl"><%= siteName %></span>
+          <% if (siteTagline) { %><span class="hidden truncate text-xs text-primary-600 lg:block"><%= siteTagline %></span><% } %>
+        </span>
       <% } %>
     </a>
 
-    <nav class="hidden items-center gap-6 lg:flex">
+    <nav class="hidden items-center gap-6 lg:flex xl:gap-8" aria-label="Primary">
       <% (navHeader || []).forEach(function(item) { %>
         <% if (item.href !== '/planner') { %>
-          <a href="<%= item.href %>" class="text-sm font-medium text-primary-800 transition hover:text-secondary-700"><%= item.label %></a>
+          <a href="<%= item.href %>" class="whitespace-nowrap text-sm font-medium text-primary-800 transition duration-250 hover:text-secondary-700"><%= item.label %></a>
         <% } %>
       <% }) %>
     </nav>
 
     <div class="flex items-center gap-2">
       <% if (currentUser) { %>
-        <a href="<%= currentUser.role === 'admin' ? '/admin' : (currentUser.role === 'agent' ? '/agent' : '/customer') %>" class="btn-ghost hidden sm:inline-flex">Dashboard</a>
-        <form action="/logout" method="post" class="hidden sm:block">
+        <a href="<%= currentUser.role === 'admin' ? '/admin' : (currentUser.role === 'agent' ? '/agent' : '/customer') %>" class="btn-ghost btn-sm hidden lg:inline-flex">Dashboard</a>
+        <form action="/logout" method="post" class="hidden lg:block">
           <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
-          <button type="submit" class="btn-ghost">Log out</button>
+          <button type="submit" class="btn-ghost btn-sm">Log out</button>
         </form>
       <% } else { %>
-        <a href="/login" class="btn-ghost hidden sm:inline-flex">Log in</a>
+        <a href="/login" class="btn-ghost btn-sm hidden lg:inline-flex">Log in</a>
       <% } %>
-      <a href="/planner" class="btn-primary text-xs sm:text-sm">Start Planning</a>
+      <a href="/planner" class="btn-primary btn-sm hidden whitespace-nowrap sm:inline-flex lg:px-6 lg:py-3">Start Planning</a>
+
+      <button
+        type="button"
+        class="inline-flex h-11 w-11 items-center justify-center rounded-full border border-primary-200 text-primary-800 transition hover:border-secondary-400 hover:text-secondary-700 lg:hidden"
+        data-menu-toggle
+        aria-label="Open menu"
+        aria-expanded="false"
+        aria-controls="mobile-drawer"
+      >
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="h-6 w-6" aria-hidden="true">
+          <path stroke-linecap="round" d="M4 7h16M4 12h16M4 17h16" />
+        </svg>
+      </button>
     </div>
   </div>
 </header>
+
+<div id="mobile-drawer" class="fixed inset-0 z-50 hidden lg:hidden" data-drawer>
+  <div class="absolute inset-0 bg-primary-950/50 backdrop-blur-sm" data-menu-close></div>
+  <div class="absolute right-0 top-0 flex h-full w-[86%] max-w-sm flex-col bg-ivory shadow-2xl" data-drawer-panel>
+    <div class="flex items-center justify-between border-b border-primary-100 px-5 py-4">
+      <span class="font-display text-xl font-semibold text-primary-950"><%= siteName %></span>
+      <button type="button" class="inline-flex h-10 w-10 items-center justify-center rounded-full border border-primary-200 text-primary-800 hover:text-secondary-700" data-menu-close aria-label="Close menu">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="h-5 w-5" aria-hidden="true"><path stroke-linecap="round" d="M6 6l12 12M18 6L6 18" /></svg>
+      </button>
+    </div>
+    <nav class="flex-1 overflow-y-auto px-5 py-6" aria-label="Mobile">
+      <ul class="space-y-1">
+        <% (navHeader || []).forEach(function(item) { %>
+          <li><a href="<%= item.href %>" class="block rounded-xl px-4 py-3 text-base font-medium text-primary-800 transition hover:bg-secondary-50 hover:text-secondary-800"><%= item.label %></a></li>
+        <% }) %>
+      </ul>
+    </nav>
+    <div class="space-y-3 border-t border-primary-100 px-5 py-5">
+      <a href="/planner" class="btn-primary w-full">Start Planning</a>
+      <% if (currentUser) { %>
+        <a href="<%= currentUser.role === 'admin' ? '/admin' : (currentUser.role === 'agent' ? '/agent' : '/customer') %>" class="btn-secondary w-full">Dashboard</a>
+        <form action="/logout" method="post"><input type="hidden" name="_csrf" value="<%= csrfToken %>" /><button type="submit" class="btn-ghost w-full">Log out</button></form>
+      <% } else { %>
+        <a href="/login" class="btn-secondary w-full">Log in</a>
+      <% } %>
+    </div>
+  </div>
+</div>

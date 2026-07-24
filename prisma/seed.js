@@ -1,6 +1,7 @@
 require('dotenv').config();
 const bcrypt = require('bcryptjs');
 const { PrismaClient } = require('@prisma/client');
+const { pages: publicPages } = require('../src/content/publicPages');
 
 const prisma = new PrismaClient();
 
@@ -10,7 +11,6 @@ async function main() {
   const admin = await prisma.user.upsert({
     where: { username: 'admin' },
     update: {
-      passwordHash,
       role: 'admin',
       email: 'admin@destinationswithdeanna.com',
       name: 'Deanna Admin',
@@ -40,6 +40,14 @@ async function main() {
     ['site_name', 'Destinations With Deanna'],
     ['site_tagline', 'Disneyland Paris specialist — tailored magical adventures'],
     ['support_email', process.env.SUPPORT_EMAIL || 'hello@destinationswithdeanna.com'],
+    ['logo_mode', 'text'],
+    ['footer_intro', 'Disneyland Paris specialist planning with practical advice, tailored itineraries and one place to manage your holiday.'],
+    ['primary_colour', '#1a2b40'],
+    ['secondary_colour', '#d1a24a'],
+    ['email_notifications_enabled', 'true'],
+    ['smtp_from_name', 'Destinations With Deanna'],
+    ['smtp_from_email', process.env.SUPPORT_EMAIL || 'hello@destinationswithdeanna.com'],
+    ['smtp_reply_to', process.env.SUPPORT_EMAIL || 'hello@destinationswithdeanna.com'],
     ['planner_enabled', 'true'],
     ['maintenance_mode', 'false'],
   ];
@@ -47,7 +55,7 @@ async function main() {
   for (const [key, value] of defaults) {
     await prisma.siteSetting.upsert({
       where: { key },
-      update: { value },
+      update: {},
       create: { key, value },
     });
   }
@@ -72,11 +80,11 @@ async function main() {
   const homeSections = JSON.stringify([
     {
       type: 'hero',
-      headline: 'Disneyland Paris, planned with care',
+      headline: 'Disneyland Paris holidays, planned around your family',
       subheadline:
-        'Bespoke holidays designed by Deanna — a specialist who knows the parks, hotels, and the little details that make a trip feel magical.',
-      primaryCta: { label: 'Start Planning Your Perfect Adventure', href: '/planner' },
-      secondaryCta: { label: 'Explore Disneyland Paris', href: '/disneyland-paris' },
+        'Deanna is a specialist who knows the parks, hotels and the small details that make a trip effortless — from hotel choice to dining, tickets and pacing.',
+      primaryCta: { label: 'Start planning your trip', href: '/planner' },
+      secondaryCta: { label: 'Explore the guide', href: '/disneyland-paris' },
     },
     {
       type: 'why',
@@ -84,7 +92,7 @@ async function main() {
       items: [
         { title: 'Specialist knowledge', text: 'Deep Disneyland Paris expertise, not a generic booking engine.' },
         { title: 'Personal service', text: 'Every itinerary is tailored to your family, budget, and pace.' },
-        { title: 'Calm support', text: 'Message Deanna from your private portal as plans take shape.' },
+        { title: 'Ongoing support', text: 'Message Deanna from your private portal as plans take shape.' },
       ],
     },
     {
@@ -185,6 +193,21 @@ async function main() {
       where: { slug: page.slug },
       update: {},
       create: page,
+    });
+  }
+
+  for (const [slug, page] of Object.entries(publicPages)) {
+    await prisma.page.upsert({
+      where: { slug },
+      update: {},
+      create: {
+        slug,
+        title: page.title,
+        seoTitle: page.seoTitle,
+        seoDesc: page.seoDesc,
+        sections: JSON.stringify(page.sections),
+        published: true,
+      },
     });
   }
 

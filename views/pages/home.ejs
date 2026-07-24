@@ -5,49 +5,58 @@
   const process = (sections || []).find(s => s.type === 'process');
 %>
 
-<section class="relative overflow-hidden border-b border-primary-100">
-  <div class="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(212,166,86,0.22),_transparent_55%),radial-gradient(ellipse_at_bottom_left,_rgba(217,122,154,0.16),_transparent_50%),linear-gradient(160deg,#fbf8f4_0%,#f7efe9_45%,#eef3f8_100%)]"></div>
-  <div class="absolute -right-20 top-10 h-72 w-72 rounded-full bg-secondary-300/20 blur-3xl"></div>
-  <div class="section relative grid items-center gap-10 lg:grid-cols-2 lg:py-24">
-    <div class="space-y-6">
-      <p class="badge bg-white/80 text-secondary-700 shadow-soft">Disneyland Paris specialist</p>
-      <h1 class="text-4xl leading-tight sm:text-5xl lg:text-6xl">
-        <%= hero.headline || 'Disneyland Paris, planned with care' %>
+<section class="relative isolate overflow-hidden bg-primary-950 text-white">
+  <div class="absolute inset-0">
+    <img
+      src="https://images.unsplash.com/photo-1502602898657-3e91760cbb34?auto=format&fit=crop&w=2000&q=85"
+      alt="Disneyland Paris style evening cityscape"
+      class="h-full w-full object-cover"
+      fetchpriority="high"
+    />
+    <div class="absolute inset-0 bg-gradient-to-r from-primary-950 via-primary-950/85 to-primary-950/45"></div>
+    <div class="absolute inset-0 bg-gradient-to-t from-primary-950 via-transparent to-primary-950/40"></div>
+    <div class="absolute inset-0 opacity-25" aria-hidden="true" style="background-image:radial-gradient(circle at 15% 20%, rgba(222,188,114,.85) 0 1.5px, transparent 2.5px), radial-gradient(circle at 80% 30%, rgba(255,255,255,.6) 0 1.5px, transparent 2.5px), radial-gradient(circle at 60% 75%, rgba(222,188,114,.6) 0 1px, transparent 2px); background-size:120px 120px, 160px 160px, 90px 90px;"></div>
+  </div>
+
+  <div class="section relative">
+    <div class="max-w-2xl animate-fadeUp rounded-[2rem] border border-white/15 bg-primary-950/45 p-8 shadow-lift backdrop-blur-md sm:p-11">
+      <p class="badge bg-secondary-400/20 text-secondary-200 ring-1 ring-secondary-300/30">Disneyland Paris specialist</p>
+      <h1 class="mt-6 text-balance text-white">
+        <%= hero.headline || hero.heading || 'Disneyland Paris holidays, planned around your family' %>
       </h1>
-      <p class="max-w-xl text-lg text-primary-700">
-        <%= hero.subheadline || 'Bespoke holidays designed by Deanna.' %>
+      <p class="mt-5 max-w-xl text-lg leading-relaxed text-primary-100 sm:text-xl">
+        <%= hero.subheadline || hero.text || 'Deanna is a specialist who knows the parks, hotels and the small details that make a trip effortless — from hotel choice to dining, tickets and pacing.' %>
       </p>
-      <div class="flex flex-wrap gap-3">
-        <a href="<%= (hero.primaryCta && hero.primaryCta.href) || '/planner' %>" class="btn-primary">
-          <%= (hero.primaryCta && hero.primaryCta.label) || 'Start Planning Your Perfect Adventure' %>
+      <div class="mt-8 flex flex-wrap gap-3">
+        <a href="<%= hero.primaryHref || (hero.primaryCta && hero.primaryCta.href) || '/planner' %>" class="btn bg-secondary-400 text-primary-950 shadow-gold hover:-translate-y-0.5 hover:bg-secondary-300">
+          <%= hero.primaryLabel || (hero.primaryCta && hero.primaryCta.label) || 'Start planning your trip' %>
         </a>
-        <a href="<%= (hero.secondaryCta && hero.secondaryCta.href) || '/disneyland-paris' %>" class="btn-secondary">
-          <%= (hero.secondaryCta && hero.secondaryCta.label) || 'Explore Disneyland Paris' %>
+        <a href="<%= hero.secondaryHref || (hero.secondaryCta && hero.secondaryCta.href) || '/disneyland-paris' %>" class="btn border border-white/40 bg-white/10 text-white hover:bg-white/20">
+          <%= hero.secondaryLabel || (hero.secondaryCta && hero.secondaryCta.label) || 'Explore the guide' %>
         </a>
       </div>
-    </div>
-    <div class="relative">
-      <div class="aspect-[4/5] overflow-hidden rounded-[2rem] bg-gradient-to-br from-primary-800 via-primary-600 to-secondary-500 shadow-lift">
-        <div class="flex h-full flex-col justify-end p-8 text-white">
-          <p class="font-display text-3xl">Magical days,<br/>thoughtfully planned.</p>
-          <p class="mt-3 max-w-sm text-sm text-white/85">Hotels, tickets, dining, and pacing — curated around your family.</p>
-        </div>
-      </div>
+      <ul class="mt-8 flex flex-wrap gap-x-6 gap-y-2 text-sm text-primary-100">
+        <li class="flex items-center gap-2"><span class="text-secondary-300">✦</span> Independent, specialist advice</li>
+        <li class="flex items-center gap-2"><span class="text-secondary-300">✦</span> Tailored to your dates &amp; budget</li>
+        <li class="flex items-center gap-2"><span class="text-secondary-300">✦</span> One place to manage everything</li>
+      </ul>
     </div>
   </div>
 </section>
 
 <% if (why) { %>
 <section class="section">
-  <div class="mb-10 max-w-2xl">
-    <h2 class="text-3xl sm:text-4xl"><%= why.title %></h2>
-    <p class="mt-3 text-primary-700">A calm, premium planning experience — not a hard-sell booking form.</p>
+  <div class="mb-12 max-w-2xl">
+    <p class="badge bg-secondary-50 text-secondary-800">Why Deanna</p>
+    <h2 class="mt-4"><%= why.title %></h2>
+    <p class="mt-4 text-lg text-primary-700">A personal planning experience with expert guidance, clear next steps, and recommendations built around your family.</p>
   </div>
   <div class="grid gap-6 md:grid-cols-3">
     <% (why.items || []).forEach(function(item) { %>
-      <article class="card hover:-translate-y-1 hover:shadow-lift transition duration-300">
-        <h3 class="text-xl"><%= item.title %></h3>
-        <p class="mt-3 text-primary-700"><%= item.text %></p>
+      <article class="card-hover card-accent">
+        <div class="icon-bubble mb-5">✦</div>
+        <h3 class="text-2xl"><%= item.title %></h3>
+        <p class="mt-3 leading-relaxed text-primary-700"><%= item.text %></p>
       </article>
     <% }) %>
   </div>
@@ -55,28 +64,137 @@
 <% } %>
 
 <% if (process) { %>
-<section class="bg-blush/60">
+<section class="bg-blush/70">
   <div class="section">
-    <h2 class="mb-10 text-3xl sm:text-4xl"><%= process.title %></h2>
+    <div class="mb-12 max-w-2xl">
+      <p class="badge bg-white/80 text-primary-800">How it works</p>
+      <h2 class="mt-4"><%= process.title %></h2>
+    </div>
     <ol class="grid gap-6 md:grid-cols-3">
       <% (process.steps || []).forEach(function(step, i) { %>
-        <li class="card">
-          <div class="mb-4 flex h-10 w-10 items-center justify-center rounded-full bg-primary-900 font-display text-lg text-white"><%= i + 1 %></div>
-          <h3 class="text-xl"><%= step.title %></h3>
-          <p class="mt-2 text-primary-700"><%= step.text %></p>
+        <li class="card-hover">
+          <div class="mb-5 flex h-11 w-11 items-center justify-center rounded-full bg-primary-900 font-display text-xl text-white"><%= i + 1 %></div>
+          <h3 class="text-2xl"><%= step.title %></h3>
+          <p class="mt-3 text-primary-700"><%= step.text %></p>
         </li>
       <% }) %>
     </ol>
-    <div class="mt-10">
+    <div class="mt-12">
       <a href="/planner" class="btn-primary">Begin your plan</a>
     </div>
   </div>
 </section>
 <% } %>
 
-<section class="section text-center">
-  <h2 class="text-3xl sm:text-4xl">Ready when you are</h2>
-  <p class="mx-auto mt-3 max-w-xl text-primary-700">Tell Deanna what you want from the trip — she’ll shape the rest.</p>
-  <a href="/planner" class="btn-primary mt-8">Start Planning Your Perfect Adventure</a>
+<section class="section">
+  <div class="mb-12 flex flex-wrap items-end justify-between gap-4">
+    <div class="max-w-2xl">
+      <p class="badge bg-secondary-50 text-secondary-800">Where to stay</p>
+      <h2 class="mt-4">Find the hotel that fits your trip</h2>
+      <p class="mt-4 text-lg text-primary-700">Compare location, atmosphere, room setup and total package value—not only the headline room price.</p>
+    </div>
+    <a href="/disneyland-paris/hotels" class="btn-secondary">View the hotel guide</a>
+  </div>
+  <div class="grid gap-6 md:grid-cols-3">
+    <% [
+      ['Premium stays', 'Flagship service, standout interiors and exceptional access for milestone trips.'],
+      ['Family favourites', 'Strong facilities, practical rooms and easy routes to the parks.'],
+      ['Best-value bases', 'More budget for dining and experiences without losing useful transport links.']
+    ].forEach(function(item, itemIndex) { %>
+      <article class="card-hover card-accent overflow-hidden p-0">
+        <div class="relative aspect-[4/3] overflow-hidden">
+          <img src="<%= [
+            'https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=900&q=80',
+            'https://images.unsplash.com/photo-1551882547-ff40c63fe5fa?auto=format&fit=crop&w=900&q=80',
+            'https://images.unsplash.com/photo-1564501049412-61c2a3083791?auto=format&fit=crop&w=900&q=80'
+          ][itemIndex] %>" alt="" class="h-full w-full object-cover transition duration-500 hover:scale-105" loading="lazy" />
+        </div>
+        <div class="p-6">
+          <h3 class="text-2xl"><%= item[0] %></h3>
+          <p class="mt-3 text-primary-700"><%= item[1] %></p>
+        </div>
+      </article>
+    <% }) %>
+  </div>
+</section>
+
+<section class="section">
+  <div class="grid items-center gap-10 lg:grid-cols-2">
+    <div>
+      <p class="badge bg-accent-100 text-accent-700">Guides & tips</p>
+      <h2 class="mt-4">Editorial guidance, not overwhelm</h2>
+      <p class="mt-4 text-lg text-primary-700">Hotels, dining, park pacing, and first-timer advice — written to help you choose with confidence before you ever open the planner.</p>
+      <div class="mt-8 flex flex-wrap gap-3">
+        <a href="/disneyland-paris" class="btn-secondary">Browse the guide</a>
+        <a href="/planning-advice" class="btn-ghost">Planning advice</a>
+      </div>
+    </div>
+    <div class="card overflow-hidden p-0">
+      <img src="https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=1100&q=82" alt="Travel planning notes beside a laptop" class="aspect-[16/11] w-full object-cover" loading="lazy" />
+      <div class="p-6">
+        <h3 class="text-2xl">Start with the story of your trip</h3>
+        <p class="mt-2 text-primary-700">Share dates, travellers, and must-haves — Deanna shapes the rest.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="bg-primary-950 text-white">
+  <div class="section">
+    <div class="mb-12 max-w-2xl">
+      <p class="badge bg-secondary-400/20 text-secondary-200">Destination highlights</p>
+      <h2 class="mt-4 text-white">What makes Disneyland Paris special</h2>
+      <p class="mt-4 text-lg text-primary-100">Two theme parks, immersive hotels and a short hop from the UK — with something memorable for every kind of traveller.</p>
+    </div>
+    <div class="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
+      <% [
+        ['Disneyland Park', 'The classic park — the castle, headline attractions, parades and fireworks.', 'https://images.unsplash.com/photo-1597466599360-3b9775841aec?auto=format&fit=crop&w=800&q=80'],
+        ['Disney Adventure World', 'Marvel, Pixar and new worlds in the evolving second park.', 'https://images.unsplash.com/photo-1624138784614-87fd1b6528f8?auto=format&fit=crop&w=800&q=80'],
+        ['Immersive hotels', 'Wake up inside the magic with themed Disney and partner hotels.', 'https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=800&q=80'],
+        ['Easy from the UK', 'Direct rail and short flights make it an achievable long-weekend trip.', 'https://images.unsplash.com/photo-1473445361085-b9a07f55608b?auto=format&fit=crop&w=800&q=80']
+      ].forEach(function(item) { %>
+        <article class="group overflow-hidden rounded-card border border-white/10 bg-white/5">
+          <div class="aspect-[4/3] overflow-hidden">
+            <img src="<%= item[2] %>" alt="" class="h-full w-full object-cover transition duration-500 group-hover:scale-105" loading="lazy" />
+          </div>
+          <div class="p-5">
+            <h3 class="text-xl text-white"><%= item[0] %></h3>
+            <p class="mt-2 text-sm text-primary-100"><%= item[1] %></p>
+          </div>
+        </article>
+      <% }) %>
+    </div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="mb-12 max-w-2xl">
+    <p class="badge bg-secondary-50 text-secondary-800">What families say</p>
+    <h2 class="mt-4">Trusted to get the details right</h2>
+  </div>
+  <div class="grid gap-6 md:grid-cols-3">
+    <% [
+      ['“Deanna took the stress out of everything. The hotel was perfect for our two under-fives and the dining plan was spot on.”', 'The Harper family', 'February half-term'],
+      ['“Genuinely knowledgeable — she suggested a park order we would never have thought of and it saved us hours of queueing.”', 'Sarah &amp; James', 'Anniversary trip'],
+      ['“Everything in one place, quick replies and a plan that matched our budget. It felt like having a friend in the know.”', 'The Okafor family', 'Summer holiday']
+    ].forEach(function(item) { %>
+      <figure class="card-hover card-accent flex h-full flex-col">
+        <div class="text-2xl text-secondary-500" aria-hidden="true">★★★★★</div>
+        <blockquote class="mt-4 flex-1 text-lg leading-relaxed text-primary-800"><%= item[0] %></blockquote>
+        <figcaption class="mt-5 border-t border-primary-100 pt-4 text-sm">
+          <span class="font-semibold text-primary-950"><%= item[1] %></span>
+          <span class="block text-primary-500"><%= item[2] %></span>
+        </figcaption>
+      </figure>
+    <% }) %>
+  </div>
+</section>
+
+<section class="section pt-0 text-center">
+  <div class="mx-auto max-w-2xl rounded-[2rem] border border-secondary-200/70 bg-gradient-to-br from-white via-secondary-50/40 to-blush px-8 py-14 shadow-soft">
+    <h2>Ready when you are</h2>
+    <p class="mx-auto mt-4 max-w-xl text-lg text-primary-700">Tell Deanna what you want from the trip and she’ll shape hotels, tickets and pacing around your family.</p>
+    <a href="/planner" class="btn-primary mt-8">Start planning your trip</a>
+  </div>
 </section>
 <%- include('../partials/shell-end') %>

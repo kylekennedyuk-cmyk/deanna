@@ -1,5 +1,7 @@
 const express = require('express');
 const { prisma } = require('../../config/database');
+const { sendNotification } = require('../../config/email');
+const { getSettings } = require('../../config/settings');
 const { requireRole } = require('../../middleware/auth');
 
 const router = express.Router();
@@ -60,6 +62,7 @@ router.post('/plans/:id/messages', async (req, res, next) => {
     const planId = Number(req.params.id);
     const plan = await prisma.holidayPlan.findFirst({
       where: { id: planId, customerId: req.user.id },
+      include: { agent: true },
     });
     if (!plan) {
       return res.status(404).render('pages/error', { title: 'Not found', message: 'Plan not found.', status: 404 });
@@ -69,6 +72,23 @@ router.post('/plans/:id/messages', async (req, res, next) => {
       await prisma.message.create({
         data: { planId, senderId: req.user.id, content },
       });
+      const settings = await getSettings();
+      const recipient =
+        (plan.agent && plan.agent.email) ||
+        settings.support_email ||
+        process.env.SUPPORT_EMAIL;
+      if (recipient) {
+        await sendNotification('new_message', {
+          to: recipient,
+          values: {
+            senderName: req.user.name,
+            planTitle: `Plan #${plan.id}`,
+          },
+          body: content,
+          buttonLabel: 'Reply in the agent workspace',
+          buttonUrl: `${process.env.APP_URL || 'http://localhost:3000'}/agent/plans/${plan.id}?tab=messages`,
+        });
+      }
     }
     res.redirect(`/customer/plans/${planId}/messages`);
   } catch (err) {
@@ -77,7 +97,12 @@ router.post('/plans/:id/messages', async (req, res, next) => {
 });
 
 router.get('/profile', (req, res) => {
-  res.render('customer/profile', { title: 'Profile', saved: false, error: null });
+  res.render('customer/profile', {
+    title: 'Profile',
+    saved: false,
+    error: null,
+    emailNotify: req.user.emailNotify,
+  });
 });
 
 router.post('/profile', async (req, res, next) => {
@@ -87,9 +112,15 @@ router.post('/profile', async (req, res, next) => {
       data: {
         name: String(req.body.name || req.user.name).trim(),
         phone: req.body.phone ? String(req.body.phone).trim() : null,
+        emailNotify: req.body.emailNotify === '1',
       },
     });
-    res.render('customer/profile', { title: 'Profile', saved: true, error: null });
+    res.render('customer/profile', {
+      title: 'Profile',
+      saved: true,
+      error: null,
+      emailNotify: req.body.emailNotify === '1',
+    });
   } catch (err) {
     next(err);
   }
