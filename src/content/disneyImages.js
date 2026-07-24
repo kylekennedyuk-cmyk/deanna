@@ -35,7 +35,8 @@ const images = {
   /** Sequoia Lodge gardens */
   sequoiaLodge: local('disney-sequoia.jpg'),
   /** Eurostar — UK travel to Paris / Disney */
-  eurostar: local('eurostar.jpg'),
+  eurostar: local('easyjet-gatwick.jpg'),
+  ukFlight: local('easyjet-gatwick.jpg'),
 };
 
 // Aliases used by CMS page sections

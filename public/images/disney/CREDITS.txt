@@ -9,6 +9,6 @@ Local files under `public/images/disney/`:
 | disney-hotels-park.jpg | Wikimedia Commons | Disney hotel grounds, Disneyland Paris |
 | disney-lake.jpg | Wikimedia Commons | Lake Disney |
 | disney-sequoia.jpg | Wikimedia Commons | Sequoia Lodge gardens |
-| eurostar.jpg | Unsplash | Train travel (UK to Paris / Disney) |
+| easyjet-gatwick.jpg | Wikimedia Commons | easyJet at London Gatwick (UK short-haul flights) |
 
 Castle / fireworks / park crowd images remain remote Unsplash URLs verified as Coupvray / Chessy.
