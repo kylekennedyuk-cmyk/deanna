@@ -60,11 +60,16 @@ git clone https://github.com/kylekennedyuk-cmyk/deanna.git .
 
 | Setting | Value |
 |--------|--------|
-| Node.js version | **20+** |
-| Application root | folder containing `package.json` |
+| Node.js version | **20 or 22 LTS** (avoid 25) |
+| Application root | `/httpdocs` (folder containing `package.json`) |
 | Application startup file | `server.js` |
 | Application mode | `production` |
-| Document root | usually the same app folder (or as Plesk requires for Node proxy) |
+| **Document root** | **`/httpdocs/public`** |
+
+> **Document root must be `/httpdocs/public`.**
+> If it points at `/httpdocs`, the web server looks for CSS at `/httpdocs/css/app.css` (wrong place),
+> so the site loads as unstyled HTML and `/health` returns “file not found”.
+> Static assets live in `public/`; everything else is passed to Node.
 
 3. Click **NPM install**
 
@@ -201,6 +206,8 @@ Do **not** re-run `node prisma/seed.js` on an existing live site unless you inte
 
 | Problem | Fix |
 |--------|-----|
+| **Site loads unstyled / no CSS** | Document root is wrong. Set it to `/httpdocs/public`, then Restart App |
+| **`/health` says “file not found”** | Same cause — set document root to `/httpdocs/public` |
 | `npm error Missing script: "npx"` | Plesk's Run script box takes a script **name** only. Use `deploy` or `update` |
 | `DATABASE_URL is missing` when running a script | Create `httpdocs/.env` with `DATABASE_URL=file:../data/deanna.db` — panel env vars are often ignored by Run script |
 | `EADDRINUSE :::3000` | Do not run script `start`. Passenger already runs the app. Use `deploy`, then **Restart App**. Remove any `PORT` variable |
