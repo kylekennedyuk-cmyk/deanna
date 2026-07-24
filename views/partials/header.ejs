@@ -52,7 +52,11 @@
   <div class="absolute inset-0 bg-primary-950/50 backdrop-blur-sm" data-menu-close></div>
   <div class="absolute right-0 top-0 flex h-full w-[86%] max-w-sm flex-col bg-ivory shadow-2xl" data-drawer-panel>
     <div class="flex items-center justify-between border-b border-primary-100 px-5 py-4">
-      <span class="font-display text-xl font-semibold text-primary-950"><%= siteName %></span>
+      <% if (settings.logo_url) { %>
+        <img src="<%= settings.logo_url %>" alt="<%= siteName %>" class="brand-logo" />
+      <% } else { %>
+        <span class="font-display text-xl font-semibold text-primary-950"><%= siteName %></span>
+      <% } %>
       <button type="button" class="inline-flex h-10 w-10 items-center justify-center rounded-full border border-primary-200 text-primary-800 hover:text-secondary-700" data-menu-close aria-label="Close menu">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="h-5 w-5" aria-hidden="true"><path stroke-linecap="round" d="M6 6l12 12M18 6L6 18" /></svg>
       </button>

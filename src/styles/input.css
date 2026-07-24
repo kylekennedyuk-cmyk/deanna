@@ -265,8 +265,8 @@
   }
 
   .site-header {
-    /* Always light ivory glass at 40% — never inherit a dark brand colour */
-    background-color: rgb(251 248 243 / 0.4) !important;
+    /* Always light ivory glass — mostly white so the logo reads clearly */
+    background-color: rgb(251 248 243 / 0.85) !important;
     border-color: rgb(26 43 64 / 0.12);
     -webkit-backdrop-filter: blur(18px) saturate(1.15);
     backdrop-filter: blur(18px) saturate(1.15);
