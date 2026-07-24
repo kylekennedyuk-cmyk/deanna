@@ -20,11 +20,31 @@ const customerRoutes = require('./modules/customers/routes');
 const agentRoutes = require('./modules/agents/routes');
 const adminRoutes = require('./modules/admin/routes');
 
+function applySafeLocals(res) {
+  res.locals.siteName = res.locals.siteName || 'Destinations With Deanna';
+  res.locals.siteTagline = res.locals.siteTagline || '';
+  res.locals.settings = res.locals.settings || {};
+  res.locals.navHeader = res.locals.navHeader || [];
+  res.locals.navFooter = res.locals.navFooter || [];
+  res.locals.currentUser = res.locals.currentUser || null;
+  res.locals.csrfToken = res.locals.csrfToken || '';
+  res.locals.appUrl = res.locals.appUrl || process.env.APP_URL || '';
+  res.locals.format = format;
+  res.locals.statusLabel = format.statusLabel;
+  res.locals.nextAction = format.nextAction;
+  res.locals.statusBadgeClass = format.statusBadgeClass;
+  res.locals.formatMoney = format.formatMoney;
+  res.locals.formatDateTime = format.formatDateTime;
+  res.locals.preferenceEntries = format.preferenceEntries;
+  res.locals.planTitle = format.planTitle;
+}
+
 function createApp() {
   const app = express();
 
   fs.mkdirSync(path.join(__dirname, '..', 'data'), { recursive: true });
   fs.mkdirSync(path.join(__dirname, '..', 'public', 'uploads'), { recursive: true });
+  fs.mkdirSync(path.join(__dirname, '..', 'data', 'sessions'), { recursive: true });
 
   configurePassport();
 
@@ -43,11 +63,17 @@ function createApp() {
   app.use(cookieParser());
   app.use(methodOverride('_method'));
   app.use(express.static(path.join(__dirname, '..', 'public')));
+
+  // Health check before session/CSRF/DB so Plesk can probe the process.
+  app.get('/health', (req, res) => {
+    res.json({ ok: true });
+  });
+
   app.use(createSessionMiddleware());
   app.use(passport.initialize());
   app.use(passport.session());
 
-  const { csrfSynchronisedProtection } = csrfSync({
+  const { generateToken, csrfSynchronisedProtection } = csrfSync({
     getTokenFromRequest: (req) =>
       (req.body && req.body._csrf) ||
       (req.query && req.query._csrf) ||
@@ -70,24 +96,14 @@ function createApp() {
       res.locals.navHeader = nav.filter((n) => n.location === 'header');
       res.locals.navFooter = nav.filter((n) => n.location === 'footer');
       res.locals.currentUser = req.user || null;
-      res.locals.csrfToken = req.csrfToken ? req.csrfToken() : null;
+      res.locals.csrfToken = req.csrfToken ? req.csrfToken() : generateToken(req);
       res.locals.appUrl = process.env.APP_URL || '';
-      res.locals.format = format;
-      res.locals.statusLabel = format.statusLabel;
-      res.locals.nextAction = format.nextAction;
-      res.locals.statusBadgeClass = format.statusBadgeClass;
-      res.locals.formatMoney = format.formatMoney;
-      res.locals.formatDateTime = format.formatDateTime;
-      res.locals.preferenceEntries = format.preferenceEntries;
-      res.locals.planTitle = format.planTitle;
+      applySafeLocals(res);
       next();
     } catch (err) {
+      applySafeLocals(res);
       next(err);
     }
-  });
-
-  app.get('/health', (req, res) => {
-    res.json({ ok: true });
   });
 
   app.use((req, res, next) => {
@@ -128,6 +144,7 @@ function createApp() {
   app.use('/admin', adminRoutes);
 
   app.use((req, res) => {
+    applySafeLocals(res);
     res.status(404).render('pages/error', {
       title: 'Not found',
       message: 'That page could not be found.',
@@ -136,6 +153,9 @@ function createApp() {
   });
 
   app.use((err, req, res, next) => {
+    applySafeLocals(res);
+    console.error(err);
+
     if (err.code === 'EBADCSRFTOKEN') {
       return res.status(403).render('pages/error', {
         title: 'Form expired',
@@ -143,12 +163,34 @@ function createApp() {
         status: 403,
       });
     }
-    console.error(err);
-    res.status(500).render('pages/error', {
-      title: 'Something went wrong',
-      message: process.env.NODE_ENV === 'production' ? 'Please try again shortly.' : err.message,
-      status: 500,
-    });
+
+    const isDbError =
+      err.code === 'P1001' ||
+      err.code === 'P1003' ||
+      err.code === 'P2021' ||
+      /database|sqlite|prisma/i.test(String(err.message || ''));
+
+    const message = isDbError
+      ? 'The website database is not ready yet. In Plesk Node.js, run the script named "deploy", then Restart App.'
+      : process.env.NODE_ENV === 'production'
+        ? 'Please try again shortly. If this continues, check the Node.js logs in Plesk.'
+        : err.message;
+
+    try {
+      return res.status(500).render('pages/error', {
+        title: 'Something went wrong',
+        message,
+        status: 500,
+      });
+    } catch (renderErr) {
+      console.error(renderErr);
+      return res
+        .status(500)
+        .type('html')
+        .send(
+          `<!doctype html><html><body style="font-family:Arial,sans-serif;padding:40px"><h1>Something went wrong</h1><p>${message}</p></body></html>`
+        );
+    }
   });
 
   return app;

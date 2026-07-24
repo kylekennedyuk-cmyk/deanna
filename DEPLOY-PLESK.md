@@ -197,7 +197,8 @@ Do **not** re-run `node prisma/seed.js` on an existing live site unless you inte
 | Problem | Fix |
 |--------|-----|
 | `npm error Missing script: "npx"` | Plesk's Run script box takes a script **name** only. Use `deploy` or `update` |
-| App won’t start | Check Node.js logs in Plesk; confirm startup file is `server.js` and Node 20+ |
+| **Internal Server Error** | Almost always means the database was never created. Pull latest code, run script `deploy`, then **Restart App**. Also confirm `DATABASE_URL=file:../data/deanna.db` is set and `data/` is writable |
+| App won’t start | Check Node.js logs in Plesk; confirm startup file is `server.js` and Node 20+. If logs say “Database is not ready”, run `deploy` |
 | Blank / unstyled pages | Run `npm run build` so `public/css/app.css` exists |
 | Login fails after redeploy | Do not delete `data/`; the SQLite DB and sessions live there |
 | 502 / proxy errors | Confirm the Node app is enabled and listening on the port Plesk expects |
