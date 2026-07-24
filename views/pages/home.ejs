@@ -1,4 +1,4 @@
-<%- include('../partials/shell-start') %>
+<%- include('../partials/shell-start', { bodyClass: 'public-home' }) %>
 <%
   const hero = (sections || []).find(s => s.type === 'hero') || {};
   const why = (sections || []).find(s => s.type === 'why');
@@ -32,7 +32,7 @@
   </div>
 
   <div class="section relative">
-    <div class="max-w-2xl animate-fadeUp rounded-[2rem] border border-white/15 bg-primary-950/45 p-8 shadow-lift backdrop-blur-md sm:p-11">
+    <div class="max-w-2xl animate-fadeUp rounded-[2rem] border border-white/20 bg-primary-950/20 p-8 shadow-lift backdrop-blur-md sm:p-11">
       <p class="badge bg-secondary-400/20 text-secondary-200 ring-1 ring-secondary-300/30">Disneyland Paris specialist</p>
       <h1 class="mt-6 text-balance text-white">
         <%= hero.headline || hero.heading || 'Disneyland Paris holidays, planned around your family' %>

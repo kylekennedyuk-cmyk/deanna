@@ -265,14 +265,44 @@
   }
 
   .site-header {
-    /* Real alpha so page content shows through on every device */
-    background-color: rgb(251 248 243 / 0.42) !important;
+    /* ~80% transparent so page/hero shows through */
+    background-color: rgb(251 248 243 / 0.2) !important;
     background-color: rgb(
-      from var(--brand-header-bg, var(--brand-bg, #fbf8f3)) r g b / 0.42
+      from var(--brand-header-bg, var(--brand-bg, #fbf8f3)) r g b / 0.2
     ) !important;
     border-color: color-mix(in srgb, var(--brand-primary, #1a2b40) 10%, transparent);
-    -webkit-backdrop-filter: blur(14px) saturate(1.15);
-    backdrop-filter: blur(14px) saturate(1.15);
+    -webkit-backdrop-filter: blur(16px) saturate(1.2);
+    backdrop-filter: blur(16px) saturate(1.2);
+  }
+
+  /* Homepage: float the menu over the hero so transparency is visible */
+  body.public-home .site-header {
+    position: fixed;
+    inset-inline: 0;
+    top: 0;
+    border-color: rgb(255 255 255 / 0.18);
+  }
+
+  body.public-home .site-header a:not(.btn-primary),
+  body.public-home .site-header button:not(.btn-primary),
+  body.public-home .site-header .font-display,
+  body.public-home .site-header .text-primary-950,
+  body.public-home .site-header .text-primary-800,
+  body.public-home .site-header .text-primary-600 {
+    color: rgb(255 255 255 / 0.95) !important;
+  }
+
+  body.public-home .site-header .btn-ghost {
+    color: rgb(255 255 255 / 0.95) !important;
+  }
+
+  body.public-home .site-header [data-menu-toggle] {
+    border-color: rgb(255 255 255 / 0.35);
+    color: rgb(255 255 255 / 0.95);
+  }
+
+  body.public-home > main > section:first-child > .section {
+    padding-top: 6.5rem;
   }
 
   .brand-logo {
