@@ -265,12 +265,14 @@
   }
 
   .site-header {
-    background-color: color-mix(
-      in srgb,
-      var(--brand-header-bg, var(--brand-bg, #fbf8f3)) 62%,
-      transparent
-    );
-    border-color: color-mix(in srgb, var(--brand-primary, #1a2b40) 8%, transparent);
+    /* Real alpha so page content shows through on every device */
+    background-color: rgb(251 248 243 / 0.42) !important;
+    background-color: rgb(
+      from var(--brand-header-bg, var(--brand-bg, #fbf8f3)) r g b / 0.42
+    ) !important;
+    border-color: color-mix(in srgb, var(--brand-primary, #1a2b40) 10%, transparent);
+    -webkit-backdrop-filter: blur(14px) saturate(1.15);
+    backdrop-filter: blur(14px) saturate(1.15);
   }
 
   .brand-logo {
