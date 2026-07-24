@@ -1,0 +1,17 @@
+<%- include('../partials/shell-start') %>
+<section class="section">
+  <h1 class="text-4xl">Pages</h1>
+  <% if (saved) { %><div class="mt-4 rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-green-800">Saved.</div><% } %>
+  <div class="mt-8 space-y-3">
+    <% pages.forEach(function(page) { %>
+      <a href="/admin/pages/<%= page.id %>" class="card flex items-center justify-between">
+        <div>
+          <div class="font-semibold"><%= page.title %></div>
+          <div class="text-sm text-primary-600">/<%= page.slug %></div>
+        </div>
+        <span class="badge <%= page.published ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-800' %>"><%= page.published ? 'Published' : 'Draft' %></span>
+      </a>
+    <% }) %>
+  </div>
+</section>
+<%- include('../partials/shell-end') %>

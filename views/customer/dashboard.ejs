@@ -1,0 +1,31 @@
+<%- include('../partials/shell-start') %>
+<section class="section">
+  <div class="mb-8 flex flex-wrap items-end justify-between gap-4">
+    <div>
+      <h1 class="text-4xl">Hello, <%= currentUser.name %></h1>
+      <p class="mt-2 text-primary-700">Your holiday plans and messages with Deanna.</p>
+    </div>
+    <a href="/planner" class="btn-primary">Start a new plan</a>
+  </div>
+
+  <div class="grid gap-4">
+    <% if (!plans.length) { %>
+      <div class="card">
+        <p class="text-primary-700">No plans yet — begin the holiday planner whenever you’re ready.</p>
+        <a href="/planner" class="btn-secondary mt-4">Open planner</a>
+      </div>
+    <% } %>
+    <% plans.forEach(function(plan) { %>
+      <a href="/customer/plans/<%= plan.id %>" class="card block transition hover:-translate-y-0.5 hover:shadow-lift">
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 class="text-xl">Plan #<%= plan.id %></h2>
+            <p class="text-sm text-primary-600"><%= plan.travelDates %> · party of <%= plan.partySize %></p>
+          </div>
+          <span class="badge bg-primary-100 text-primary-800"><%= plan.status.replace('_', ' ') %></span>
+        </div>
+      </a>
+    <% }) %>
+  </div>
+</section>
+<%- include('../partials/shell-end') %>

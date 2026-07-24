@@ -1,0 +1,28 @@
+<%- include('../partials/shell-start') %>
+<section class="section max-w-3xl">
+  <h1 class="text-3xl">Edit · <%= page.title %></h1>
+  <form method="post" action="/admin/pages/<%= page.id %>" class="card mt-6 space-y-4">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+    <div>
+      <label class="label" for="title">Title</label>
+      <input class="field" id="title" name="title" value="<%= page.title %>" required />
+    </div>
+    <div>
+      <label class="label" for="seoTitle">SEO title</label>
+      <input class="field" id="seoTitle" name="seoTitle" value="<%= page.seoTitle || '' %>" />
+    </div>
+    <div>
+      <label class="label" for="seoDesc">SEO description</label>
+      <textarea class="field min-h-[80px]" id="seoDesc" name="seoDesc"><%= page.seoDesc || '' %></textarea>
+    </div>
+    <div>
+      <label class="label" for="sections">Sections JSON</label>
+      <textarea class="field min-h-[280px] font-mono text-xs" id="sections" name="sections"><%= page.sections %></textarea>
+    </div>
+    <label class="flex items-center gap-2 text-sm">
+      <input type="checkbox" name="published" <%= page.published ? 'checked' : '' %> /> Published
+    </label>
+    <button class="btn-primary" type="submit">Save page</button>
+  </form>
+</section>
+<%- include('../partials/shell-end') %>

@@ -1,0 +1,29 @@
+<%- include('../partials/shell-start') %>
+<section class="section max-w-2xl">
+  <h1 class="text-4xl">Contact</h1>
+  <% (sections || []).forEach(function(block) { %>
+    <% if (block.text) { %><p class="mt-4 text-lg text-primary-700"><%= block.text %></p><% } %>
+  <% }) %>
+
+  <% if (sent) { %>
+    <div class="mt-6 rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-green-800">Thanks — your message was received.</div>
+  <% } %>
+
+  <form method="post" action="/contact" class="card mt-8 space-y-4">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+    <div>
+      <label class="label" for="name">Name</label>
+      <input class="field" id="name" name="name" required />
+    </div>
+    <div>
+      <label class="label" for="email">Email</label>
+      <input class="field" id="email" name="email" type="email" required />
+    </div>
+    <div>
+      <label class="label" for="message">Message</label>
+      <textarea class="field min-h-[140px]" id="message" name="message" required></textarea>
+    </div>
+    <button class="btn-primary" type="submit">Send message</button>
+  </form>
+</section>
+<%- include('../partials/shell-end') %>

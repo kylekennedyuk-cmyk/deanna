@@ -1,0 +1,14 @@
+node_modules/
+.env
+.DS_Store
+*.log
+npm-debug.log*
+.prisma/
+data/*
+!data/.gitkeep
+*.db
+*.db-journal
+public/uploads/*
+!public/uploads/.gitkeep
+.idea/
+.vscode/

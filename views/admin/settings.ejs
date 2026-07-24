@@ -1,0 +1,36 @@
+<%- include('../partials/shell-start') %>
+<section class="section max-w-2xl">
+  <h1 class="text-4xl">Settings</h1>
+  <% if (saved) { %><div class="mt-4 rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-green-800">Saved.</div><% } %>
+  <form method="post" action="/admin/settings" class="card mt-8 space-y-4">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+    <div>
+      <label class="label" for="site_name">Site name</label>
+      <input class="field" id="site_name" name="site_name" value="<%= settings.site_name || '' %>" />
+    </div>
+    <div>
+      <label class="label" for="site_tagline">Tagline</label>
+      <input class="field" id="site_tagline" name="site_tagline" value="<%= settings.site_tagline || '' %>" />
+    </div>
+    <div>
+      <label class="label" for="support_email">Support email</label>
+      <input class="field" id="support_email" name="support_email" value="<%= settings.support_email || '' %>" />
+    </div>
+    <div>
+      <label class="label" for="planner_enabled">Planner enabled</label>
+      <select class="field" id="planner_enabled" name="planner_enabled">
+        <option value="true" <%= settings.planner_enabled === 'true' ? 'selected' : '' %>>Yes</option>
+        <option value="false" <%= settings.planner_enabled === 'false' ? 'selected' : '' %>>No</option>
+      </select>
+    </div>
+    <div>
+      <label class="label" for="maintenance_mode">Maintenance mode</label>
+      <select class="field" id="maintenance_mode" name="maintenance_mode">
+        <option value="false" <%= settings.maintenance_mode !== 'true' ? 'selected' : '' %>>Off</option>
+        <option value="true" <%= settings.maintenance_mode === 'true' ? 'selected' : '' %>>On</option>
+      </select>
+    </div>
+    <button class="btn-primary" type="submit">Save settings</button>
+  </form>
+</section>
+<%- include('../partials/shell-end') %>

@@ -1,0 +1,76 @@
+<%- include('../partials/shell-start') %>
+<section class="section">
+  <% if (saved) { %><div class="mb-4 rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-green-800">Saved.</div><% } %>
+  <div class="mb-6 flex flex-wrap items-center justify-between gap-3">
+    <div>
+      <h1 class="text-4xl">Plan #<%= plan.id %></h1>
+      <p class="text-primary-600"><%= plan.customer.name %> · <%= plan.customer.email %></p>
+    </div>
+    <a href="/agent/plans" class="btn-ghost">Back to list</a>
+  </div>
+
+  <div class="mb-6 flex flex-wrap gap-2">
+    <% ['overview','flights','hotel','itinerary','pricing','messages','notes'].forEach(function(t) { %>
+      <a href="?tab=<%= t %>" class="rounded-full px-4 py-2 text-sm font-semibold <%= tab === t ? 'bg-primary-900 text-white' : 'bg-primary-50 text-primary-700' %>"><%= t %></a>
+    <% }) %>
+  </div>
+
+  <% if (tab === 'messages') { %>
+    <div class="card space-y-4">
+      <% plan.messages.forEach(function(msg) { %>
+        <div class="rounded-xl bg-primary-50 px-4 py-3">
+          <div class="text-xs font-semibold uppercase tracking-wider text-primary-500"><%= msg.sender.name %></div>
+          <p class="mt-1"><%= msg.content %></p>
+        </div>
+      <% }) %>
+      <form method="post" action="/agent/plans/<%= plan.id %>/messages" class="space-y-3 border-t border-primary-100 pt-4">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+        <textarea class="field min-h-[100px]" name="content" required></textarea>
+        <button class="btn-primary" type="submit">Send reply</button>
+      </form>
+    </div>
+  <% } else if (tab === 'overview') { %>
+    <div class="grid gap-6 lg:grid-cols-2">
+      <div class="card">
+        <h2 class="text-xl">Preferences</h2>
+        <pre class="mt-4 overflow-auto rounded-xl bg-primary-50 p-4 text-xs"><%= JSON.stringify(preferences, null, 2) %></pre>
+      </div>
+      <form method="post" action="/agent/plans/<%= plan.id %>/update" class="card space-y-4">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+        <input type="hidden" name="tab" value="overview" />
+        <div>
+          <label class="label" for="status">Status</label>
+          <select class="field" id="status" name="status">
+            <% ['new','in_progress','sent','completed','archived'].forEach(function(s) { %>
+              <option value="<%= s %>" <%= plan.status === s ? 'selected' : '' %>><%= s %></option>
+            <% }) %>
+          </select>
+        </div>
+        <button class="btn-primary" type="submit">Update status</button>
+      </form>
+    </div>
+  <% } else { %>
+    <form method="post" action="/agent/plans/<%= plan.id %>/update" class="card space-y-4">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+      <input type="hidden" name="tab" value="<%= tab %>" />
+      <% if (tab === 'flights') { %>
+        <label class="label" for="flights">Flights (JSON or notes)</label>
+        <textarea class="field min-h-[220px]" id="flights" name="flights"><%= plan.flights || '' %></textarea>
+      <% } else if (tab === 'hotel') { %>
+        <label class="label" for="hotel">Hotel (JSON or notes)</label>
+        <textarea class="field min-h-[220px]" id="hotel" name="hotel"><%= plan.hotel || '' %></textarea>
+      <% } else if (tab === 'itinerary') { %>
+        <label class="label" for="itinerary">Itinerary</label>
+        <textarea class="field min-h-[220px]" id="itinerary" name="itinerary"><%= plan.itinerary || '' %></textarea>
+      <% } else if (tab === 'pricing') { %>
+        <label class="label" for="pricing">Pricing</label>
+        <textarea class="field min-h-[220px]" id="pricing" name="pricing"><%= plan.pricing || '' %></textarea>
+      <% } else if (tab === 'notes') { %>
+        <label class="label" for="notes">Internal notes</label>
+        <textarea class="field min-h-[220px]" id="notes" name="notes"><%= plan.notes || '' %></textarea>
+      <% } %>
+      <button class="btn-primary" type="submit">Save</button>
+    </form>
+  <% } %>
+</section>
+<%- include('../partials/shell-end') %>

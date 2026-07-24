@@ -1,0 +1,32 @@
+<%- include('../partials/shell-start') %>
+<section class="section max-w-md">
+  <div class="card">
+    <h1 class="text-3xl">Create your account</h1>
+    <p class="mt-2 text-primary-700">Track your holiday plan and message Deanna.</p>
+    <% if (error) { %>
+      <div class="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800"><%= error %></div>
+    <% } %>
+    <form method="post" action="/register" class="mt-6 space-y-4">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+      <div>
+        <label class="label" for="name">Name</label>
+        <input class="field" id="name" name="name" required />
+      </div>
+      <div>
+        <label class="label" for="email">Email</label>
+        <input class="field" id="email" name="email" type="email" required />
+      </div>
+      <div>
+        <label class="label" for="phone">Phone (optional)</label>
+        <input class="field" id="phone" name="phone" type="tel" />
+      </div>
+      <div>
+        <label class="label" for="password">Password</label>
+        <input class="field" id="password" name="password" type="password" minlength="8" required />
+      </div>
+      <button class="btn-primary w-full" type="submit">Create account</button>
+    </form>
+    <p class="mt-6 text-sm text-primary-600">Already have an account? <a class="font-semibold text-primary-900 underline" href="/login">Log in</a></p>
+  </div>
+</section>
+<%- include('../partials/shell-end') %>

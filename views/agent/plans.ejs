@@ -1,0 +1,16 @@
+<%- include('../partials/shell-start') %>
+<section class="section">
+  <h1 class="text-4xl">All plans</h1>
+  <div class="mt-8 space-y-3">
+    <% plans.forEach(function(plan) { %>
+      <a href="/agent/plans/<%= plan.id %>" class="card flex flex-wrap items-center justify-between gap-3 transition hover:shadow-lift">
+        <div>
+          <div class="font-semibold">#<%= plan.id %> · <%= plan.customer.name %></div>
+          <div class="text-sm text-primary-600"><%= plan.travelDates %> · <%= plan.customer.email %></div>
+        </div>
+        <span class="badge bg-primary-100 text-primary-800"><%= plan.status %></span>
+      </a>
+    <% }) %>
+  </div>
+</section>
+<%- include('../partials/shell-end') %>

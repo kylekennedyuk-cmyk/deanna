@@ -1,0 +1,30 @@
+<%- include('../partials/shell-start') %>
+<section class="section">
+  <h1 class="text-4xl">Navigation</h1>
+  <% if (saved) { %><div class="mt-4 rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-green-800">Saved.</div><% } %>
+  <div class="mt-8 overflow-x-auto card">
+    <table class="w-full text-left text-sm">
+      <thead>
+        <tr class="border-b border-primary-100 text-primary-500">
+          <th class="py-2">Label</th>
+          <th>Href</th>
+          <th>Location</th>
+          <th>Order</th>
+          <th>Visible</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% items.forEach(function(item) { %>
+          <tr class="border-b border-primary-50">
+            <td class="py-3"><%= item.label %></td>
+            <td><%= item.href %></td>
+            <td><%= item.location %></td>
+            <td><%= item.sortOrder %></td>
+            <td><%= item.visible ? 'Yes' : 'No' %></td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
+</section>
+<%- include('../partials/shell-end') %>

@@ -1,0 +1,24 @@
+<%- include('../partials/shell-start') %>
+<section class="section max-w-md">
+  <div class="card">
+    <h1 class="text-3xl">Welcome back</h1>
+    <p class="mt-2 text-primary-700">Log in to your planning portal.</p>
+    <% if (typeof error !== 'undefined' && error) { %>
+      <div class="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800"><%= error %></div>
+    <% } %>
+    <form method="post" action="/login" class="mt-6 space-y-4">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+      <div>
+        <label class="label" for="username">Username or email</label>
+        <input class="field" id="username" name="username" autocomplete="username" required />
+      </div>
+      <div>
+        <label class="label" for="password">Password</label>
+        <input class="field" id="password" name="password" type="password" autocomplete="current-password" required />
+      </div>
+      <button class="btn-primary w-full" type="submit">Log in</button>
+    </form>
+    <p class="mt-6 text-sm text-primary-600">New here? <a class="font-semibold text-primary-900 underline" href="/register">Create an account</a></p>
+  </div>
+</section>
+<%- include('../partials/shell-end') %>

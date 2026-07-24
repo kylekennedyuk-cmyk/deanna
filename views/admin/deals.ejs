@@ -1,0 +1,32 @@
+<%- include('../partials/shell-start') %>
+<section class="section">
+  <h1 class="text-4xl">Deals</h1>
+  <% if (saved) { %><div class="mt-4 rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-green-800">Saved.</div><% } %>
+  <form method="post" action="/admin/deals" class="card mt-8 space-y-4">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+    <div>
+      <label class="label" for="title">Title</label>
+      <input class="field" id="title" name="title" required />
+    </div>
+    <div>
+      <label class="label" for="description">Description</label>
+      <textarea class="field min-h-[100px]" id="description" name="description" required></textarea>
+    </div>
+    <div>
+      <label class="label" for="price">From price (£)</label>
+      <input class="field" id="price" name="price" type="number" />
+    </div>
+    <label class="flex items-center gap-2 text-sm"><input type="checkbox" name="active" checked /> Active</label>
+    <button class="btn-primary" type="submit">Add deal</button>
+  </form>
+  <div class="mt-8 grid gap-4 md:grid-cols-2">
+    <% deals.forEach(function(deal) { %>
+      <article class="card">
+        <h2 class="text-xl"><%= deal.title %></h2>
+        <p class="mt-2 text-primary-700"><%= deal.description %></p>
+        <p class="mt-3 text-sm text-primary-500"><%= deal.active ? 'Active' : 'Inactive' %><% if (deal.price) { %> · from £<%= deal.price %><% } %></p>
+      </article>
+    <% }) %>
+  </div>
+</section>
+<%- include('../partials/shell-end') %>

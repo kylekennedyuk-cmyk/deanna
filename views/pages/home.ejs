@@ -1,0 +1,82 @@
+<%- include('../partials/shell-start') %>
+<%
+  const hero = (sections || []).find(s => s.type === 'hero') || {};
+  const why = (sections || []).find(s => s.type === 'why');
+  const process = (sections || []).find(s => s.type === 'process');
+%>
+
+<section class="relative overflow-hidden border-b border-primary-100">
+  <div class="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(212,166,86,0.22),_transparent_55%),radial-gradient(ellipse_at_bottom_left,_rgba(217,122,154,0.16),_transparent_50%),linear-gradient(160deg,#fbf8f4_0%,#f7efe9_45%,#eef3f8_100%)]"></div>
+  <div class="absolute -right-20 top-10 h-72 w-72 rounded-full bg-secondary-300/20 blur-3xl"></div>
+  <div class="section relative grid items-center gap-10 lg:grid-cols-2 lg:py-24">
+    <div class="space-y-6">
+      <p class="badge bg-white/80 text-secondary-700 shadow-soft">Disneyland Paris specialist</p>
+      <h1 class="text-4xl leading-tight sm:text-5xl lg:text-6xl">
+        <%= hero.headline || 'Disneyland Paris, planned with care' %>
+      </h1>
+      <p class="max-w-xl text-lg text-primary-700">
+        <%= hero.subheadline || 'Bespoke holidays designed by Deanna.' %>
+      </p>
+      <div class="flex flex-wrap gap-3">
+        <a href="<%= (hero.primaryCta && hero.primaryCta.href) || '/planner' %>" class="btn-primary">
+          <%= (hero.primaryCta && hero.primaryCta.label) || 'Start Planning Your Perfect Adventure' %>
+        </a>
+        <a href="<%= (hero.secondaryCta && hero.secondaryCta.href) || '/disneyland-paris' %>" class="btn-secondary">
+          <%= (hero.secondaryCta && hero.secondaryCta.label) || 'Explore Disneyland Paris' %>
+        </a>
+      </div>
+    </div>
+    <div class="relative">
+      <div class="aspect-[4/5] overflow-hidden rounded-[2rem] bg-gradient-to-br from-primary-800 via-primary-600 to-secondary-500 shadow-lift">
+        <div class="flex h-full flex-col justify-end p-8 text-white">
+          <p class="font-display text-3xl">Magical days,<br/>thoughtfully planned.</p>
+          <p class="mt-3 max-w-sm text-sm text-white/85">Hotels, tickets, dining, and pacing — curated around your family.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<% if (why) { %>
+<section class="section">
+  <div class="mb-10 max-w-2xl">
+    <h2 class="text-3xl sm:text-4xl"><%= why.title %></h2>
+    <p class="mt-3 text-primary-700">A calm, premium planning experience — not a hard-sell booking form.</p>
+  </div>
+  <div class="grid gap-6 md:grid-cols-3">
+    <% (why.items || []).forEach(function(item) { %>
+      <article class="card hover:-translate-y-1 hover:shadow-lift transition duration-300">
+        <h3 class="text-xl"><%= item.title %></h3>
+        <p class="mt-3 text-primary-700"><%= item.text %></p>
+      </article>
+    <% }) %>
+  </div>
+</section>
+<% } %>
+
+<% if (process) { %>
+<section class="bg-blush/60">
+  <div class="section">
+    <h2 class="mb-10 text-3xl sm:text-4xl"><%= process.title %></h2>
+    <ol class="grid gap-6 md:grid-cols-3">
+      <% (process.steps || []).forEach(function(step, i) { %>
+        <li class="card">
+          <div class="mb-4 flex h-10 w-10 items-center justify-center rounded-full bg-primary-900 font-display text-lg text-white"><%= i + 1 %></div>
+          <h3 class="text-xl"><%= step.title %></h3>
+          <p class="mt-2 text-primary-700"><%= step.text %></p>
+        </li>
+      <% }) %>
+    </ol>
+    <div class="mt-10">
+      <a href="/planner" class="btn-primary">Begin your plan</a>
+    </div>
+  </div>
+</section>
+<% } %>
+
+<section class="section text-center">
+  <h2 class="text-3xl sm:text-4xl">Ready when you are</h2>
+  <p class="mx-auto mt-3 max-w-xl text-primary-700">Tell Deanna what you want from the trip — she’ll shape the rest.</p>
+  <a href="/planner" class="btn-primary mt-8">Start Planning Your Perfect Adventure</a>
+</section>
+<%- include('../partials/shell-end') %>

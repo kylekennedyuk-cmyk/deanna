@@ -1,0 +1,195 @@
+<%- include('../partials/shell-start') %>
+<section class="section">
+  <div class="mb-8">
+    <p class="badge bg-secondary-100 text-secondary-800">Holiday planner</p>
+    <h1 class="mt-3 text-4xl">Plan your Disneyland Paris adventure</h1>
+    <p class="mt-2 max-w-2xl text-primary-700">A guided journey — a few thoughtful questions, then Deanna takes it from there.</p>
+  </div>
+
+  <div class="mb-8 flex flex-wrap gap-2">
+    <% steps.forEach(function(s) { %>
+      <span class="rounded-full px-3 py-1 text-xs font-semibold <%= s.id === step ? 'bg-primary-900 text-white' : (s.id < step ? 'bg-secondary-100 text-secondary-800' : 'bg-primary-50 text-primary-500') %>">
+        <%= s.id %>. <%= s.title %>
+      </span>
+    <% }) %>
+  </div>
+
+  <% if (error) { %>
+    <div class="mb-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-red-800"><%= error %></div>
+  <% } %>
+
+  <form method="post" action="<%= step === 8 ? '/planner/submit' : '/planner/step/' + step %>" class="grid gap-8 lg:grid-cols-[1.4fr_0.8fr]">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+    <div class="card space-y-5">
+      <% if (step === 1) { %>
+        <h2 class="text-2xl">Trip basics</h2>
+        <div>
+          <label class="label" for="dates">Travel dates or window</label>
+          <input class="field" id="dates" name="dates" value="<%= data.dates || '' %>" placeholder="e.g. Easter half-term 2027, flexible by a week" required />
+        </div>
+        <div>
+          <label class="label" for="nights">Nights</label>
+          <input class="field" id="nights" name="nights" type="number" min="1" value="<%= data.nights || 4 %>" />
+        </div>
+        <div>
+          <label class="label" for="airport">Preferred airport</label>
+          <input class="field" id="airport" name="airport" value="<%= data.airport || '' %>" placeholder="Nearest / Manchester / Gatwick…" />
+        </div>
+      <% } else if (step === 2) { %>
+        <h2 class="text-2xl">Travellers</h2>
+        <div class="grid gap-4 sm:grid-cols-2">
+          <div>
+            <label class="label" for="adults">Adults</label>
+            <input class="field" id="adults" name="adults" type="number" min="1" value="<%= data.adults || 2 %>" />
+          </div>
+          <div>
+            <label class="label" for="children">Children</label>
+            <input class="field" id="children" name="children" type="number" min="0" value="<%= data.children || 0 %>" />
+          </div>
+        </div>
+        <div>
+          <label class="label" for="childAges">Children’s ages</label>
+          <input class="field" id="childAges" name="childAges" value="<%= data.childAges || '' %>" placeholder="e.g. 5, 8" />
+        </div>
+        <div>
+          <label class="label" for="occasion">Occasion</label>
+          <select class="field" id="occasion" name="occasion">
+            <% ['First visit','Birthday','Anniversary','Honeymoon','Family holiday','Other'].forEach(function(o) { %>
+              <option value="<%= o %>" <%= data.occasion === o ? 'selected' : '' %>><%= o %></option>
+            <% }) %>
+          </select>
+        </div>
+      <% } else if (step === 3) { %>
+        <h2 class="text-2xl">Style & preferences</h2>
+        <div>
+          <label class="label" for="pace">Pace</label>
+          <select class="field" id="pace" name="pace">
+            <option value="relaxed" <%= data.pace === 'relaxed' ? 'selected' : '' %>>Relaxed</option>
+            <option value="balanced" <%= !data.pace || data.pace === 'balanced' ? 'selected' : '' %>>Balanced</option>
+            <option value="packed" <%= data.pace === 'packed' ? 'selected' : '' %>>Packed days</option>
+          </select>
+        </div>
+        <div>
+          <label class="label" for="interests">Interests</label>
+          <textarea class="field min-h-[100px]" id="interests" name="interests" placeholder="Rides, shows, characters, food, shopping…"><%= data.interests || '' %></textarea>
+        </div>
+        <div>
+          <label class="label" for="mustHaves">Must-haves</label>
+          <input class="field" id="mustHaves" name="mustHaves" value="<%= data.mustHaves || '' %>" />
+        </div>
+        <div>
+          <label class="label" for="avoid">Prefer to avoid</label>
+          <input class="field" id="avoid" name="avoid" value="<%= data.avoid || '' %>" />
+        </div>
+      <% } else if (step === 4) { %>
+        <h2 class="text-2xl">Disneyland focus</h2>
+        <div>
+          <label class="label" for="parks">Park priority</label>
+          <input class="field" id="parks" name="parks" value="<%= data.parks || '' %>" placeholder="Disneyland Park, Walt Disney Studios / Adventure World…" />
+        </div>
+        <div>
+          <label class="label" for="lands">Lands & experiences</label>
+          <textarea class="field min-h-[100px]" id="lands" name="lands"><%= data.lands || '' %></textarea>
+        </div>
+        <div>
+          <label class="label" for="diningStyle">Dining style</label>
+          <input class="field" id="diningStyle" name="diningStyle" value="<%= data.diningStyle || '' %>" placeholder="Quick service, table service, character dining…" />
+        </div>
+      <% } else if (step === 5) { %>
+        <h2 class="text-2xl">Budget</h2>
+        <div>
+          <label class="label" for="budget">Total budget (approx, £)</label>
+          <input class="field" id="budget" name="budget" type="number" min="0" value="<%= data.budget || '' %>" />
+        </div>
+        <div>
+          <label class="label" for="flexibility">Flexibility</label>
+          <select class="field" id="flexibility" name="flexibility">
+            <option value="strict">Strict</option>
+            <option value="somewhat" selected>Somewhat flexible</option>
+            <option value="flexible">Very flexible</option>
+          </select>
+        </div>
+      <% } else if (step === 6) { %>
+        <h2 class="text-2xl">Accommodation</h2>
+        <div>
+          <label class="label" for="hotelType">Hotel type</label>
+          <select class="field" id="hotelType" name="hotelType">
+            <option>Disney hotel</option>
+            <option>Partner hotel</option>
+            <option>Apartment / other</option>
+            <option>Open to suggestions</option>
+          </select>
+        </div>
+        <div>
+          <label class="label" for="board">Board basis</label>
+          <select class="field" id="board" name="board">
+            <option>Room only</option>
+            <option>Breakfast</option>
+            <option>Half board</option>
+            <option>Not sure</option>
+          </select>
+        </div>
+        <div>
+          <label class="label" for="roomPrefs">Room preferences</label>
+          <input class="field" id="roomPrefs" name="roomPrefs" value="<%= data.roomPrefs || '' %>" />
+        </div>
+      <% } else if (step === 7) { %>
+        <h2 class="text-2xl">Special requirements</h2>
+        <div>
+          <label class="label" for="accessibility">Accessibility needs</label>
+          <textarea class="field min-h-[90px]" id="accessibility" name="accessibility"><%= data.accessibility || '' %></textarea>
+        </div>
+        <div>
+          <label class="label" for="dietary">Dietary requirements</label>
+          <textarea class="field min-h-[90px]" id="dietary" name="dietary"><%= data.dietary || '' %></textarea>
+        </div>
+        <div>
+          <label class="label" for="celebration">Celebrations / notes</label>
+          <textarea class="field min-h-[90px]" id="celebration" name="celebration"><%= data.celebration || '' %></textarea>
+        </div>
+      <% } else { %>
+        <h2 class="text-2xl">Review & submit</h2>
+        <p class="text-primary-700">Add your contact details so Deanna can start your plan.</p>
+        <div>
+          <label class="label" for="name">Name</label>
+          <input class="field" id="name" name="name" value="<%= data.name || (currentUser && currentUser.name) || '' %>" required />
+        </div>
+        <div>
+          <label class="label" for="email">Email</label>
+          <input class="field" id="email" name="email" type="email" value="<%= data.email || (currentUser && currentUser.email) || '' %>" required />
+        </div>
+        <div>
+          <label class="label" for="phone">Phone</label>
+          <input class="field" id="phone" name="phone" value="<%= data.phone || (currentUser && currentUser.phone) || '' %>" />
+        </div>
+        <label class="flex items-start gap-3 text-sm text-primary-700">
+          <input type="checkbox" name="terms" value="yes" required class="mt-1" />
+          <span>I’m happy for Destinations With Deanna to contact me about this holiday plan.</span>
+        </label>
+      <% } %>
+
+      <div class="flex flex-wrap gap-3 pt-2">
+        <% if (step > 1 && step < 8) { %>
+          <button class="btn-ghost" type="submit" name="action" value="back">Back</button>
+        <% } %>
+        <% if (step === 8) { %>
+          <button class="btn-primary" type="submit">Submit plan</button>
+        <% } else { %>
+          <button class="btn-primary" type="submit" name="action" value="next">Continue</button>
+        <% } %>
+      </div>
+    </div>
+
+    <aside class="card h-fit bg-gradient-to-br from-white to-blush/40">
+      <h3 class="text-xl">Your plan so far</h3>
+      <ul class="mt-4 space-y-2 text-sm text-primary-700">
+        <li><strong>Dates:</strong> <%= data.dates || '—' %></li>
+        <li><strong>Party:</strong> <%= (data.adults || '—') %> adults<% if (data.children) { %>, <%= data.children %> children<% } %></li>
+        <li><strong>Budget:</strong> <%= data.budget ? '£' + data.budget : '—' %></li>
+        <li><strong>Pace:</strong> <%= data.pace || '—' %></li>
+      </ul>
+      <p class="mt-6 text-sm text-primary-600">Progress is saved in this browser session while you move through the steps.</p>
+    </aside>
+  </form>
+</section>
+<%- include('../partials/shell-end') %>

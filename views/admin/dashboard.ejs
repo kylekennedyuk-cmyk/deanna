@@ -1,0 +1,19 @@
+<%- include('../partials/shell-start') %>
+<section class="section">
+  <h1 class="text-4xl">Admin</h1>
+  <p class="mt-2 text-primary-700">Site content, users, deals, and settings.</p>
+  <div class="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+    <div class="card"><div class="text-sm text-primary-500">Users</div><div class="font-display text-4xl"><%= stats.users %></div></div>
+    <div class="card"><div class="text-sm text-primary-500">Plans</div><div class="font-display text-4xl"><%= stats.plans %></div></div>
+    <div class="card"><div class="text-sm text-primary-500">Pages</div><div class="font-display text-4xl"><%= stats.pages %></div></div>
+    <div class="card"><div class="text-sm text-primary-500">Active deals</div><div class="font-display text-4xl"><%= stats.deals %></div></div>
+  </div>
+  <div class="mt-8 flex flex-wrap gap-3">
+    <a class="btn-secondary" href="/admin/pages">Pages</a>
+    <a class="btn-secondary" href="/admin/users">Users</a>
+    <a class="btn-secondary" href="/admin/deals">Deals</a>
+    <a class="btn-secondary" href="/admin/settings">Settings</a>
+    <a class="btn-secondary" href="/admin/navigation">Navigation</a>
+  </div>
+</section>
+<%- include('../partials/shell-end') %>

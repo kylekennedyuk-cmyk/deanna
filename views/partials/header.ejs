@@ -1,0 +1,33 @@
+<header class="sticky top-0 z-40 border-b border-primary-100/70 bg-ivory/90 backdrop-blur">
+  <div class="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-4 sm:px-6 lg:px-8">
+    <a href="/" class="group">
+      <div class="font-display text-2xl font-semibold text-primary-950 transition group-hover:text-primary-800">
+        <%= siteName %>
+      </div>
+      <% if (siteTagline) { %>
+      <div class="hidden text-xs text-primary-600 sm:block"><%= siteTagline %></div>
+      <% } %>
+    </a>
+
+    <nav class="hidden items-center gap-6 lg:flex">
+      <% (navHeader || []).forEach(function(item) { %>
+        <% if (item.href !== '/planner') { %>
+          <a href="<%= item.href %>" class="text-sm font-medium text-primary-800 transition hover:text-secondary-700"><%= item.label %></a>
+        <% } %>
+      <% }) %>
+    </nav>
+
+    <div class="flex items-center gap-2">
+      <% if (currentUser) { %>
+        <a href="<%= currentUser.role === 'admin' ? '/admin' : (currentUser.role === 'agent' ? '/agent' : '/customer') %>" class="btn-ghost hidden sm:inline-flex">Dashboard</a>
+        <form action="/logout" method="post" class="hidden sm:block">
+          <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+          <button type="submit" class="btn-ghost">Log out</button>
+        </form>
+      <% } else { %>
+        <a href="/login" class="btn-ghost hidden sm:inline-flex">Log in</a>
+      <% } %>
+      <a href="/planner" class="btn-primary text-xs sm:text-sm">Start Planning</a>
+    </div>
+  </div>
+</header>

@@ -1,0 +1,22 @@
+<%- include('../partials/shell-start') %>
+<section class="section max-w-3xl">
+  <h1 class="text-3xl">Messages · Plan #<%= plan.id %></h1>
+  <div class="card mt-6 space-y-4">
+    <% if (!plan.messages.length) { %>
+      <p class="text-primary-600">No messages yet. Say hello to Deanna below.</p>
+    <% } %>
+    <% plan.messages.forEach(function(msg) { %>
+      <div class="rounded-xl <%= msg.senderId === currentUser.id ? 'bg-secondary-50' : 'bg-primary-50' %> px-4 py-3">
+        <div class="text-xs font-semibold uppercase tracking-wider text-primary-500"><%= msg.sender.name %> · <%= msg.createdAt.toLocaleString() %></div>
+        <p class="mt-1 text-primary-900"><%= msg.content %></p>
+      </div>
+    <% }) %>
+  </div>
+  <form method="post" action="/customer/plans/<%= plan.id %>/messages" class="card mt-4 space-y-3">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+    <label class="label" for="content">Write a message</label>
+    <textarea class="field min-h-[100px]" id="content" name="content" required></textarea>
+    <button class="btn-primary" type="submit">Send</button>
+  </form>
+</section>
+<%- include('../partials/shell-end') %>

@@ -1,0 +1,40 @@
+<%- include('../partials/shell-start') %>
+<section class="section">
+  <% if (created) { %>
+    <div class="mb-6 rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-green-800">Your planning request was submitted. Deanna has been notified.</div>
+  <% } %>
+  <div class="mb-6 flex flex-wrap items-center justify-between gap-3">
+    <div>
+      <h1 class="text-4xl">Plan #<%= plan.id %></h1>
+      <p class="mt-1 text-primary-600"><%= plan.travelDates %> · <%= plan.status.replace('_', ' ') %></p>
+    </div>
+    <a href="/customer/plans/<%= plan.id %>/messages" class="btn-secondary">Messages</a>
+  </div>
+
+  <div class="grid gap-6 lg:grid-cols-2">
+    <div class="card">
+      <h2 class="text-xl">Your preferences</h2>
+      <pre class="mt-4 overflow-auto rounded-xl bg-primary-50 p-4 text-xs text-primary-800"><%= JSON.stringify(preferences, null, 2) %></pre>
+    </div>
+    <div class="card space-y-4">
+      <h2 class="text-xl">Proposal details</h2>
+      <div>
+        <h3 class="text-sm font-semibold uppercase tracking-wider text-primary-500">Hotel</h3>
+        <p class="mt-1 text-primary-800"><%= plan.hotel || 'Deanna will add hotel options soon.' %></p>
+      </div>
+      <div>
+        <h3 class="text-sm font-semibold uppercase tracking-wider text-primary-500">Flights</h3>
+        <p class="mt-1 text-primary-800"><%= plan.flights || 'Flight options will appear here.' %></p>
+      </div>
+      <div>
+        <h3 class="text-sm font-semibold uppercase tracking-wider text-primary-500">Itinerary</h3>
+        <p class="mt-1 text-primary-800"><%= plan.itinerary || 'Your day-by-day plan is being prepared.' %></p>
+      </div>
+      <div>
+        <h3 class="text-sm font-semibold uppercase tracking-wider text-primary-500">Pricing</h3>
+        <p class="mt-1 text-primary-800"><%= plan.pricing || 'Pricing breakdown coming soon.' %></p>
+      </div>
+    </div>
+  </div>
+</section>
+<%- include('../partials/shell-end') %>

@@ -1,0 +1,59 @@
+<%- include('../partials/shell-start') %>
+<section class="section">
+  <h1 class="text-4xl">Users</h1>
+  <% if (saved) { %><div class="mt-4 rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-green-800">User created.</div><% } %>
+  <% if (error) { %><div class="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-red-800"><%= error %></div><% } %>
+
+  <form method="post" action="/admin/users" class="card mt-8 grid gap-4 md:grid-cols-2">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+    <div>
+      <label class="label" for="name">Name</label>
+      <input class="field" id="name" name="name" required />
+    </div>
+    <div>
+      <label class="label" for="email">Email</label>
+      <input class="field" id="email" name="email" type="email" required />
+    </div>
+    <div>
+      <label class="label" for="username">Username (optional)</label>
+      <input class="field" id="username" name="username" />
+    </div>
+    <div>
+      <label class="label" for="role">Role</label>
+      <select class="field" id="role" name="role">
+        <option value="customer">customer</option>
+        <option value="agent">agent</option>
+        <option value="admin">admin</option>
+      </select>
+    </div>
+    <div class="md:col-span-2">
+      <label class="label" for="password">Password</label>
+      <input class="field" id="password" name="password" type="password" minlength="8" required />
+    </div>
+    <button class="btn-primary md:col-span-2" type="submit">Add user</button>
+  </form>
+
+  <div class="mt-8 overflow-x-auto card">
+    <table class="w-full text-left text-sm">
+      <thead>
+        <tr class="border-b border-primary-100 text-primary-500">
+          <th class="py-2">Name</th>
+          <th>Email</th>
+          <th>Username</th>
+          <th>Role</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% users.forEach(function(user) { %>
+          <tr class="border-b border-primary-50">
+            <td class="py-3"><%= user.name %></td>
+            <td><%= user.email %></td>
+            <td><%= user.username || '—' %></td>
+            <td><%= user.role %></td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
+</section>
+<%- include('../partials/shell-end') %>

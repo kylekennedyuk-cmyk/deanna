@@ -1,0 +1,49 @@
+<%- include('../partials/shell-start') %>
+<section class="section">
+  <h1 class="text-4xl">Agent workspace</h1>
+  <p class="mt-2 text-primary-700">New requests, active plans, and recent messages.</p>
+
+  <div class="mt-8 grid gap-6 lg:grid-cols-3">
+    <div class="card lg:col-span-1">
+      <h2 class="text-xl">New requests</h2>
+      <ul class="mt-4 space-y-3">
+        <% if (!newPlans.length) { %><li class="text-sm text-primary-600">None right now.</li><% } %>
+        <% newPlans.forEach(function(plan) { %>
+          <li>
+            <a class="font-semibold text-primary-900 hover:underline" href="/agent/plans/<%= plan.id %>"><%= plan.customer.name %> · #<%= plan.id %></a>
+            <div class="text-xs text-primary-500"><%= plan.travelDates %></div>
+          </li>
+        <% }) %>
+      </ul>
+    </div>
+    <div class="card lg:col-span-1">
+      <h2 class="text-xl">Active plans</h2>
+      <ul class="mt-4 space-y-3">
+        <% if (!activePlans.length) { %><li class="text-sm text-primary-600">None right now.</li><% } %>
+        <% activePlans.forEach(function(plan) { %>
+          <li>
+            <a class="font-semibold text-primary-900 hover:underline" href="/agent/plans/<%= plan.id %>"><%= plan.customer.name %> · #<%= plan.id %></a>
+            <div class="text-xs text-primary-500"><%= plan.status %></div>
+          </li>
+        <% }) %>
+      </ul>
+    </div>
+    <div class="card lg:col-span-1">
+      <h2 class="text-xl">Recent messages</h2>
+      <ul class="mt-4 space-y-3">
+        <% recentMessages.forEach(function(msg) { %>
+          <li class="text-sm">
+            <a class="font-semibold hover:underline" href="/agent/plans/<%= msg.planId %>?tab=messages"><%= msg.sender.name %></a>
+            <div class="text-primary-600 line-clamp-2"><%= msg.content %></div>
+          </li>
+        <% }) %>
+      </ul>
+      <a href="/agent/inbox" class="btn-ghost mt-4 px-0">Open inbox</a>
+    </div>
+  </div>
+
+  <div class="mt-8">
+    <a href="/agent/plans" class="btn-secondary">View all plans</a>
+  </div>
+</section>
+<%- include('../partials/shell-end') %>

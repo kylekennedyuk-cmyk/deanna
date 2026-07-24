@@ -1,0 +1,13 @@
+<%- include('../partials/shell-start') %>
+<section class="section max-w-3xl">
+  <% (sections || []).forEach(function(block) { %>
+    <div class="mb-8">
+      <h1 class="text-4xl"><%= block.title || title %></h1>
+      <% if (block.text) { %>
+        <p class="mt-4 text-lg leading-relaxed text-primary-700"><%= block.text %></p>
+      <% } %>
+    </div>
+  <% }) %>
+  <a href="/planner" class="btn-primary">Start planning</a>
+</section>
+<%- include('../partials/shell-end') %>

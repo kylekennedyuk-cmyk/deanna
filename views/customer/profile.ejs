@@ -1,0 +1,22 @@
+<%- include('../partials/shell-start') %>
+<section class="section max-w-lg">
+  <h1 class="text-3xl">Profile</h1>
+  <% if (saved) { %><div class="mt-4 rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-green-800">Saved.</div><% } %>
+  <form method="post" action="/customer/profile" class="card mt-6 space-y-4">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+    <div>
+      <label class="label" for="name">Name</label>
+      <input class="field" id="name" name="name" value="<%= currentUser.name %>" required />
+    </div>
+    <div>
+      <label class="label" for="email">Email</label>
+      <input class="field" id="email" value="<%= currentUser.email %>" disabled />
+    </div>
+    <div>
+      <label class="label" for="phone">Phone</label>
+      <input class="field" id="phone" name="phone" value="<%= currentUser.phone || '' %>" />
+    </div>
+    <button class="btn-primary" type="submit">Save</button>
+  </form>
+</section>
+<%- include('../partials/shell-end') %>

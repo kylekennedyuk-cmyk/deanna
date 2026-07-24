@@ -1,0 +1,118 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           Int           @id @default(autoincrement())
+  email        String        @unique
+  username     String?       @unique
+  passwordHash String
+  role         String        @default("customer") // customer | agent | admin
+  name         String
+  phone        String?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  plans        HolidayPlan[] @relation("PlanCustomer")
+  agentPlans   HolidayPlan[] @relation("PlanAgent")
+  messages     Message[]
+  documents    Document[]
+}
+
+model HolidayPlan {
+  id          Int        @id @default(autoincrement())
+  customerId  Int
+  customer    User       @relation("PlanCustomer", fields: [customerId], references: [id])
+  agentId     Int?
+  agent       User?      @relation("PlanAgent", fields: [agentId], references: [id])
+  status      String     @default("new") // new | in_progress | sent | completed | archived
+  travelDates String
+  partySize   Int
+  budget      Int
+  preferences String     @default("{}") // JSON
+  flights     String? // JSON
+  hotel       String? // JSON
+  itinerary   String? // JSON
+  pricing     String? // JSON
+  notes       String?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  messages    Message[]
+  documents   Document[]
+}
+
+model Message {
+  id         Int         @id @default(autoincrement())
+  planId     Int
+  plan       HolidayPlan @relation(fields: [planId], references: [id])
+  senderId   Int
+  sender     User        @relation(fields: [senderId], references: [id])
+  content    String
+  attachment String?
+  createdAt  DateTime    @default(now())
+}
+
+model Page {
+  id        Int      @id @default(autoincrement())
+  slug      String   @unique
+  title     String
+  seoTitle  String?
+  seoDesc   String?
+  sections  String   @default("[]") // JSON content blocks
+  published Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Media {
+  id         Int      @id @default(autoincrement())
+  url        String
+  alt        String?
+  caption    String?
+  folder     String?
+  uploadedAt DateTime @default(now())
+}
+
+model Deal {
+  id          Int       @id @default(autoincrement())
+  title       String
+  description String
+  price       Int?
+  active      Boolean   @default(true)
+  startDate   DateTime?
+  endDate     DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model SiteSetting {
+  key   String @id
+  value String
+}
+
+model Document {
+  id         Int          @id @default(autoincrement())
+  planId     Int?
+  plan       HolidayPlan? @relation(fields: [planId], references: [id])
+  userId     Int?
+  user       User?        @relation(fields: [userId], references: [id])
+  url        String
+  name       String
+  type       String
+  uploadedAt DateTime     @default(now())
+}
+
+model NavItem {
+  id        Int      @id @default(autoincrement())
+  label     String
+  href      String
+  location  String   @default("header") // header | footer
+  sortOrder Int      @default(0)
+  visible   Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}

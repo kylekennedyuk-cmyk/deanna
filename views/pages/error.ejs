@@ -1,0 +1,8 @@
+<%- include('../partials/shell-start') %>
+<section class="section max-w-xl text-center">
+  <p class="badge mx-auto bg-primary-100 text-primary-800"><%= status || 500 %></p>
+  <h1 class="mt-4 text-4xl"><%= title || 'Error' %></h1>
+  <p class="mt-3 text-primary-700"><%= message || 'Something went wrong.' %></p>
+  <a href="/" class="btn-primary mt-8">Back home</a>
+</section>
+<%- include('../partials/shell-end') %>

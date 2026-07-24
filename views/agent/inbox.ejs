@@ -1,0 +1,13 @@
+<%- include('../partials/shell-start') %>
+<section class="section">
+  <h1 class="text-4xl">Inbox</h1>
+  <div class="mt-8 space-y-3">
+    <% messages.forEach(function(msg) { %>
+      <a href="/agent/plans/<%= msg.planId %>?tab=messages" class="card block">
+        <div class="text-sm font-semibold"><%= msg.sender.name %> → Plan #<%= msg.planId %> (<%= msg.plan.customer.name %>)</div>
+        <p class="mt-1 text-primary-700"><%= msg.content %></p>
+      </a>
+    <% }) %>
+  </div>
+</section>
+<%- include('../partials/shell-end') %>

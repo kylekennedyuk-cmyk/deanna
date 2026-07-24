@@ -1,0 +1,19 @@
+<%- include('../partials/shell-start') %>
+<section class="section">
+  <% (sections || []).forEach(function(block) { %>
+    <div class="mb-8 max-w-3xl">
+      <h1 class="text-4xl"><%= block.title || title %></h1>
+      <% if (block.text) { %>
+        <p class="mt-4 text-lg text-primary-700"><%= block.text %></p>
+      <% } %>
+    </div>
+  <% }) %>
+  <% if (typeof links !== 'undefined' && links.length) { %>
+    <div class="mt-8 flex flex-wrap gap-3">
+      <% links.forEach(function(link) { %>
+        <a href="<%= link.href %>" class="btn-secondary"><%= link.label %></a>
+      <% }) %>
+    </div>
+  <% } %>
+</section>
+<%- include('../partials/shell-end') %>
