@@ -265,15 +265,28 @@
   }
 
   .site-header {
-    /* Light bar at ~40% opacity — dark logo/text stay readable */
+    /* Always light ivory glass at 40% — never inherit a dark brand colour */
     background-color: rgb(251 248 243 / 0.4) !important;
-    background-color: rgb(from var(--brand-bg, #fbf8f3) r g b / 0.4) !important;
-    border-color: color-mix(in srgb, var(--brand-primary, #1a2b40) 12%, transparent);
-    -webkit-backdrop-filter: blur(16px) saturate(1.15);
-    backdrop-filter: blur(16px) saturate(1.15);
+    border-color: rgb(26 43 64 / 0.12);
+    -webkit-backdrop-filter: blur(18px) saturate(1.15);
+    backdrop-filter: blur(18px) saturate(1.15);
   }
 
-  /* Homepage: float the menu over the hero; keep the same light bar */
+  .site-header a:not(.btn-primary):not(.btn),
+  .site-header .font-display,
+  .site-header .text-primary-950,
+  .site-header .text-primary-800,
+  .site-header .text-primary-600,
+  .site-header .btn-ghost,
+  .site-header [data-menu-toggle] {
+    color: rgb(26 43 64 / 0.95) !important;
+  }
+
+  .site-header [data-menu-toggle] {
+    border-color: rgb(26 43 64 / 0.2);
+  }
+
+  /* Homepage: float the light menu over the hero */
   body.public-home .site-header {
     position: fixed !important;
     inset-inline: 0;
@@ -281,15 +294,16 @@
     width: 100%;
   }
 
-  /* Keep copy clear of the fixed menu; leave the image full-bleed behind it */
-  body.public-home .home-hero-content {
-    padding-top: 7.5rem;
+  body.public-home .home-hero {
+    min-height: 100svh;
   }
 
-  @media (min-width: 1024px) {
-    body.public-home .home-hero-content {
-      padding-top: 8.5rem;
-    }
+  /* Vertically centre the copy box in the viewport under the menu */
+  body.public-home .home-hero-content {
+    min-height: 100svh;
+    box-sizing: border-box;
+    padding-top: 5.75rem;
+    padding-bottom: 3.5rem;
   }
 
   .hero-copy-panel {

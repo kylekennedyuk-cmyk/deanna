@@ -19,7 +19,7 @@
   };
 %>
 
-<section class="relative isolate overflow-hidden bg-primary-950 text-white" data-home-hero>
+<section class="home-hero relative isolate overflow-hidden bg-primary-950 text-white" data-home-hero>
   <div class="absolute inset-0">
     <img
       src="<%= hero.image || img.hero %>"
@@ -27,12 +27,12 @@
       class="h-full w-full object-cover"
       fetchpriority="high"
     />
-    <div class="absolute inset-0 bg-gradient-to-r from-primary-950/80 via-primary-950/55 to-transparent"></div>
-    <div class="absolute inset-0 bg-gradient-to-t from-primary-950 via-transparent to-transparent"></div>
+    <div class="absolute inset-0 bg-gradient-to-r from-primary-950/75 via-primary-950/45 to-transparent"></div>
+    <div class="absolute inset-0 bg-gradient-to-t from-primary-950/90 via-transparent to-transparent"></div>
   </div>
 
-  <div class="section relative home-hero-content">
-    <div class="hero-copy-panel max-w-2xl animate-fadeUp rounded-[2rem] border border-white/20 p-8 shadow-lift sm:p-11">
+  <div class="home-hero-content relative mx-auto flex w-full max-w-6xl items-center px-4 sm:px-6 lg:px-8">
+    <div class="hero-copy-panel w-full max-w-2xl animate-fadeUp rounded-[2rem] border border-white/20 p-8 shadow-lift sm:p-11">
       <p class="badge bg-secondary-400/20 text-secondary-200 ring-1 ring-secondary-300/30">Disneyland Paris specialist</p>
       <h1 class="mt-6 text-balance text-white">
         <%= hero.headline || hero.heading || 'Disneyland Paris holidays, planned around your family' %>
