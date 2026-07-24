@@ -41,8 +41,8 @@ async function main() {
     ['site_tagline', 'Disneyland Paris specialist — tailored magical adventures'],
     ['support_email', process.env.SUPPORT_EMAIL || 'hello@destinationswithdeanna.com'],
     ['logo_mode', 'text'],
-    ['logo_height', '88'],
-    ['logo_max_width', '340'],
+    ['logo_height', '96'],
+    ['logo_max_width', '380'],
     ['footer_intro', 'Disneyland Paris specialist planning with practical advice, tailored itineraries and one place to manage your holiday.'],
     ['primary_colour', '#1a2b40'],
     ['secondary_colour', '#d1a24a'],
@@ -87,40 +87,47 @@ async function main() {
       headline: 'Disneyland Paris holidays, planned around your family',
       subheadline:
         'Deanna is a specialist who knows the parks, hotels and the small details that make a trip effortless — from hotel choice to dining, tickets and pacing.',
-      image: 'https://images.unsplash.com/photo-1565865519537-fac387237f9c?auto=format&fit=crop&w=2000&q=85',
-      imageAlt: 'Disneyland castle illuminated at night with fireworks',
+      image: 'https://images.unsplash.com/photo-1733424775835-1c7f7bebb1bb?auto=format&fit=crop&w=2000&q=85',
+      imageAlt: 'Fireworks over Sleeping Beauty Castle at Disneyland Paris',
       primaryCta: { label: 'Start planning your trip', href: '/planner' },
       secondaryCta: { label: 'Explore the guide', href: '/disneyland-paris' },
     },
     {
       type: 'why',
-      title: 'Why plan with Deanna',
+      title: 'Why plan Disneyland Paris with Deanna',
       items: [
-        { title: 'Specialist knowledge', text: 'Deep Disneyland Paris expertise, not a generic booking engine.' },
-        { title: 'Personal service', text: 'Every itinerary is tailored to your family, budget, and pace.' },
-        { title: 'Ongoing support', text: 'Message Deanna from your private portal as plans take shape.' },
+        { title: 'Specialist knowledge', text: 'Deep Disneyland Paris expertise — parks, hotels, dining and seasonal timing — not a generic booking engine.' },
+        { title: 'Built around your party', text: 'Ages, stamina, must-do rides and budget shape every hotel and park-day recommendation.' },
+        { title: 'Ongoing support', text: 'Message Deanna from your private portal as tickets, dining and itinerary details take shape.' },
       ],
     },
     {
       type: 'process',
-      title: 'How planning works',
+      title: 'How your Disney plan comes together',
       steps: [
-        { title: 'Share your dream trip', text: 'Complete the guided planner — dates, travellers, style, and must-haves.' },
-        { title: 'Deanna builds your plan', text: 'Hotels, tickets, pacing, and pricing curated for you.' },
-        { title: 'Review & refine together', text: 'Chat in your portal until everything feels just right.' },
+        { title: 'Share your trip', text: 'Dates, travellers, hotel preferences, must-dos and budget in the guided planner.' },
+        { title: 'Deanna builds the plan', text: 'Disney Hotels or Partner Hotels, tickets, pacing and pricing curated for you.' },
+        { title: 'Review & refine', text: 'Chat in your portal until the park days, dining and stay feel just right.' },
       ],
     },
   ]);
 
   await prisma.page.upsert({
     where: { slug: 'home' },
-    update: {},
+    update: {
+      title: 'Home',
+      seoTitle: 'Destinations With Deanna | Disneyland Paris Specialist',
+      seoDesc:
+        'Premium Disneyland Paris holiday planning with Deanna. Tailored itineraries, Disney hotels, and specialist advice.',
+      sections: homeSections,
+      published: true,
+    },
     create: {
       slug: 'home',
       title: 'Home',
       seoTitle: 'Destinations With Deanna | Disneyland Paris Specialist',
       seoDesc:
-        'Premium Disneyland Paris holiday planning with Deanna. Tailored itineraries, hotels, and advice — start planning your perfect adventure.',
+        'Premium Disneyland Paris holiday planning with Deanna. Tailored itineraries, Disney hotels, and specialist advice.',
       sections: homeSections,
       published: true,
     },

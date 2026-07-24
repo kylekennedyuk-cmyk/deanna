@@ -3,27 +3,28 @@
   const hero = (sections || []).find(s => s.type === 'hero') || {};
   const why = (sections || []).find(s => s.type === 'why');
   const process = (sections || []).find(s => s.type === 'process');
-  const disneyImages = {
-    castleNight: 'https://images.unsplash.com/photo-1565865519537-fac387237f9c?auto=format&fit=crop&w=2000&q=85',
-    fireworks: 'https://images.unsplash.com/photo-1733424775835-1c7f7bebb1bb?auto=format&fit=crop&w=1600&q=85',
-    castleFireworks: 'https://images.unsplash.com/photo-1737040504436-d638f8316c73?auto=format&fit=crop&w=1200&q=85',
-    parkDay: 'https://images.unsplash.com/photo-1597466599360-3b9775841aec?auto=format&fit=crop&w=1200&q=85',
-    adventure: 'https://images.unsplash.com/photo-1624138784614-87fd1b6528f8?auto=format&fit=crop&w=1200&q=85',
-    familyMagic: 'https://images.unsplash.com/photo-1504150558240-0b4fd8946624?auto=format&fit=crop&w=1200&q=85',
+  // Verified Disneyland Paris only (Coupvray / Chessy) — no generic travel stock
+  const img = {
+    hero: 'https://images.unsplash.com/photo-1733424775835-1c7f7bebb1bb?auto=format&fit=crop&w=2000&q=85',
+    castleDay: 'https://images.unsplash.com/photo-1742079741493-fd9845d816f9?auto=format&fit=crop&w=1200&q=85',
+    castleDayWide: 'https://images.unsplash.com/photo-1615470834591-79343b8cc869?auto=format&fit=crop&w=1200&q=85',
+    castleNight: 'https://images.unsplash.com/photo-1742079727590-4f7682f67d89?auto=format&fit=crop&w=1200&q=85',
+    fireworks: 'https://images.unsplash.com/photo-1733424775835-1c7f7bebb1bb?auto=format&fit=crop&w=1200&q=85',
+    illuminations: 'https://images.unsplash.com/photo-1685134404136-e797d7a5df4a?auto=format&fit=crop&w=1200&q=85',
+    parkCrowd: 'https://images.unsplash.com/photo-1690097232120-a59669ee0989?auto=format&fit=crop&w=1200&q=85',
   };
 %>
 
 <section class="relative isolate overflow-hidden bg-primary-950 text-white">
   <div class="absolute inset-0">
     <img
-      src="<%= hero.image || disneyImages.castleNight %>"
-      alt="<%= hero.imageAlt || 'Disneyland castle illuminated at night with fireworks' %>"
+      src="<%= hero.image || img.hero %>"
+      alt="<%= hero.imageAlt || 'Fireworks over Sleeping Beauty Castle at Disneyland Paris' %>"
       class="h-full w-full object-cover"
       fetchpriority="high"
     />
     <div class="absolute inset-0 bg-gradient-to-r from-primary-950 via-primary-950/85 to-primary-950/45"></div>
     <div class="absolute inset-0 bg-gradient-to-t from-primary-950 via-transparent to-primary-950/40"></div>
-    <div class="absolute inset-0 opacity-25" aria-hidden="true" style="background-image:radial-gradient(circle at 15% 20%, rgba(222,188,114,.85) 0 1.5px, transparent 2.5px), radial-gradient(circle at 80% 30%, rgba(255,255,255,.6) 0 1.5px, transparent 2.5px), radial-gradient(circle at 60% 75%, rgba(222,188,114,.6) 0 1px, transparent 2px); background-size:120px 120px, 160px 160px, 90px 90px;"></div>
   </div>
 
   <div class="section relative">
@@ -33,7 +34,7 @@
         <%= hero.headline || hero.heading || 'Disneyland Paris holidays, planned around your family' %>
       </h1>
       <p class="mt-5 max-w-xl text-lg leading-relaxed text-primary-100 sm:text-xl">
-        <%= hero.subheadline || hero.text || 'Deanna is a specialist who knows the parks, hotels and the small details that make a trip effortless — from hotel choice to dining, tickets and pacing.' %>
+        <%= hero.subheadline || hero.text || 'Deanna plans park days, Disney hotels, dining and travel from the UK — so your trip feels magical, not overwhelming.' %>
       </p>
       <div class="mt-8 flex flex-wrap gap-3">
         <a href="<%= hero.primaryHref || (hero.primaryCta && hero.primaryCta.href) || '/planner' %>" class="btn bg-secondary-400 text-primary-950 shadow-gold hover:-translate-y-0.5 hover:bg-secondary-300">
@@ -45,8 +46,8 @@
       </div>
       <ul class="mt-8 flex flex-wrap gap-x-6 gap-y-2 text-sm text-primary-100">
         <li class="flex items-center gap-2"><span class="text-secondary-300">✦</span> Park days shaped around ages &amp; stamina</li>
-        <li class="flex items-center gap-2"><span class="text-secondary-300">✦</span> Disney &amp; partner hotels compared properly</li>
-        <li class="flex items-center gap-2"><span class="text-secondary-300">✦</span> Tickets, dining &amp; travel in one plan</li>
+        <li class="flex items-center gap-2"><span class="text-secondary-300">✦</span> Disney Hotels &amp; Partner Hotels compared properly</li>
+        <li class="flex items-center gap-2"><span class="text-secondary-300">✦</span> Tickets, dining reservations &amp; travel in one plan</li>
       </ul>
     </div>
   </div>
@@ -55,9 +56,9 @@
 <% if (why) { %>
 <section class="section">
   <div class="mb-12 max-w-2xl">
-    <p class="badge bg-secondary-50 text-secondary-800">Why Deanna</p>
+    <p class="badge bg-secondary-50 text-secondary-800">Why plan with Deanna</p>
     <h2 class="mt-4"><%= why.title %></h2>
-    <p class="mt-4 text-lg text-primary-700">A personal Disneyland Paris planning experience — expert guidance, clear next steps, and recommendations built around your family.</p>
+    <p class="mt-4 text-lg text-primary-700">Specialist Disneyland Paris advice — not a generic booking engine. Clear recommendations built around your dates, party and budget.</p>
   </div>
   <div class="grid gap-6 md:grid-cols-3">
     <% (why.items || []).forEach(function(item) { %>
@@ -88,7 +89,7 @@
       <% }) %>
     </ol>
     <div class="mt-12">
-      <a href="/planner" class="btn-primary">Begin your plan</a>
+      <a href="/planner" class="btn-primary">Begin your Disneyland Paris plan</a>
     </div>
   </div>
 </section>
@@ -98,20 +99,20 @@
   <div class="mb-12 flex flex-wrap items-end justify-between gap-4">
     <div class="max-w-2xl">
       <p class="badge bg-secondary-50 text-secondary-800">Where to stay</p>
-      <h2 class="mt-4">Disney hotels, partner hotels &amp; clever value bases</h2>
-      <p class="mt-4 text-lg text-primary-700">Choose by park access, theming, room setup and total package value — not just the room rate. Deanna helps you weigh on-site magic against budget.</p>
+      <h2 class="mt-4">Disney Hotels, Partner Hotels &amp; trusted nearby stays</h2>
+      <p class="mt-4 text-lg text-primary-700">Deanna compares park access, theming, room setup and total package value — so you choose the right base for your family, not just the cheapest room rate.</p>
     </div>
-    <a href="/disneyland-paris/hotels" class="btn-secondary">View the hotel guide</a>
+    <a href="/disneyland-paris/hotels" class="btn-secondary">Open the hotel guide</a>
   </div>
   <div class="grid gap-6 md:grid-cols-3">
     <% [
-      ['Disney Hotels', 'Wake up inside the story — themed rooms, Extra Magic Time and the shortest walks to the parks.', disneyImages.castleFireworks],
-      ['Disney Partner Hotels', 'On-property stays with shuttles, great facilities and strong value for families who want park convenience.', disneyImages.parkDay],
-      ['Nearby value bases', 'Off-site hotels Deanna trusts for comfort, transport links and more budget left for dining and extras.', disneyImages.adventure]
+      ['Disney Hotels', 'Themed rooms, Extra Magic Time and the shortest walk (or hop) to the parks — ideal when waking up “inside the magic” matters most.', img.castleNight],
+      ['Disney Partner Hotels', 'On-property partner stays with free shuttles, strong facilities and excellent value for families who still want park convenience.', img.castleDay],
+      ['Nearby trusted bases', 'Off-site hotels Deanna recommends for comfort, transport links and more budget left for dining, Premier Access and extras.', img.castleDayWide]
     ].forEach(function(item) { %>
       <article class="card-hover card-accent overflow-hidden p-0">
         <div class="relative aspect-[4/3] overflow-hidden">
-          <img src="<%= item[2] %>" alt="<%= item[0] %>" class="h-full w-full object-cover transition duration-500 hover:scale-105" loading="lazy" />
+          <img src="<%= item[2] %>" alt="<%= item[0] %> at Disneyland Paris" class="h-full w-full object-cover transition duration-500 hover:scale-105" loading="lazy" />
         </div>
         <div class="p-6">
           <h3 class="text-2xl"><%= item[0] %></h3>
@@ -125,7 +126,7 @@
 <section class="section">
   <div class="grid items-center gap-10 lg:grid-cols-2">
     <div>
-      <p class="badge bg-accent-100 text-accent-700">Park days &amp; pacing</p>
+      <p class="badge bg-secondary-50 text-secondary-800">Park days &amp; pacing</p>
       <h2 class="mt-4">Castle mornings, parade evenings, sensible breaks</h2>
       <p class="mt-4 text-lg text-primary-700">First-timers often underestimate queues, walking and nap windows. Deanna shapes park order, ticket length and rest time around your party — so the fireworks feel magical, not exhausting.</p>
       <div class="mt-8 flex flex-wrap gap-3">
@@ -134,10 +135,10 @@
       </div>
     </div>
     <div class="card overflow-hidden p-0">
-      <img src="<%= disneyImages.fireworks %>" alt="Fireworks over the Disneyland Paris castle" class="aspect-[16/11] w-full object-cover" loading="lazy" />
+      <img src="<%= img.illuminations %>" alt="Evening spectacular at Disneyland Paris" class="aspect-[16/11] w-full object-cover" loading="lazy" />
       <div class="p-6">
-        <h3 class="text-2xl">Start with the story of your trip</h3>
-        <p class="mt-2 text-primary-700">Share dates, ages, must-do rides and character moments — Deanna shapes the rest.</p>
+        <h3 class="text-2xl">Tell Deanna what matters most</h3>
+        <p class="mt-2 text-primary-700">Must-do rides, character moments, dining, ages and budget — she builds the plan around them.</p>
       </div>
     </div>
   </div>
@@ -146,16 +147,16 @@
 <section class="bg-primary-950 text-white">
   <div class="section">
     <div class="mb-12 max-w-2xl">
-      <p class="badge bg-secondary-400/20 text-secondary-200">Destination highlights</p>
-      <h2 class="mt-4 text-white">What makes Disneyland Paris special</h2>
-      <p class="mt-4 text-lg text-primary-100">Two theme parks, immersive Disney hotels and a short hop from the UK — with something memorable for every kind of traveller.</p>
+      <p class="badge bg-secondary-400/20 text-secondary-200">Disneyland Paris highlights</p>
+      <h2 class="mt-4 text-white">What your holiday can look like</h2>
+      <p class="mt-4 text-lg text-primary-100">Two parks, Disney hotels and a short hop from the UK — planned as one coherent trip, not a pile of separate bookings.</p>
     </div>
     <div class="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
       <% [
-        ['Disneyland Park', 'The castle, classic attractions, daytime parades and the evening spectacular.', disneyImages.castleNight],
-        ['Walt Disney Studios / Adventure World', 'Marvel, Pixar and evolving worlds in the second park.', disneyImages.adventure],
-        ['Disney hotels & Extra Magic Time', 'Stay on-site for themed rooms and quieter early park entry.', disneyImages.castleFireworks],
-        ['Easy from the UK', 'Eurostar, flights and packages that fit half-terms and long weekends.', disneyImages.parkDay]
+        ['Disneyland Park', 'Sleeping Beauty Castle, classic attractions, daytime entertainment and the evening spectacular.', img.castleDay],
+        ['Walt Disney Studios Park', 'Pixar, Marvel and evolving worlds in the second park — paced so you are not racing between lands.', img.parkCrowd],
+        ['Disney hotels & Extra Magic Time', 'Stay on-site for themed rooms and quieter early park entry when it is available on your dates.', img.castleNight],
+        ['Easy from the UK', 'Eurostar, flights and packages that fit half-terms and long weekends — with arrival day planned realistically.', img.fireworks]
       ].forEach(function(item) { %>
         <article class="group overflow-hidden rounded-card border border-white/10 bg-white/5">
           <div class="aspect-[4/3] overflow-hidden">
@@ -197,7 +198,7 @@
 <section class="section pt-0 text-center">
   <div class="mx-auto max-w-2xl rounded-[2rem] border border-secondary-200/70 bg-gradient-to-br from-white via-secondary-50/40 to-blush px-8 py-14 shadow-soft">
     <h2>Ready for your Disneyland Paris plan?</h2>
-    <p class="mx-auto mt-4 max-w-xl text-lg text-primary-700">Tell Deanna what you want from the trip and she’ll shape hotels, tickets, dining and park pacing around your family.</p>
+    <p class="mx-auto mt-4 max-w-xl text-lg text-primary-700">Share your dates, party and must-dos. Deanna will shape hotels, tickets, dining and park pacing around your family.</p>
     <a href="/planner" class="btn-primary mt-8">Start planning your trip</a>
   </div>
 </section>

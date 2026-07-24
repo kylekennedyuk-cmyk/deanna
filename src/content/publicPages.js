@@ -1,28 +1,4 @@
-const images = {
-  castleNight:
-    'https://images.unsplash.com/photo-1565865519537-fac387237f9c?auto=format&fit=crop&w=1600&q=85',
-  fireworks:
-    'https://images.unsplash.com/photo-1733424775835-1c7f7bebb1bb?auto=format&fit=crop&w=1600&q=85',
-  castleFireworks:
-    'https://images.unsplash.com/photo-1737040504436-d638f8316c73?auto=format&fit=crop&w=1600&q=85',
-  parkDay:
-    'https://images.unsplash.com/photo-1597466599360-3b9775841aec?auto=format&fit=crop&w=1600&q=85',
-  adventure:
-    'https://images.unsplash.com/photo-1624138784614-87fd1b6528f8?auto=format&fit=crop&w=1600&q=85',
-  family:
-    'https://images.unsplash.com/photo-1504150558240-0b4fd8946624?auto=format&fit=crop&w=1600&q=85',
-  dining:
-    'https://images.unsplash.com/photo-1414235077428-338989a2e8c0?auto=format&fit=crop&w=1600&q=85',
-  // Backwards-compatible aliases used across sections
-  paris:
-    'https://images.unsplash.com/photo-1565865519537-fac387237f9c?auto=format&fit=crop&w=1600&q=85',
-  hotel:
-    'https://images.unsplash.com/photo-1737040504436-d638f8316c73?auto=format&fit=crop&w=1600&q=85',
-  train:
-    'https://images.unsplash.com/photo-1597466599360-3b9775841aec?auto=format&fit=crop&w=1600&q=85',
-  planning:
-    'https://images.unsplash.com/photo-1733424775835-1c7f7bebb1bb?auto=format&fit=crop&w=1600&q=85',
-};
+const { images } = require('./disneyImages');
 
 const pages = {
   about: {
@@ -37,8 +13,8 @@ const pages = {
         heading: 'Personal advice from someone who understands the whole trip',
         text:
           'From choosing the right hotel to balancing park days, dining and travel from the UK, Deanna brings every part of your holiday together around the people travelling.',
-        image: images.family,
-        imageAlt: 'Family enjoying a holiday together',
+        image: images.parkCrowd,
+        imageAlt: 'Guests outside Sleeping Beauty Castle at Disneyland Paris',
         primaryLabel: 'Start your holiday plan',
         primaryHref: '/planner',
       },
@@ -54,7 +30,7 @@ const pages = {
           'One place to review plans, messages and updates',
         ],
         image: images.castleNight,
-        imageAlt: 'Disneyland castle lit up at night',
+        imageAlt: 'Sleeping Beauty Castle lit at night at Disneyland Paris',
       },
       {
         type: 'cards',
@@ -101,7 +77,7 @@ const pages = {
         text:
           'Understand the parks, compare hotels, plan dining and make confident choices before you travel. Start with the essentials, then ask Deanna to tailor everything to your party.',
         image: images.castleNight,
-        imageAlt: 'Disneyland Paris castle at night with fireworks',
+        imageAlt: 'Sleeping Beauty Castle at night at Disneyland Paris',
         primaryLabel: 'Start planning',
         primaryHref: '/planner',
         secondaryLabel: 'Compare hotels',
@@ -184,8 +160,8 @@ const pages = {
         heading: 'Choose a hotel that improves the whole holiday',
         text:
           'The right hotel is about more than the room. Walking distance, transport, theming, breakfast, pool time and your daily pace all affect which option represents the best value.',
-        image: images.castleFireworks,
-        imageAlt: 'Illuminated Disneyland castle during the evening spectacular',
+        image: images.fireworks,
+        imageAlt: 'Fireworks over Sleeping Beauty Castle at Disneyland Paris',
         primaryLabel: 'Get a tailored recommendation',
         primaryHref: '/planner',
       },
@@ -285,8 +261,8 @@ const pages = {
         heading: 'Plan memorable meals without losing your park day',
         text:
           'Dining can be a highlight, a useful break or a special character experience. The best choices depend on appetite, budget, location and how much structure you want.',
-        image: images.dining,
-        imageAlt: 'Restaurant table prepared for dinner',
+        image: images.parkCrowd,
+        imageAlt: 'Guests at Disneyland Paris — plan dining around your park day',
         primaryLabel: 'Add dining to your plan',
         primaryHref: '/planner',
       },
@@ -321,8 +297,8 @@ const pages = {
           'Allow travel time between parks, hotels and Disney Village',
           'Declare dietary requirements and allergies clearly',
         ],
-        image: images.dining,
-        imageAlt: 'Elegant restaurant interior',
+        image: images.illuminations || images.fireworks,
+        imageAlt: 'Evening at Disneyland Paris — time dining around the spectacular',
       },
       {
         type: 'faq',
