@@ -265,8 +265,12 @@
   }
 
   .site-header {
-    background-color: color-mix(in srgb, var(--brand-header-bg, var(--brand-bg, #fbf8f3)) 92%, white);
-    border-color: color-mix(in srgb, var(--brand-primary, #1a2b40) 12%, transparent);
+    background-color: color-mix(
+      in srgb,
+      var(--brand-header-bg, var(--brand-bg, #fbf8f3)) 62%,
+      transparent
+    );
+    border-color: color-mix(in srgb, var(--brand-primary, #1a2b40) 8%, transparent);
   }
 
   .brand-logo {
@@ -275,6 +279,14 @@
     width: auto;
     object-fit: contain;
     flex-shrink: 0;
+  }
+
+  /* Keep the mobile bar compact regardless of the admin logo size setting. */
+  @media (max-width: 1023px) {
+    .brand-logo {
+      height: min(var(--logo-height, 4.5rem), 2.5rem);
+      max-width: min(var(--logo-max-width, 20rem), 10.5rem);
+    }
   }
 
   .brand-logo-footer {

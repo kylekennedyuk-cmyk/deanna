@@ -1,12 +1,12 @@
 <header class="site-header sticky top-0 z-40 border-b backdrop-blur-md">
-  <div class="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3.5 sm:px-6 lg:px-8">
+  <div class="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-2 sm:gap-4 sm:px-6 lg:px-8 lg:py-3.5">
     <a href="/" class="group flex min-w-0 items-center gap-3">
       <% if (settings.logo_url && (settings.logo_mode === 'logo' || settings.logo_mode === 'both')) { %>
         <img src="<%= settings.logo_url %>" alt="<%= siteName %>" class="brand-logo" />
       <% } %>
       <% if (!settings.logo_url || settings.logo_mode !== 'logo') { %>
-        <span class="min-w-0 max-w-[14rem] sm:max-w-[18rem] lg:max-w-none">
-          <span class="block font-display text-lg font-semibold leading-tight tracking-tight text-primary-950 transition duration-250 group-hover:text-primary-800 sm:text-xl lg:text-2xl"><%= siteName %></span>
+        <span class="min-w-0 max-w-[12rem] sm:max-w-[18rem] lg:max-w-none">
+          <span class="block font-display text-base font-semibold leading-tight tracking-tight text-primary-950 transition duration-250 group-hover:text-primary-800 sm:text-xl lg:text-2xl"><%= siteName %></span>
           <% if (siteTagline) { %><span class="mt-0.5 hidden text-xs leading-snug text-primary-600 lg:block"><%= siteTagline %></span><% } %>
         </span>
       <% } %>
@@ -34,13 +34,13 @@
 
       <button
         type="button"
-        class="inline-flex h-11 w-11 items-center justify-center rounded-full border border-primary-200 text-primary-800 transition hover:border-secondary-400 hover:text-secondary-700 lg:hidden"
+        class="inline-flex h-9 w-9 items-center justify-center rounded-full border border-primary-200 text-primary-800 transition hover:border-secondary-400 hover:text-secondary-700 sm:h-10 sm:w-10 lg:hidden"
         data-menu-toggle
         aria-label="Open menu"
         aria-expanded="false"
         aria-controls="mobile-drawer"
       >
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="h-6 w-6" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="h-5 w-5 sm:h-6 sm:w-6" aria-hidden="true">
           <path stroke-linecap="round" d="M4 7h16M4 12h16M4 17h16" />
         </svg>
       </button>
