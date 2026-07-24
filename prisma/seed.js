@@ -87,6 +87,8 @@ async function main() {
       headline: 'Disneyland Paris holidays, planned around your family',
       subheadline:
         'Deanna is a specialist who knows the parks, hotels and the small details that make a trip effortless — from hotel choice to dining, tickets and pacing.',
+      image: 'https://images.unsplash.com/photo-1565865519537-fac387237f9c?auto=format&fit=crop&w=2000&q=85',
+      imageAlt: 'Disneyland castle illuminated at night with fireworks',
       primaryCta: { label: 'Start planning your trip', href: '/planner' },
       secondaryCta: { label: 'Explore the guide', href: '/disneyland-paris' },
     },

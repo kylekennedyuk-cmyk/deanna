@@ -361,8 +361,8 @@ const pages = {
         heading: 'The decisions that make the biggest difference',
         text:
           'Good planning is not about scheduling every minute. It is about booking the right elements early, understanding your options and protecting the experiences your party will value most.',
-        image: images.planning,
-        imageAlt: 'Travel planner, notebook and laptop',
+        image: images.fireworks,
+        imageAlt: 'Evening fireworks above Disneyland Paris castle',
         primaryLabel: 'Build my holiday plan',
         primaryHref: '/planner',
       },
