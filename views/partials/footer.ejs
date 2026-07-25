@@ -58,7 +58,26 @@
       </ul>
     </div>
   </div>
-  <div class="border-t border-white/10 py-4 text-center text-xs text-primary-300">
-    © <%= new Date().getFullYear() %> <%= siteName %>. All rights reserved.
+  <div class="border-t border-white/10 py-4 text-xs text-primary-300">
+    <div class="mx-auto flex max-w-6xl flex-wrap items-center gap-3 px-4 sm:px-6 lg:px-8" style="justify-content:space-between">
+      <span>© <%= new Date().getFullYear() %> <%= siteName %>. All rights reserved.</span>
+      <a
+        href="https://prime.ax"
+        target="_blank"
+        rel="noopener noreferrer"
+        class="inline-flex items-center gap-2 hover:text-white"
+        style="margin-left:auto"
+      >
+        <img
+          src="https://prime.ax/wp-content/uploads/2026/01/cropped-logo_2026-1-32x32.png"
+          alt="Prime.ax"
+          width="16"
+          height="16"
+          loading="lazy"
+          style="display:block;width:16px;height:16px"
+        />
+        <span>Built &amp; Managed by Prime.ax ltd</span>
+      </a>
+    </div>
   </div>
 </footer>
