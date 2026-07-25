@@ -21,17 +21,6 @@
     </nav>
 
     <div class="flex shrink-0 items-center gap-2 sm:gap-3">
-      <% if (settings.instagram_url) { %>
-        <a
-          href="<%= settings.instagram_url %>"
-          rel="noopener noreferrer"
-          target="_blank"
-          class="social-icon-link hidden h-9 w-9 text-primary-800 lg:inline-flex"
-          aria-label="Instagram"
-        >
-          <%- include('icon-instagram', { iconClass: 'h-5 w-5' }) %>
-        </a>
-      <% } %>
       <% if (currentUser) { %>
         <a href="<%= currentUser.role === 'admin' ? '/admin' : (currentUser.role === 'agent' ? '/agent' : '/customer') %>" class="btn-ghost btn-sm hidden whitespace-nowrap lg:inline-flex">Dashboard</a>
       <% } %>
@@ -43,6 +32,17 @@
         </form>
       <% } else { %>
         <a href="/login" class="btn-primary btn-sm hidden whitespace-nowrap lg:inline-flex lg:px-6 lg:py-3">Log in</a>
+      <% } %>
+      <% if (settings.instagram_url) { %>
+        <a
+          href="<%= settings.instagram_url %>"
+          rel="noopener noreferrer"
+          target="_blank"
+          class="social-icon-link hidden h-9 w-9 shrink-0 text-primary-800 lg:inline-flex"
+          aria-label="Follow on Instagram"
+        >
+          <%- include('icon-instagram', { iconClass: 'h-5 w-5' }) %>
+        </a>
       <% } %>
 
       <button

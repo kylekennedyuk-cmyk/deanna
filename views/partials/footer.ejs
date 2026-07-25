@@ -13,8 +13,9 @@
       <% if (settings.instagram_url || settings.facebook_url || settings.tiktok_url) { %>
         <div class="mt-5 flex flex-wrap items-center gap-3 text-sm">
           <% if (settings.instagram_url) { %>
-            <a href="<%= settings.instagram_url %>" rel="noopener noreferrer" target="_blank" class="social-icon-link social-icon-link-footer text-secondary-300 hover:text-white" aria-label="Instagram">
-              <%- include('icon-instagram', { iconClass: 'h-6 w-6' }) %>
+            <a href="<%= settings.instagram_url %>" rel="noopener noreferrer" target="_blank" class="social-icon-link social-icon-link-footer inline-flex items-center gap-2 rounded-full px-3 py-2 text-secondary-300 hover:text-white" aria-label="Follow on Instagram">
+              <%- include('icon-instagram', { iconClass: 'h-5 w-5 shrink-0' }) %>
+              <span>Follow on Instagram</span>
             </a>
           <% } %>
           <% if (settings.facebook_url) { %><a href="<%= settings.facebook_url %>" rel="noopener noreferrer" target="_blank" class="text-secondary-300 hover:text-white">Facebook</a><% } %>
