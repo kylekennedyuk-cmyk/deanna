@@ -1,10 +1,18 @@
 <%- include('../partials/shell-start', { bodyClass: 'portal-shell' }) %>
 <section class="section-sm">
   <%- include('../partials/portal-nav', { backHref: '/admin', backLabel: 'Admin home' }) %>
-  <h1 class="text-display-md">Deals</h1>
-  <% if (saved) { %><div class="mt-4 rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-green-800">Saved.</div><% } %>
-  <form method="post" action="/admin/deals" class="card mt-8 space-y-4">
+  <div class="mb-8">
+    <p class="badge bg-secondary-100 text-secondary-800">Offers</p>
+    <h1 class="mt-3 text-display-md">Deals</h1>
+    <p class="mt-2 text-primary-700">Add, edit, hide or delete deals shown on the offers page.</p>
+  </div>
+
+  <% if (saved) { %><div class="mb-5 rounded-card border border-success-100 bg-success-50 px-4 py-3 text-success-700">Deal saved.</div><% } %>
+  <% if (typeof deleted !== 'undefined' && deleted) { %><div class="mb-5 rounded-card border border-success-100 bg-success-50 px-4 py-3 text-success-700">Deal deleted.</div><% } %>
+
+  <form method="post" action="/admin/deals" class="card space-y-4">
     <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+    <h2 class="text-2xl">Add a deal</h2>
     <div>
       <label class="label" for="title">Title</label>
       <input class="field" id="title" name="title" required />
@@ -20,12 +28,46 @@
     <label class="flex items-center gap-2 text-sm"><input type="checkbox" name="active" checked /> Active</label>
     <button class="btn-primary" type="submit">Add deal</button>
   </form>
+
   <div class="mt-8 grid gap-4 md:grid-cols-2">
+    <% if (!deals.length) { %>
+      <div class="card md:col-span-2 text-primary-600">No deals yet.</div>
+    <% } %>
     <% deals.forEach(function(deal) { %>
       <article class="card">
-        <h2 class="text-xl"><%= deal.title %></h2>
-        <p class="mt-2 text-primary-700"><%= deal.description %></p>
-        <p class="mt-3 text-sm text-primary-500"><%= deal.active ? 'Active' : 'Inactive' %><% if (deal.price) { %> · from £<%= deal.price %><% } %></p>
+        <form method="post" action="/admin/deals/<%= deal.id %>" class="space-y-4">
+          <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+          <div>
+            <label class="label">Title</label>
+            <input class="field" name="title" value="<%= deal.title %>" required />
+          </div>
+          <div>
+            <label class="label">Description</label>
+            <textarea class="field min-h-[100px]" name="description" required><%= deal.description %></textarea>
+          </div>
+          <div>
+            <label class="label">From price (£)</label>
+            <input class="field" name="price" type="number" value="<%= deal.price != null ? deal.price : '' %>" />
+          </div>
+          <label class="flex items-center gap-2 text-sm">
+            <input type="checkbox" name="active" <%= deal.active ? 'checked' : '' %> />
+            Active (shown on the public offers page)
+          </label>
+          <div class="flex flex-wrap gap-2 border-t border-primary-100 pt-4">
+            <button class="btn-primary btn-sm" type="submit">Save changes</button>
+            <button
+              class="btn-secondary btn-sm"
+              type="submit"
+              formaction="/admin/deals/<%= deal.id %>/toggle"
+            ><%= deal.active ? 'Deactivate' : 'Activate' %></button>
+            <button
+              class="btn-logout btn-sm"
+              type="submit"
+              formaction="/admin/deals/<%= deal.id %>/delete"
+              onclick="return confirm('Delete this deal permanently?')"
+            >Delete</button>
+          </div>
+        </form>
       </article>
     <% }) %>
   </div>

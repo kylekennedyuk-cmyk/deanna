@@ -231,7 +231,12 @@ router.post('/users/:id/password', async (req, res, next) => {
 router.get('/deals', async (req, res, next) => {
   try {
     const deals = await prisma.deal.findMany({ orderBy: { createdAt: 'desc' } });
-    res.render('admin/deals', { title: 'Deals', deals, saved: req.query.saved === '1' });
+    res.render('admin/deals', {
+      title: 'Deals',
+      deals,
+      saved: req.query.saved === '1',
+      deleted: req.query.deleted === '1',
+    });
   } catch (err) {
     next(err);
   }
@@ -248,6 +253,55 @@ router.post('/deals', async (req, res, next) => {
       },
     });
     res.redirect('/admin/deals?saved=1');
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/deals/:id', async (req, res, next) => {
+  try {
+    const id = Number(req.params.id);
+    await prisma.deal.update({
+      where: { id },
+      data: {
+        title: String(req.body.title || '').trim(),
+        description: String(req.body.description || '').trim(),
+        price: req.body.price !== '' && req.body.price != null ? Number(req.body.price) : null,
+        active: req.body.active === 'on',
+      },
+    });
+    res.redirect('/admin/deals?saved=1');
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/deals/:id/toggle', async (req, res, next) => {
+  try {
+    const id = Number(req.params.id);
+    const deal = await prisma.deal.findUnique({ where: { id } });
+    if (!deal) {
+      return res.status(404).render('pages/error', {
+        title: 'Not found',
+        message: 'Deal not found.',
+        status: 404,
+      });
+    }
+    await prisma.deal.update({
+      where: { id },
+      data: { active: !deal.active },
+    });
+    res.redirect('/admin/deals?saved=1');
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/deals/:id/delete', async (req, res, next) => {
+  try {
+    const id = Number(req.params.id);
+    await prisma.deal.delete({ where: { id } });
+    res.redirect('/admin/deals?deleted=1');
   } catch (err) {
     next(err);
   }
