@@ -51,8 +51,13 @@
       </div>
       <select id="new-section-type" class="field w-auto">
         <option value="hero">Hero banner</option>
-        <option value="split">Text + image</option>
-        <option value="cards">Card grid</option>
+        <option value="why">Why cards (home)</option>
+        <option value="process">How it works steps (home)</option>
+        <option value="featureCards">Image card grid (hotels etc.)</option>
+        <option value="highlights">Dark highlights grid (home)</option>
+        <option value="split">Text + image split</option>
+        <option value="testimonials">Testimonials</option>
+        <option value="cards">Simple card grid</option>
         <option value="hotelGrid">Hotel comparison grid</option>
         <option value="tips">Tips checklist</option>
         <option value="timeline">Timeline</option>
@@ -60,6 +65,7 @@
         <option value="cta">Call to action</option>
       </select>
       <button type="button" id="add-section" class="btn-primary">Add section</button>
+      <p id="new-section-help" class="w-full text-sm text-primary-600"></p>
     </div>
 
     <div id="section-list" class="space-y-4">
@@ -69,11 +75,20 @@
           const rowsText = rows.map(function(item) {
             if (section.type === 'faq') return [item.question || '', item.answer || ''].join(' | ');
             if (section.type === 'hotelGrid') return [item.name || '', item.level || '', item.bestFor || '', item.description || ''].join(' | ');
-            if (section.type === 'timeline') return [item.title || '', item.text || ''].join(' | ');
+            if (section.type === 'timeline' || section.type === 'why' || section.type === 'process') return [item.title || '', item.text || ''].join(' | ');
+            if (section.type === 'featureCards' || section.type === 'highlights') {
+              return [item.title || '', item.text || '', item.image || '', item.href || '', item.label || ''].join(' | ');
+            }
+            if (section.type === 'testimonials') {
+              return [item.text || item.quote || '', item.title || item.name || '', item.label || item.meta || ''].join(' | ');
+            }
             if (typeof item === 'string') return item;
             return [item.title || '', item.text || '', item.href || '', item.label || ''].join(' | ');
           }).join('\n');
-          const pointsText = (section.points || []).join('\n');
+          let pointsText = (section.points || []).join('\n');
+          if (section.type === 'split' && (section.panelTitle || section.panelText)) {
+            pointsText = [section.panelTitle || '', section.panelText || ''].concat(section.points || []).filter(Boolean).join('\n');
+          }
         %>
         <article class="card section-editor" data-section-type="<%= section.type %>">
           <div class="flex flex-wrap items-center justify-between gap-3">
@@ -90,18 +105,35 @@
           </div>
 
           <div class="mt-5 grid gap-4 md:grid-cols-2">
-            <input type="hidden" data-field="type" value="<%= section.type %>" />
+            <div>
+              <label class="label">Section type</label>
+              <select class="field" data-field="type">
+                <option value="hero" <%= section.type === 'hero' ? 'selected' : '' %>>Hero banner</option>
+                <option value="why" <%= section.type === 'why' ? 'selected' : '' %>>Why cards (home)</option>
+                <option value="process" <%= section.type === 'process' ? 'selected' : '' %>>How it works steps (home)</option>
+                <option value="featureCards" <%= section.type === 'featureCards' ? 'selected' : '' %>>Image card grid</option>
+                <option value="highlights" <%= section.type === 'highlights' ? 'selected' : '' %>>Dark highlights grid (home)</option>
+                <option value="split" <%= section.type === 'split' ? 'selected' : '' %>>Text + image split</option>
+                <option value="testimonials" <%= section.type === 'testimonials' ? 'selected' : '' %>>Testimonials</option>
+                <option value="cards" <%= section.type === 'cards' ? 'selected' : '' %>>Simple card grid</option>
+                <option value="hotelGrid" <%= section.type === 'hotelGrid' ? 'selected' : '' %>>Hotel comparison grid</option>
+                <option value="tips" <%= section.type === 'tips' ? 'selected' : '' %>>Tips checklist</option>
+                <option value="timeline" <%= section.type === 'timeline' ? 'selected' : '' %>>Timeline</option>
+                <option value="faq" <%= section.type === 'faq' ? 'selected' : '' %>>FAQs</option>
+                <option value="cta" <%= section.type === 'cta' ? 'selected' : '' %>>Call to action</option>
+              </select>
+            </div>
             <div>
               <label class="label">Small label</label>
               <input class="field" data-field="eyebrow" value="<%= section.eyebrow || '' %>" placeholder="e.g. First-time advice" />
             </div>
             <div>
               <label class="label">Heading</label>
-              <input class="field section-heading" data-field="heading" value="<%= section.heading || section.title || '' %>" />
+              <input class="field section-heading" data-field="heading" value="<%= section.heading || section.title || section.headline || '' %>" />
             </div>
             <div class="md:col-span-2">
               <label class="label">Main text</label>
-              <textarea class="field min-h-[110px]" data-field="text"><%= section.text || '' %></textarea>
+              <textarea class="field min-h-[110px]" data-field="text"><%= section.text || section.subheadline || '' %></textarea>
             </div>
             <div>
               <label class="label">Image URL</label>
@@ -128,13 +160,14 @@
               <input class="field" data-field="secondaryHref" value="<%= section.secondaryHref || (section.secondaryCta && section.secondaryCta.href) || '' %>" />
             </div>
             <div class="md:col-span-2">
-              <label class="label">Bullet points <span class="font-normal text-primary-500">(one per line)</span></label>
+              <label class="label">Bullet points / split panel lines <span class="font-normal text-primary-500">(one per line)</span></label>
               <textarea class="field min-h-[100px]" data-field="pointsText"><%= pointsText %></textarea>
+              <p class="help section-points-help">Hero: benefit bullets. Split: line 1 = panel title, line 2 = panel text.</p>
             </div>
             <div class="md:col-span-2">
-              <label class="label">Cards, timeline entries or FAQs <span class="font-normal text-primary-500">(one per line; separate fields with |)</span></label>
+              <label class="label">Cards, highlights, testimonials or FAQs <span class="font-normal text-primary-500">(one per line; separate fields with |)</span></label>
               <textarea class="field min-h-[140px]" data-field="rowsText"><%= rowsText %></textarea>
-              <p class="help section-row-help">Cards: Title | text | optional link | optional link label. FAQs: Question | answer.</p>
+              <p class="help section-row-help">Feature/highlight cards: Title | text | image URL. Testimonials: Quote | name | detail.</p>
             </div>
           </div>
         </article>
@@ -166,7 +199,24 @@
       </div>
     </div>
     <div class="mt-5 grid gap-4 md:grid-cols-2">
-      <input type="hidden" data-field="type" value="cards" />
+      <div>
+        <label class="label">Section type</label>
+        <select class="field" data-field="type">
+          <option value="hero">Hero banner</option>
+          <option value="why">Why cards (home)</option>
+          <option value="process">How it works steps (home)</option>
+          <option value="featureCards">Image card grid</option>
+          <option value="highlights">Dark highlights grid (home)</option>
+          <option value="split">Text + image split</option>
+          <option value="testimonials">Testimonials</option>
+          <option value="cards">Simple card grid</option>
+          <option value="hotelGrid">Hotel comparison grid</option>
+          <option value="tips">Tips checklist</option>
+          <option value="timeline">Timeline</option>
+          <option value="faq">FAQs</option>
+          <option value="cta">Call to action</option>
+        </select>
+      </div>
       <div><label class="label">Small label</label><input class="field" data-field="eyebrow" /></div>
       <div><label class="label">Heading</label><input class="field section-heading" data-field="heading" /></div>
       <div class="md:col-span-2"><label class="label">Main text</label><textarea class="field min-h-[110px]" data-field="text"></textarea></div>
@@ -176,7 +226,7 @@
       <div><label class="label">Primary button link</label><input class="field" data-field="primaryHref" /></div>
       <div><label class="label">Secondary button label</label><input class="field" data-field="secondaryLabel" /></div>
       <div><label class="label">Secondary button link</label><input class="field" data-field="secondaryHref" /></div>
-      <div class="md:col-span-2"><label class="label">Bullet points (one per line)</label><textarea class="field min-h-[100px]" data-field="pointsText"></textarea></div>
+      <div class="md:col-span-2"><label class="label">Bullet points (one per line)</label><textarea class="field min-h-[100px]" data-field="pointsText"></textarea><p class="help section-points-help"></p></div>
       <div class="md:col-span-2"><label class="label">Cards, timeline entries or FAQs</label><textarea class="field min-h-[140px]" data-field="rowsText"></textarea><p class="help section-row-help"></p></div>
     </div>
   </article>

@@ -1,29 +1,17 @@
 <%- include('../partials/shell-start', { bodyClass: 'public-home' }) %>
 <%
-  const hero = (sections || []).find(s => s.type === 'hero') || {};
-  const why = (sections || []).find(s => s.type === 'why');
-  const process = (sections || []).find(s => s.type === 'process');
-  // Verified Disneyland Paris only (Coupvray / Chessy) — no generic travel stock
-  const img = {
-    hero: 'https://images.unsplash.com/photo-1733424775835-1c7f7bebb1bb?auto=format&fit=crop&w=2000&q=85',
-    castleDay: 'https://images.unsplash.com/photo-1742079741493-fd9845d816f9?auto=format&fit=crop&w=1200&q=85',
-    castleNight: 'https://images.unsplash.com/photo-1742079727590-4f7682f67d89?auto=format&fit=crop&w=1200&q=85',
-    fireworks: 'https://images.unsplash.com/photo-1733424775835-1c7f7bebb1bb?auto=format&fit=crop&w=1200&q=85',
-    illuminations: 'https://images.unsplash.com/photo-1685134404136-e797d7a5df4a?auto=format&fit=crop&w=1200&q=85',
-    parkCrowd: 'https://images.unsplash.com/photo-1690097232120-a59669ee0989?auto=format&fit=crop&w=1200&q=85',
-    disneyHotel: '/images/disney/disney-hotel-newport.jpg',
-    disneyHotelAlt: '/images/disney/disney-hotel-new-york.jpg',
-    hotelGrounds: '/images/disney/disney-hotels-park.jpg',
-    lakeDisney: '/images/disney/disney-lake.jpg',
-    eurostar: '/images/disney/easyjet-gatwick.jpg',
-  };
+  const pageSections = (typeof sections !== 'undefined' && sections && sections.length)
+    ? sections
+    : [];
 %>
 
+<% pageSections.forEach(function(section) { %>
+  <% if (section.type === 'hero') { %>
 <section class="home-hero relative isolate overflow-hidden bg-primary-950 text-white" data-home-hero>
   <div class="absolute inset-0">
     <img
-      src="<%= hero.image || img.hero %>"
-      alt="<%= hero.imageAlt || 'Fireworks over Sleeping Beauty Castle at Disneyland Paris' %>"
+      src="<%= section.image || '' %>"
+      alt="<%= section.imageAlt || 'Disneyland Paris' %>"
       class="h-full w-full object-cover"
       fetchpriority="high"
     />
@@ -33,39 +21,47 @@
 
   <div class="home-hero-content relative mx-auto flex w-full max-w-6xl items-center px-4 sm:px-6 lg:px-8">
     <div class="hero-copy-panel w-full max-w-2xl animate-fadeUp rounded-[2rem] border border-white/20 p-8 shadow-lift sm:p-11">
-      <p class="badge bg-secondary-400/20 text-secondary-200 ring-1 ring-secondary-300/30">Disneyland Paris specialist</p>
+      <% if (section.eyebrow) { %>
+        <p class="badge bg-secondary-400/20 text-secondary-200 ring-1 ring-secondary-300/30"><%= section.eyebrow %></p>
+      <% } %>
       <h1 class="mt-6 text-balance text-white">
-        <%= hero.headline || hero.heading || 'Disneyland Paris holidays, planned around your family' %>
+        <%= section.headline || section.heading || '' %>
       </h1>
       <p class="mt-5 max-w-xl text-lg leading-relaxed text-primary-100 sm:text-xl">
-        <%= hero.subheadline || hero.text || 'Deanna plans park days, Disney hotels, dining and travel from the UK — so your trip feels magical, not overwhelming.' %>
+        <%= section.subheadline || section.text || '' %>
       </p>
       <div class="mt-8 flex flex-wrap gap-3">
-        <a href="<%= hero.primaryHref || (hero.primaryCta && hero.primaryCta.href) || '/planner' %>" class="btn bg-secondary-400 text-primary-950 shadow-gold hover:-translate-y-0.5 hover:bg-secondary-300">
-          <%= hero.primaryLabel || (hero.primaryCta && hero.primaryCta.label) || 'Start planning your trip' %>
-        </a>
-        <a href="<%= hero.secondaryHref || (hero.secondaryCta && hero.secondaryCta.href) || '/disneyland-paris' %>" class="btn border border-white/40 bg-white/10 text-white hover:bg-white/20">
-          <%= hero.secondaryLabel || (hero.secondaryCta && hero.secondaryCta.label) || 'Explore the guide' %>
-        </a>
+        <% if (section.primaryHref || (section.primaryCta && section.primaryCta.href)) { %>
+          <a href="<%= section.primaryHref || section.primaryCta.href %>" class="btn bg-secondary-400 text-primary-950 shadow-gold hover:-translate-y-0.5 hover:bg-secondary-300">
+            <%= section.primaryLabel || (section.primaryCta && section.primaryCta.label) || 'Start planning' %>
+          </a>
+        <% } %>
+        <% if (section.secondaryHref || (section.secondaryCta && section.secondaryCta.href)) { %>
+          <a href="<%= section.secondaryHref || section.secondaryCta.href %>" class="btn border border-white/40 bg-white/10 text-white hover:bg-white/20">
+            <%= section.secondaryLabel || (section.secondaryCta && section.secondaryCta.label) || 'Learn more' %>
+          </a>
+        <% } %>
       </div>
-      <ul class="mt-8 flex flex-wrap gap-x-6 gap-y-2 text-sm text-primary-100">
-        <li class="flex items-center gap-2"><span class="text-secondary-300">✦</span> Park days shaped around ages &amp; stamina</li>
-        <li class="flex items-center gap-2"><span class="text-secondary-300">✦</span> Disney Hotels &amp; Partner Hotels compared properly</li>
-        <li class="flex items-center gap-2"><span class="text-secondary-300">✦</span> Tickets, dining reservations &amp; travel in one plan</li>
-      </ul>
+      <% if (section.points && section.points.length) { %>
+        <ul class="mt-8 flex flex-wrap gap-x-6 gap-y-2 text-sm text-primary-100">
+          <% section.points.forEach(function(point) { %>
+            <li class="flex items-center gap-2"><span class="text-secondary-300">✦</span> <%= point %></li>
+          <% }) %>
+        </ul>
+      <% } %>
     </div>
   </div>
 </section>
 
-<% if (why) { %>
+  <% } else if (section.type === 'why') { %>
 <section class="section">
   <div class="mb-12 max-w-2xl">
-    <p class="badge bg-secondary-50 text-secondary-800">Why plan with Deanna</p>
-    <h2 class="mt-4"><%= why.title %></h2>
-    <p class="mt-4 text-lg text-primary-700">Specialist Disneyland Paris advice — not a generic booking engine. Clear recommendations built around your dates, party and budget.</p>
+    <% if (section.eyebrow) { %><p class="badge bg-secondary-50 text-secondary-800"><%= section.eyebrow %></p><% } %>
+    <h2 class="mt-4"><%= section.title || section.heading %></h2>
+    <% if (section.text) { %><p class="mt-4 text-lg text-primary-700"><%= section.text %></p><% } %>
   </div>
   <div class="grid gap-6 md:grid-cols-3">
-    <% (why.items || []).forEach(function(item) { %>
+    <% (section.items || []).forEach(function(item) { %>
       <article class="card-hover card-accent">
         <div class="icon-bubble mb-5">✦</div>
         <h3 class="text-2xl"><%= item.title %></h3>
@@ -74,17 +70,17 @@
     <% }) %>
   </div>
 </section>
-<% } %>
 
-<% if (process) { %>
+  <% } else if (section.type === 'process') { %>
 <section class="bg-blush/70">
   <div class="section">
     <div class="mb-12 max-w-2xl">
-      <p class="badge bg-white/80 text-primary-800">How it works</p>
-      <h2 class="mt-4"><%= process.title %></h2>
+      <% if (section.eyebrow) { %><p class="badge bg-white/80 text-primary-800"><%= section.eyebrow %></p><% } %>
+      <h2 class="mt-4"><%= section.title || section.heading %></h2>
+      <% if (section.text) { %><p class="mt-4 text-lg text-primary-700"><%= section.text %></p><% } %>
     </div>
     <ol class="grid gap-6 md:grid-cols-3">
-      <% (process.steps || []).forEach(function(step, i) { %>
+      <% (section.steps || section.items || []).forEach(function(step, i) { %>
         <li class="card-hover">
           <div class="mb-5 flex h-11 w-11 items-center justify-center rounded-full bg-primary-900 font-display text-xl text-white"><%= i + 1 %></div>
           <h3 class="text-2xl"><%= step.title %></h3>
@@ -92,83 +88,89 @@
         </li>
       <% }) %>
     </ol>
-    <div class="mt-12">
-      <a href="/planner" class="btn-primary">Begin your Disneyland Paris plan</a>
-    </div>
+    <% if (section.primaryHref) { %>
+      <div class="mt-12">
+        <a href="<%= section.primaryHref %>" class="btn-primary"><%= section.primaryLabel || 'Begin your plan' %></a>
+      </div>
+    <% } %>
   </div>
 </section>
-<% } %>
 
+  <% } else if (section.type === 'featureCards') { %>
 <section class="section">
   <div class="mb-12 flex flex-wrap items-end justify-between gap-4">
     <div class="max-w-2xl">
-      <p class="badge bg-secondary-50 text-secondary-800">Where to stay</p>
-      <h2 class="mt-4">Disney Hotels, Partner Hotels &amp; trusted nearby stays</h2>
-      <p class="mt-4 text-lg text-primary-700">Deanna compares park access, theming, room setup and total package value — so you choose the right base for your family, not just the cheapest room rate.</p>
+      <% if (section.eyebrow) { %><p class="badge bg-secondary-50 text-secondary-800"><%= section.eyebrow %></p><% } %>
+      <h2 class="mt-4"><%= section.heading %></h2>
+      <% if (section.text) { %><p class="mt-4 text-lg text-primary-700"><%= section.text %></p><% } %>
     </div>
-    <a href="/disneyland-paris/hotels" class="btn-secondary">Open the hotel guide</a>
+    <% if (section.primaryHref) { %>
+      <a href="<%= section.primaryHref %>" class="btn-secondary"><%= section.primaryLabel || 'Learn more' %></a>
+    <% } %>
   </div>
   <div class="grid gap-6 md:grid-cols-3">
-    <% [
-      ['Disney Hotels', 'Themed rooms, Extra Magic Time and the shortest walk (or hop) to the parks — ideal when waking up inside the magic matters most.', img.disneyHotel],
-      ['Disney Partner Hotels', 'On-property partner stays with free shuttles, strong facilities and excellent value for families who still want park convenience.', img.disneyHotelAlt],
-      ['Nearby trusted bases', 'Off-site hotels Deanna recommends for comfort, transport links and more budget left for dining, Premier Access and extras.', img.hotelGrounds]
-    ].forEach(function(item) { %>
+    <% (section.cards || []).forEach(function(item) { %>
       <article class="card-hover card-accent overflow-hidden p-0">
-        <div class="relative aspect-[4/3] overflow-hidden">
-          <img src="<%= item[2] %>" alt="<%= item[0] %> at Disneyland Paris" class="h-full w-full object-cover transition duration-500 hover:scale-105" loading="lazy" />
-        </div>
+        <% if (item.image) { %>
+          <div class="relative aspect-[4/3] overflow-hidden">
+            <img src="<%= item.image %>" alt="<%= item.title || '' %>" class="h-full w-full object-cover transition duration-500 hover:scale-105" loading="lazy" />
+          </div>
+        <% } %>
         <div class="p-6">
-          <h3 class="text-2xl"><%= item[0] %></h3>
-          <p class="mt-3 text-primary-700"><%= item[1] %></p>
+          <h3 class="text-2xl"><%= item.title %></h3>
+          <p class="mt-3 text-primary-700"><%= item.text %></p>
+          <% if (item.href) { %><a href="<%= item.href %>" class="mt-4 inline-block text-sm font-semibold text-secondary-700 hover:underline"><%= item.label || 'Read more' %> →</a><% } %>
         </div>
       </article>
     <% }) %>
   </div>
 </section>
 
+  <% } else if (section.type === 'split') { %>
 <section class="section">
   <div class="grid items-center gap-10 lg:grid-cols-2">
     <div>
-      <p class="badge bg-secondary-50 text-secondary-800">Park days &amp; pacing</p>
-      <h2 class="mt-4">Castle mornings, parade evenings, sensible breaks</h2>
-      <p class="mt-4 text-lg text-primary-700">First-timers often underestimate queues, walking and nap windows. Deanna shapes park order, ticket length and rest time around your party — so the fireworks feel magical, not exhausting.</p>
+      <% if (section.eyebrow) { %><p class="badge bg-secondary-50 text-secondary-800"><%= section.eyebrow %></p><% } %>
+      <h2 class="mt-4"><%= section.heading %></h2>
+      <% if (section.text) { %><p class="mt-4 text-lg text-primary-700"><%= section.text %></p><% } %>
       <div class="mt-8 flex flex-wrap gap-3">
-        <a href="/disneyland-paris" class="btn-secondary">Browse the park guide</a>
-        <a href="/planning-advice" class="btn-ghost">Planning advice</a>
+        <% if (section.primaryHref) { %><a href="<%= section.primaryHref %>" class="btn-secondary"><%= section.primaryLabel || 'Learn more' %></a><% } %>
+        <% if (section.secondaryHref) { %><a href="<%= section.secondaryHref %>" class="btn-ghost"><%= section.secondaryLabel || 'More' %></a><% } %>
       </div>
     </div>
     <div class="card overflow-hidden p-0">
-      <img src="<%= img.illuminations %>" alt="Evening spectacular at Disneyland Paris" class="aspect-[16/11] w-full object-cover" loading="lazy" />
-      <div class="p-6">
-        <h3 class="text-2xl">Tell Deanna what matters most</h3>
-        <p class="mt-2 text-primary-700">Must-do rides, character moments, dining, ages and budget — she builds the plan around them.</p>
-      </div>
+      <% if (section.image) { %>
+        <img src="<%= section.image %>" alt="<%= section.imageAlt || '' %>" class="aspect-[16/11] w-full object-cover" loading="lazy" />
+      <% } %>
+      <% if (section.panelTitle || section.panelText) { %>
+        <div class="p-6">
+          <% if (section.panelTitle) { %><h3 class="text-2xl"><%= section.panelTitle %></h3><% } %>
+          <% if (section.panelText) { %><p class="mt-2 text-primary-700"><%= section.panelText %></p><% } %>
+        </div>
+      <% } %>
     </div>
   </div>
 </section>
 
+  <% } else if (section.type === 'highlights') { %>
 <section class="bg-primary-950 text-white">
   <div class="section">
     <div class="mb-12 max-w-2xl">
-      <p class="badge bg-secondary-400/20 text-secondary-200">Disneyland Paris highlights</p>
-      <h2 class="mt-4 text-white">What your holiday can look like</h2>
-      <p class="mt-4 text-lg text-primary-100">Two parks, Disney hotels and a short hop from the UK — planned as one coherent trip, not a pile of separate bookings.</p>
+      <% if (section.eyebrow) { %><p class="badge bg-secondary-400/20 text-secondary-200"><%= section.eyebrow %></p><% } %>
+      <h2 class="mt-4 text-white"><%= section.heading %></h2>
+      <% if (section.text) { %><p class="mt-4 text-lg text-primary-100"><%= section.text %></p><% } %>
     </div>
     <div class="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
-      <% [
-        ['Disneyland Park', 'Sleeping Beauty Castle, classic attractions, daytime entertainment and the evening spectacular.', img.castleDay],
-        ['Walt Disney Studios Park', 'Pixar, Marvel and evolving worlds in the second park — paced so you are not racing between lands.', img.parkCrowd],
-        ['Disney Hotels & Extra Magic Time', 'Stay on-site for themed rooms and quieter early park entry when it is available on your dates.', img.disneyHotel],
-        ['Easy from the UK', 'Eurostar, flights and packages that fit half-terms and long weekends — with arrival day planned realistically.', img.eurostar]
-      ].forEach(function(item) { %>
+      <% (section.cards || []).forEach(function(item) { %>
         <article class="group overflow-hidden rounded-card border border-white/10 bg-white/5">
-          <div class="aspect-[4/3] overflow-hidden">
-            <img src="<%= item[2] %>" alt="<%= item[0] %>" class="h-full w-full object-cover transition duration-500 group-hover:scale-105" loading="lazy" />
-          </div>
+          <% if (item.image) { %>
+            <div class="aspect-[4/3] overflow-hidden">
+              <img src="<%= item.image %>" alt="<%= item.title || '' %>" class="h-full w-full object-cover transition duration-500 group-hover:scale-105" loading="lazy" />
+            </div>
+          <% } %>
           <div class="p-5">
-            <h3 class="text-xl text-white"><%= item[0] %></h3>
-            <p class="mt-2 text-sm text-primary-100"><%= item[1] %></p>
+            <h3 class="text-xl text-white"><%= item.title %></h3>
+            <p class="mt-2 text-sm text-primary-100"><%= item.text %></p>
           </div>
         </article>
       <% }) %>
@@ -176,34 +178,38 @@
   </div>
 </section>
 
+  <% } else if (section.type === 'testimonials') { %>
 <section class="section">
   <div class="mb-12 max-w-2xl">
-    <p class="badge bg-secondary-50 text-secondary-800">What families say</p>
-    <h2 class="mt-4">Trusted to get the Disney details right</h2>
+    <% if (section.eyebrow) { %><p class="badge bg-secondary-50 text-secondary-800"><%= section.eyebrow %></p><% } %>
+    <h2 class="mt-4"><%= section.heading %></h2>
+    <% if (section.text) { %><p class="mt-4 text-lg text-primary-700"><%= section.text %></p><% } %>
   </div>
   <div class="grid gap-6 md:grid-cols-3">
-    <% [
-      ['“Deanna took the stress out of everything. The Disney hotel was perfect for our two under-fives and the dining reservations were spot on.”', 'The Harper family', 'February half-term'],
-      ['“Genuinely knowledgeable — she suggested a park order and Extra Magic Time plan we would never have thought of.”', 'Sarah &amp; James', 'Anniversary trip'],
-      ['“Tickets, hotel and fireworks evening all lined up. It felt like having a friend who lives and breathes Disneyland Paris.”', 'The Okafor family', 'Summer holiday']
-    ].forEach(function(item) { %>
+    <% (section.items || section.cards || []).forEach(function(item) { %>
       <figure class="card-hover card-accent flex h-full flex-col">
         <div class="text-2xl text-secondary-500" aria-hidden="true">★★★★★</div>
-        <blockquote class="mt-4 flex-1 text-lg leading-relaxed text-primary-800"><%= item[0] %></blockquote>
+        <blockquote class="mt-4 flex-1 text-lg leading-relaxed text-primary-800"><%= item.text || item.quote %></blockquote>
         <figcaption class="mt-5 border-t border-primary-100 pt-4 text-sm">
-          <span class="font-semibold text-primary-950"><%= item[1] %></span>
-          <span class="block text-primary-500"><%= item[2] %></span>
+          <span class="font-semibold text-primary-950"><%= item.title || item.name %></span>
+          <% if (item.label || item.meta) { %><span class="block text-primary-500"><%= item.label || item.meta %></span><% } %>
         </figcaption>
       </figure>
     <% }) %>
   </div>
 </section>
 
+  <% } else if (section.type === 'cta') { %>
 <section class="section pt-0 text-center">
   <div class="mx-auto max-w-2xl rounded-[2rem] border border-secondary-200/70 bg-gradient-to-br from-white via-secondary-50/40 to-blush px-8 py-14 shadow-soft">
-    <h2>Ready for your Disneyland Paris plan?</h2>
-    <p class="mx-auto mt-4 max-w-xl text-lg text-primary-700">Share your dates, party and must-dos. Deanna will shape hotels, tickets, dining and park pacing around your family.</p>
-    <a href="/planner" class="btn-primary mt-8">Start planning your trip</a>
+    <h2><%= section.heading %></h2>
+    <% if (section.text) { %><p class="mx-auto mt-4 max-w-xl text-lg text-primary-700"><%= section.text %></p><% } %>
+    <% if (section.primaryHref) { %>
+      <a href="<%= section.primaryHref %>" class="btn-primary mt-8"><%= section.primaryLabel || 'Start planning' %></a>
+    <% } %>
   </div>
 </section>
+  <% } %>
+<% }) %>
+
 <%- include('../partials/shell-end') %>

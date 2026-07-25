@@ -3,6 +3,7 @@ const { prisma } = require('../../config/database');
 const { sendNotification } = require('../../config/email');
 const { getSettings } = require('../../config/settings');
 const { pages: defaultPages } = require('../../content/publicPages');
+const { resolveHomeSections } = require('../../content/homeDefaults');
 
 const router = express.Router();
 
@@ -76,10 +77,11 @@ async function renderRichPage(req, res, next, slug) {
 router.get('/', async (req, res, next) => {
   try {
     const page = await prisma.page.findUnique({ where: { slug: 'home' } });
+    const storedSections = page ? parseSections(page) : [];
     res.render('pages/home', {
       title: (page && page.seoTitle) || 'Destinations With Deanna',
       seoDesc: page && page.seoDesc,
-      sections: page ? parseSections(page) : [],
+      sections: resolveHomeSections(storedSections),
     });
   } catch (err) {
     next(err);

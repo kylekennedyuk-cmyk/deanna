@@ -2,6 +2,7 @@ require('dotenv').config();
 const bcrypt = require('bcryptjs');
 const { PrismaClient } = require('@prisma/client');
 const { pages: publicPages } = require('../src/content/publicPages');
+const { homeDefaults } = require('../src/content/homeDefaults');
 
 const prisma = new PrismaClient();
 
@@ -83,36 +84,7 @@ async function main() {
     await prisma.navItem.createMany({ data: nav });
   }
 
-  const homeSections = JSON.stringify([
-    {
-      type: 'hero',
-      headline: 'Disneyland Paris holidays, planned around your family',
-      subheadline:
-        'Deanna is a specialist who knows the parks, hotels and the small details that make a trip effortless — from hotel choice to dining, tickets and pacing.',
-      image: 'https://images.unsplash.com/photo-1733424775835-1c7f7bebb1bb?auto=format&fit=crop&w=2000&q=85',
-      imageAlt: 'Fireworks over Sleeping Beauty Castle at Disneyland Paris',
-      primaryCta: { label: 'Start planning your trip', href: '/planner' },
-      secondaryCta: { label: 'Explore the guide', href: '/disneyland-paris' },
-    },
-    {
-      type: 'why',
-      title: 'Why plan Disneyland Paris with Deanna',
-      items: [
-        { title: 'Specialist knowledge', text: 'Deep Disneyland Paris expertise — parks, hotels, dining and seasonal timing — not a generic booking engine.' },
-        { title: 'Built around your party', text: 'Ages, stamina, must-do rides and budget shape every hotel and park-day recommendation.' },
-        { title: 'Ongoing support', text: 'Message Deanna from your private portal as tickets, dining and itinerary details take shape.' },
-      ],
-    },
-    {
-      type: 'process',
-      title: 'How your Disney plan comes together',
-      steps: [
-        { title: 'Share your trip', text: 'Dates, travellers, hotel preferences, must-dos and budget in the guided planner.' },
-        { title: 'Deanna builds the plan', text: 'Disney Hotels or Partner Hotels, tickets, pacing and pricing curated for you.' },
-        { title: 'Review & refine', text: 'Chat in your portal until the park days, dining and stay feel just right.' },
-      ],
-    },
-  ]);
+  const homeSections = JSON.stringify(homeDefaults);
 
   await prisma.page.upsert({
     where: { slug: 'home' },

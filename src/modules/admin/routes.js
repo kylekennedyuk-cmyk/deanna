@@ -7,6 +7,7 @@ const { prisma } = require('../../config/database');
 const { createTransport, closeCachedTransport, sendMail, normalizeSmtpHost } = require('../../config/email');
 const { encryptSecret, decryptSecret, getSettings, setSettings } = require('../../config/settings');
 const { requireRole } = require('../../middleware/auth');
+const { resolveHomeSections } = require('../../content/homeDefaults');
 
 const router = express.Router();
 router.use(requireRole(['admin']));
@@ -79,6 +80,9 @@ router.get('/pages/:id', async (req, res, next) => {
     } catch {
       sections = [];
     }
+    if (page.slug === 'home') {
+      sections = resolveHomeSections(sections);
+    }
     res.render('admin/page-edit', {
       title: `Edit ${page.title}`,
       page,
@@ -106,6 +110,9 @@ router.get('/pages/:id/preview', async (req, res, next) => {
       sections = JSON.parse(page.sections || '[]');
     } catch {
       sections = [];
+    }
+    if (page.slug === 'home') {
+      sections = resolveHomeSections(sections);
     }
     return res.render(page.slug === 'home' ? 'pages/home' : 'pages/rich', {
       title: `${page.title} preview`,

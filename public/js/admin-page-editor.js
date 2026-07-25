@@ -10,15 +10,18 @@
 
   const helpByType = {
     cards: 'One per line: Title | text | optional link | optional link label.',
+    featureCards: 'One per line: Title | text | image URL | optional link | optional link label.',
+    highlights: 'One per line: Title | text | image URL.',
+    testimonials: 'One per line: Quote | name | trip detail.',
     timeline: 'One per line: Stage title | explanation.',
     faq: 'One per line: Question | answer.',
-    tips: 'One tip per line. No separators needed.',
+    tips: 'One tip per line.',
     hotelGrid: 'One per line: Hotel | price level | best for | description.',
-    why: 'One per line: Card title | supporting text.',
-    process: 'One per line: Step title | supporting text.',
-    hero: 'Use the heading, text, image and button fields above.',
-    split: 'Use heading, text, image and bullet-point fields.',
-    cta: 'Use heading, text and button fields.',
+    why: 'One per line: Card title | supporting text. Heading field becomes the section title.',
+    process: 'One per line: Step title | supporting text. Heading field becomes the section title.',
+    hero: 'Heading = headline. Main text = subheadline. Bullet points = benefit lines (one per line).',
+    split: 'Line 1 of bullet/panel box = panel title. Line 2 = panel text. Extra lines = optional bullets.',
+    cta: 'Heading, main text, and primary button fields only.',
   };
 
   function lines(value) {
@@ -46,7 +49,7 @@
       if (type === 'faq') {
         return cleanObject({ question: parts[0], answer: parts.slice(1).join(' | ') });
       }
-      if (type === 'timeline') {
+      if (type === 'timeline' || type === 'why' || type === 'process') {
         return cleanObject({ title: parts[0], text: parts.slice(1).join(' | ') });
       }
       if (type === 'hotelGrid') {
@@ -55,6 +58,22 @@
           level: parts[1],
           bestFor: parts[2],
           description: parts.slice(3).join(' | '),
+        });
+      }
+      if (type === 'featureCards' || type === 'highlights') {
+        return cleanObject({
+          title: parts[0],
+          text: parts[1],
+          image: parts[2],
+          href: parts[3],
+          label: parts.slice(4).join(' | '),
+        });
+      }
+      if (type === 'testimonials') {
+        return cleanObject({
+          text: parts[0],
+          title: parts[1],
+          label: parts.slice(2).join(' | '),
         });
       }
       return cleanObject({
@@ -84,27 +103,34 @@
       primaryHref: values.primaryHref,
       secondaryLabel: values.secondaryLabel,
       secondaryHref: values.secondaryHref,
-      points: lines(values.pointsText),
     };
 
     const parsedRows = parseRows(type, values.rowsText);
+
     if (type === 'faq' || type === 'timeline') result.items = parsedRows;
     if (type === 'tips') result.items = parsedRows;
     if (type === 'hotelGrid') result.hotels = parsedRows;
     if (type === 'cards') result.cards = parsedRows;
+    if (type === 'featureCards' || type === 'highlights') result.cards = parsedRows;
+    if (type === 'testimonials') result.items = parsedRows;
     if (type === 'why') {
       result.title = values.heading;
       result.items = parsedRows;
-      delete result.heading;
     }
     if (type === 'process') {
       result.title = values.heading;
       result.steps = parsedRows;
-      delete result.heading;
+    }
+    if (type === 'split') {
+      const pointLines = lines(values.pointsText);
+      if (pointLines[0]) result.panelTitle = pointLines[0];
+      if (pointLines[1]) result.panelText = pointLines[1];
+      if (pointLines.length > 2) result.points = pointLines.slice(2);
     }
     if (type === 'hero') {
       result.headline = values.heading;
       result.subheadline = values.text;
+      result.points = lines(values.pointsText);
       result.primaryCta = cleanObject({
         label: values.primaryLabel,
         href: values.primaryHref,
@@ -113,6 +139,13 @@
         label: values.secondaryLabel,
         href: values.secondaryHref,
       });
+    }
+    if (type === 'cta') {
+      delete result.eyebrow;
+      delete result.image;
+      delete result.imageAlt;
+      delete result.secondaryLabel;
+      delete result.secondaryHref;
     }
 
     return cleanObject(result);
@@ -128,6 +161,7 @@
     const typeInput = section.querySelector('[data-field="type"]');
     const type = typeInput ? typeInput.value : section.dataset.sectionType;
     section.dataset.sectionType = type;
+    if (typeInput) typeInput.value = type;
 
     const label = section.querySelector('.section-type-label');
     if (label) label.textContent = type;
@@ -135,17 +169,34 @@
     const helper = section.querySelector('.section-row-help');
     if (helper) helper.textContent = helpByType[type] || helpByType.cards;
 
-    const heading = section.querySelector('.section-heading');
-    const title = section.querySelector('h3');
-    if (heading && title) {
-      heading.addEventListener('input', () => {
-        title.textContent = heading.value.trim() || 'Untitled section';
-      });
+    const pointsHelp = section.querySelector('.section-points-help');
+    if (pointsHelp) {
+      pointsHelp.textContent =
+        type === 'split'
+          ? 'Split: line 1 = panel title, line 2 = panel text.'
+          : type === 'hero'
+            ? 'Hero: one benefit bullet per line.'
+            : 'Optional bullet points, one per line.';
     }
   }
 
   function bindSection(section) {
     updateSection(section);
+
+    const typeInput = section.querySelector('[data-field="type"]');
+    if (typeInput && !typeInput.dataset.bound) {
+      typeInput.dataset.bound = '1';
+      typeInput.addEventListener('change', () => updateSection(section));
+    }
+
+    const heading = section.querySelector('.section-heading');
+    const title = section.querySelector('h3');
+    if (heading && title && !heading.dataset.bound) {
+      heading.dataset.bound = '1';
+      heading.addEventListener('input', () => {
+        title.textContent = heading.value.trim() || 'Untitled section';
+      });
+    }
 
     section.querySelector('.remove-section')?.addEventListener('click', () => {
       if (window.confirm('Remove this section from the page?')) section.remove();
@@ -153,6 +204,7 @@
 
     section.querySelector('.duplicate-section')?.addEventListener('click', () => {
       const clone = section.cloneNode(true);
+      clone.querySelectorAll('[data-bound]').forEach((el) => delete el.dataset.bound);
       section.after(clone);
       bindSection(clone);
       clone.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -170,6 +222,11 @@
   }
 
   list.querySelectorAll('.section-editor').forEach(bindSection);
+
+  typeSelect?.addEventListener('change', () => {
+    const preview = document.getElementById('new-section-help');
+    if (preview) preview.textContent = helpByType[typeSelect.value] || '';
+  });
 
   addButton?.addEventListener('click', () => {
     const section = template.content.firstElementChild.cloneNode(true);

@@ -16,6 +16,7 @@
     "db:push": "prisma db push",
     "db:seed": "node prisma/seed.js",
     "content:sync": "node scripts/sync-public-content.js",
+    "content:sync-home": "node scripts/sync-home-content.js",
     "mail:apply": "node scripts/apply-mail-settings.js",
     "mail:verify": "node scripts/verify-mail.js",
     "deploy": "prisma generate && prisma db push && node prisma/seed.js && node scripts/sync-public-content.js && npm run build:css",
