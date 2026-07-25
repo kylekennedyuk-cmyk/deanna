@@ -44,7 +44,10 @@ model HolidayPlan {
   customer    User       @relation("PlanCustomer", fields: [customerId], references: [id])
   agentId     Int?
   agent       User?      @relation("PlanAgent", fields: [agentId], references: [id])
-  status      String     @default("new") // new | in_progress | awaiting_agent | awaiting_client | sent | completed | archived
+  /// new | in_progress | awaiting_agent | awaiting_client | sent | booked | confirmed | completed | archived
+  /// booked   = deposit taken / supplier reservation held, paperwork still being finalised.
+  /// confirmed = booking confirmed with the supplier; customer-facing confirmation PDF is available.
+  status      String     @default("new")
   travelDates String
   partySize   Int
   budget      Int
@@ -54,6 +57,12 @@ model HolidayPlan {
   itinerary   String? // JSON
   pricing     String? // JSON
   notes       String?
+  /// Supplier / agency booking reference shown to the customer once booked.
+  bookingReference String?
+  /// Customer-facing confirmation copy (payments taken, tickets, transfer times…).
+  confirmationDetails String?
+  bookedAt    DateTime?
+  confirmedAt DateTime?
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
   messages    Message[]

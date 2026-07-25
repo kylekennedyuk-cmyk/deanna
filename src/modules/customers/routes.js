@@ -4,7 +4,8 @@ const { sendNotificationAsync } = require('../../config/email');
 const { getSettings } = require('../../config/settings');
 const { requireRole } = require('../../middleware/auth');
 const { markPlanMessagesRead, refreshBadgeCounts } = require('../../utils/notifications');
-const { nextStatusAfterMessage } = require('../../utils/format');
+const { canDownloadConfirmation, nextStatusAfterMessage } = require('../../utils/format');
+const { documentType, streamPlanPdf } = require('../../utils/brandedPdf');
 
 const router = express.Router();
 router.use(requireRole(['customer', 'admin']));
@@ -36,6 +37,35 @@ router.get('/', async (req, res, next) => {
       plans,
       unreadByPlan,
     });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/**
+ * Branded PDF download. Ownership is enforced through customerId, and the
+ * confirmation variant only unlocks once the booking is actually booked.
+ */
+router.get('/plans/:id/pdf', async (req, res, next) => {
+  try {
+    const plan = await prisma.holidayPlan.findFirst({
+      where: { id: Number(req.params.id), customerId: req.user.id },
+      include: { customer: true },
+    });
+    if (!plan) {
+      return res.status(404).render('pages/error', { title: 'Not found', message: 'Plan not found.', status: 404 });
+    }
+
+    const type = documentType(req.query.type);
+    if (type === 'confirmation' && !canDownloadConfirmation(plan.status)) {
+      return res.status(404).render('pages/error', {
+        title: 'Not available yet',
+        message: 'Your booking confirmation will be available to download once your holiday is booked.',
+        status: 404,
+      });
+    }
+
+    await streamPlanPdf(res, { plan, type });
   } catch (err) {
     next(err);
   }

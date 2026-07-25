@@ -11,8 +11,15 @@ const {
   saveDraft,
   sendMailboxMail,
 } = require('../../config/mailbox');
-const { statusLabel, nextStatusAfterMessage, ACTIVE_PLAN_STATUSES, STAFF_ACTION_STATUSES } = require('../../utils/format');
+const {
+  statusLabel,
+  nextStatusAfterMessage,
+  ACTIVE_PLAN_STATUSES,
+  BOOKED_PLAN_STATUSES,
+  STAFF_ACTION_STATUSES,
+} = require('../../utils/format');
 const { markPlanMessagesRead, refreshBadgeCounts } = require('../../utils/notifications');
+const { streamPlanPdf } = require('../../utils/brandedPdf');
 const { requireRole } = require('../../middleware/auth');
 
 const router = express.Router();
@@ -26,9 +33,23 @@ const PLAN_STATUS_FILTERS = [
   'awaiting_agent',
   'awaiting_client',
   'sent',
+  'booked',
+  'confirmed',
   'completed',
   'archived',
 ];
+
+/**
+ * Stamp booking dates the first time a plan reaches booked/confirmed so the
+ * customer PDF can show a real "booked on" / "confirmed on" date.
+ */
+function bookingTimestamps(nextStatus, plan) {
+  const data = {};
+  if (!BOOKED_PLAN_STATUSES.includes(nextStatus)) return data;
+  if (!plan.bookedAt) data.bookedAt = new Date();
+  if (nextStatus === 'confirmed' && !plan.confirmedAt) data.confirmedAt = new Date();
+  return data;
+}
 
 async function applyMessagingPlanStatus(plan, senderIsStaff, agentId) {
   const next = nextStatusAfterMessage(plan.status, senderIsStaff);
@@ -137,8 +158,17 @@ router.get('/', async (req, res, next) => {
     const startOfDay = new Date();
     startOfDay.setHours(0, 0, 0, 0);
 
-    const [newPlans, actionPlans, recentMessages, openRequests, actionRequired, awaitingClient, newCount] =
-      await Promise.all([
+    const [
+      newPlans,
+      actionPlans,
+      bookedPlans,
+      recentMessages,
+      openRequests,
+      actionRequired,
+      awaitingClient,
+      newCount,
+      bookedCount,
+    ] = await Promise.all([
         prisma.holidayPlan.findMany({
           where: { status: 'new' },
           include: { customer: true },
@@ -147,6 +177,12 @@ router.get('/', async (req, res, next) => {
         }),
         prisma.holidayPlan.findMany({
           where: { status: 'awaiting_agent' },
+          include: { customer: true },
+          orderBy: { updatedAt: 'desc' },
+          take: 10,
+        }),
+        prisma.holidayPlan.findMany({
+          where: { status: { in: BOOKED_PLAN_STATUSES } },
           include: { customer: true },
           orderBy: { updatedAt: 'desc' },
           take: 10,
@@ -164,15 +200,17 @@ router.get('/', async (req, res, next) => {
           where: { status: { in: ['awaiting_client', 'sent'] } },
         }),
         prisma.holidayPlan.count({ where: { status: 'new', createdAt: { gte: startOfDay } } }),
+        prisma.holidayPlan.count({ where: { status: { in: BOOKED_PLAN_STATUSES } } }),
       ]);
 
     res.render('agent/dashboard', {
       title: 'Agent workspace',
       newPlans,
       actionPlans,
+      bookedPlans,
       recentMessages,
       messagePreviewLimit: RECENT_MESSAGE_PREVIEW,
-      kpis: { openRequests, actionRequired, awaitingClient, newCount },
+      kpis: { openRequests, actionRequired, awaitingClient, newCount, bookedCount },
     });
   } catch (err) {
     next(err);
@@ -194,6 +232,9 @@ router.get('/plans', async (req, res, next) => {
     } else if (filter === 'awaiting_client') {
       where = { status: { in: ['awaiting_client', 'sent'] } };
       title = 'Awaiting client';
+    } else if (filter === 'bookings') {
+      where = { status: { in: BOOKED_PLAN_STATUSES } };
+      title = 'Bookings';
     } else if (PLAN_STATUS_FILTERS.includes(filter)) {
       where = { status: filter };
       title = statusLabel(filter);
@@ -230,12 +271,29 @@ router.get('/plans', async (req, res, next) => {
     res.render('agent/plans', {
       title,
       plans,
-      filter: ['all', 'active', 'action', 'awaiting_client', ...PLAN_STATUS_FILTERS].includes(filter)
+      filter: ['all', 'active', 'action', 'awaiting_client', 'bookings', ...PLAN_STATUS_FILTERS].includes(
+        filter
+      )
         ? filter
         : 'active',
       unreadByPlan,
       deleted: req.query.deleted === '1',
     });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.get('/plans/:id/pdf', async (req, res, next) => {
+  try {
+    const plan = await prisma.holidayPlan.findUnique({
+      where: { id: Number(req.params.id) },
+      include: { customer: true },
+    });
+    if (!plan) {
+      return res.status(404).render('pages/error', { title: 'Not found', message: 'Plan not found.', status: 404 });
+    }
+    await streamPlanPdf(res, { plan, type: req.query.type, forAgent: true });
   } catch (err) {
     next(err);
   }
@@ -319,6 +377,7 @@ router.post('/plans/:id/update', async (req, res, next) => {
     if (req.body.tab === 'pricing' && pricing === undefined) data.pricing = '';
 
     Object.keys(data).forEach((k) => data[k] === undefined && delete data[k]);
+    if (data.status && existingPlan) Object.assign(data, bookingTimestamps(data.status, existingPlan));
 
     await prisma.holidayPlan.update({ where: { id }, data });
     if (existingPlan && data.status && data.status !== existingPlan.status && existingPlan.customer?.email) {
@@ -362,6 +421,82 @@ router.post('/plans/:id/send', async (req, res, next) => {
       });
     }
     res.redirect(`/agent/plans/${id}?tab=overview&saved=1`);
+  } catch (err) {
+    next(err);
+  }
+});
+
+/**
+ * Booking details panel: save the reference/confirmation copy and optionally
+ * move the plan to booked or confirmed. Confirming emails the customer so they
+ * know their branded confirmation PDF is ready to download.
+ */
+router.post('/plans/:id/booking', async (req, res, next) => {
+  try {
+    const id = Number(req.params.id);
+    const existingPlan = await prisma.holidayPlan.findUnique({
+      where: { id },
+      include: { customer: true },
+    });
+    if (!existingPlan) {
+      return res.status(404).render('pages/error', { title: 'Not found', message: 'Plan not found.', status: 404 });
+    }
+
+    const action = String(req.body.action || 'save');
+    const reference = String(req.body.bookingReference || '').trim();
+    const details = String(req.body.confirmationDetails || '').trim();
+
+    const data = {
+      bookingReference: reference || null,
+      confirmationDetails: details || null,
+      agentId: req.user.id,
+    };
+    if (BOOKED_PLAN_STATUSES.includes(action)) {
+      data.status = action;
+      Object.assign(data, bookingTimestamps(action, existingPlan));
+    }
+
+    await prisma.holidayPlan.update({ where: { id }, data });
+
+    const params = new URLSearchParams({ tab: 'booking', saved: '1' });
+    const customerEmail = String(existingPlan.customer?.email || '').trim();
+
+    if (data.status && data.status !== existingPlan.status) {
+      if (!customerEmail) {
+        params.set('email_warn', '1');
+        params.set(
+          'email_detail',
+          'Booking saved, but the customer has no email address on file so no confirmation was sent.'
+        );
+      } else {
+        const confirmed = data.status === 'confirmed';
+        const bodyLines = [
+          confirmed
+            ? 'Wonderful news — your Disneyland Paris holiday is confirmed.'
+            : 'Your holiday is booked and being finalised with our suppliers.',
+          reference ? `Booking reference: ${reference}` : '',
+          details,
+          confirmed
+            ? 'You can download your branded booking confirmation and itinerary as PDFs from your portal at any time.'
+            : 'Your full confirmation documents will follow shortly.',
+        ].filter(Boolean);
+
+        sendNotificationAsync('status_update', {
+          to: customerEmail,
+          values: {
+            customerName: existingPlan.customer.name,
+            planTitle: `Plan #${id}`,
+            status: statusLabel(data.status),
+          },
+          body: bodyLines.join('\n\n'),
+          buttonLabel: confirmed ? 'Download your confirmation' : 'View your booking',
+          buttonUrl: `${process.env.APP_URL || 'http://localhost:3000'}/customer/plans/${id}`,
+        });
+        params.set('emailed', '1');
+      }
+    }
+
+    res.redirect(`/agent/plans/${id}?${params.toString()}`);
   } catch (err) {
     next(err);
   }

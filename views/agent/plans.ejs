@@ -5,6 +5,7 @@
     { id: 'active', label: 'Active', href: '/agent/plans?filter=active' },
     { id: 'action', label: 'Action required', href: '/agent/plans?filter=action' },
     { id: 'awaiting_client', label: 'Awaiting client', href: '/agent/plans?filter=awaiting_client' },
+    { id: 'bookings', label: 'Bookings', href: '/agent/plans?filter=bookings' },
     { id: 'all', label: 'All', href: '/agent/plans?filter=all' },
   ];
 %>
@@ -57,6 +58,7 @@
           <div class="mt-1 text-xs text-primary-500">
             Updated <%= formatDateTime(plan.updatedAt) %>
             <% if (lastMsg) { %> · Last message <%= formatDateTime(lastMsg.createdAt) %><% } %>
+            <% if (plan.bookingReference) { %> · Ref <%= plan.bookingReference %><% } %>
           </div>
         </div>
         <%- include('../partials/status-badge', { status: plan.status }) %>

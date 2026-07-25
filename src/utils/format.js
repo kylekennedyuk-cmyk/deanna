@@ -4,6 +4,8 @@ const STATUS_LABELS = {
   awaiting_agent: 'Action required',
   awaiting_client: 'Awaiting client',
   sent: 'Sent to you',
+  booked: 'Booked',
+  confirmed: 'Confirmed',
   completed: 'Completed',
   archived: 'Archived',
 };
@@ -14,17 +16,21 @@ const STATUS_NEXT = {
   awaiting_agent: 'Deanna will reply soon',
   awaiting_client: 'Your reply is needed',
   sent: 'Review your proposal',
+  booked: 'Booked — confirmation on its way',
+  confirmed: 'Confirmed — download your documents',
   completed: 'Trip ready — enjoy!',
   archived: 'Archived plan',
 };
 
-/** Statuses agents can set manually (includes messaging workflow). */
+/** Statuses agents can set manually (includes messaging and booking workflow). */
 const PLAN_STATUS_OPTIONS = [
   'new',
   'in_progress',
   'awaiting_agent',
   'awaiting_client',
   'sent',
+  'booked',
+  'confirmed',
   'completed',
   'archived',
 ];
@@ -33,13 +39,26 @@ const CLOSED_PLAN_STATUSES = ['completed', 'archived'];
 const ACTIVE_PLAN_STATUSES = PLAN_STATUS_OPTIONS.filter((s) => !CLOSED_PLAN_STATUSES.includes(s));
 const STAFF_ACTION_STATUSES = ['new', 'awaiting_agent'];
 const CLIENT_ACTION_STATUSES = ['awaiting_client', 'sent'];
+/** Plans with a live booking — never counted as "action required" on either side. */
+const BOOKED_PLAN_STATUSES = ['booked', 'confirmed'];
+
+function isBookedStatus(status) {
+  return BOOKED_PLAN_STATUSES.includes(status);
+}
+
+/** True once a booking exists, so the confirmation PDF is worth offering. */
+function canDownloadConfirmation(status) {
+  return isBookedStatus(status) || status === 'completed';
+}
 
 /**
- * Auto status after a portal message. Returns null if plan is closed (do not reopen).
- * Staff message → awaiting_client; customer message → awaiting_agent.
+ * Auto status after a portal message. Returns null when the status should stand:
+ * closed plans must not reopen, and a live booking must not fall back to a
+ * pre-booking status (unread message badges still surface the conversation).
  */
 function nextStatusAfterMessage(currentStatus, senderIsStaff) {
   if (CLOSED_PLAN_STATUSES.includes(currentStatus)) return null;
+  if (isBookedStatus(currentStatus)) return null;
   return senderIsStaff ? 'awaiting_client' : 'awaiting_agent';
 }
 
@@ -126,6 +145,20 @@ function planTitle(plan, preferences = {}) {
   return `${occasion} · Plan #${plan.id}`;
 }
 
+/**
+ * Agent pricing notes are stored as one labelled block with the internal margin
+ * appended last (see buildPricing in the agent routes). Everything from the
+ * margin marker onwards is workspace-only, so drop it for customer views/PDFs.
+ */
+function stripMarginNotes(pricing) {
+  const text = String(pricing || '');
+  if (!text) return '';
+  const lines = text.split('\n');
+  const marginIndex = lines.findIndex((line) => /^\s*margin( notes)?\s*:/i.test(line));
+  const visible = marginIndex === -1 ? lines : lines.slice(0, marginIndex);
+  return visible.join('\n').trim();
+}
+
 function selectedList(value) {
   if (!value) return [];
   if (Array.isArray(value)) return value;
@@ -144,6 +177,9 @@ module.exports = {
   preferenceEntries,
   planTitle,
   selectedList,
+  stripMarginNotes,
+  isBookedStatus,
+  canDownloadConfirmation,
   nextStatusAfterMessage,
   PREF_LABELS,
   STATUS_LABELS,
@@ -152,4 +188,5 @@ module.exports = {
   ACTIVE_PLAN_STATUSES,
   STAFF_ACTION_STATUSES,
   CLIENT_ACTION_STATUSES,
+  BOOKED_PLAN_STATUSES,
 };

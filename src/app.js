@@ -39,6 +39,9 @@ function applySafeLocals(res) {
   res.locals.formatDateTime = format.formatDateTime;
   res.locals.preferenceEntries = format.preferenceEntries;
   res.locals.planTitle = format.planTitle;
+  res.locals.stripMarginNotes = format.stripMarginNotes;
+  res.locals.isBookedStatus = format.isBookedStatus;
+  res.locals.canDownloadConfirmation = format.canDownloadConfirmation;
   res.locals.PLAN_STATUS_OPTIONS = format.PLAN_STATUS_OPTIONS;
 }
 

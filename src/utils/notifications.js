@@ -25,6 +25,32 @@ function accessiblePlanWhere(user) {
 }
 
 /**
+ * SQLite does not support createMany({ skipDuplicates }), so filter out reads
+ * that already exist and tolerate the unique-constraint race on retry.
+ */
+async function createMessageReads(userId, messageIds) {
+  if (!messageIds.length) return 0;
+
+  const existing = await prisma.messageRead.findMany({
+    where: { userId, messageId: { in: messageIds } },
+    select: { messageId: true },
+  });
+  const alreadyRead = new Set(existing.map((row) => row.messageId));
+  const fresh = messageIds.filter((id) => !alreadyRead.has(id));
+  if (!fresh.length) return 0;
+
+  const readAt = new Date();
+  try {
+    await prisma.messageRead.createMany({
+      data: fresh.map((messageId) => ({ messageId, userId, readAt })),
+    });
+  } catch (err) {
+    if (err.code !== 'P2002') throw err;
+  }
+  return fresh.length;
+}
+
+/**
  * One-time per user: mark every currently accessible incoming message as read,
  * then flip messageReadsInitialized. New messages after this remain unread until opened.
  */
@@ -55,16 +81,10 @@ async function ensureMessageReadsInitialized(user) {
       select: { id: true },
     });
 
-    if (incoming.length) {
-      await prisma.messageRead.createMany({
-        data: incoming.map((m) => ({
-          messageId: m.id,
-          userId: user.id,
-          readAt: new Date(),
-        })),
-        skipDuplicates: true,
-      });
-    }
+    await createMessageReads(
+      user.id,
+      incoming.map((m) => m.id)
+    );
   }
 
   await prisma.user.update({
@@ -102,16 +122,10 @@ async function markPlanMessagesRead(user, planId) {
 
   if (!unread.length) return 0;
 
-  await prisma.messageRead.createMany({
-    data: unread.map((m) => ({
-      messageId: m.id,
-      userId: user.id,
-      readAt: new Date(),
-    })),
-    skipDuplicates: true,
-  });
-
-  return unread.length;
+  return createMessageReads(
+    user.id,
+    unread.map((m) => m.id)
+  );
 }
 
 async function countUnreadPlanMessages(user) {

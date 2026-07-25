@@ -7,20 +7,31 @@
     { id: 'hotel', label: 'Hotel' },
     { id: 'itinerary', label: 'Itinerary' },
     { id: 'pricing', label: 'Pricing' },
+    { id: 'booking', label: 'Booking' },
     { id: 'messages', label: 'Messages' },
     { id: 'notes', label: 'Notes' },
   ];
+  const isBooked = isBookedStatus(plan.status);
 %>
 <section class="section-sm">
   <%- include('../partials/portal-nav', { backHref: '/agent/plans?filter=active', backLabel: 'Plans' }) %>
   <% if (saved) { %><div class="mb-4 rounded-card border border-success-100 bg-success-50 px-4 py-3 text-success-700">Saved.</div><% } %>
   <% if (typeof deleted !== 'undefined' && deleted) { %><div class="mb-4 rounded-card border border-success-100 bg-success-50 px-4 py-3 text-success-700">Message deleted.</div><% } %>
-  <% if (typeof emailed !== 'undefined' && emailed) { %><div class="mb-4 rounded-card border border-success-100 bg-success-50 px-4 py-3 text-success-700">Message saved. Email notification is sending to <%= plan.customer.email %>.</div><% } %>
+  <% if (typeof emailed !== 'undefined' && emailed) { %><div class="mb-4 rounded-card border border-success-100 bg-success-50 px-4 py-3 text-success-700">Saved. Email notification is sending to <%= plan.customer.email %>.</div><% } %>
   <% if (typeof emailWarn !== 'undefined' && emailWarn) { %><div class="mb-4 rounded-card border border-danger-100 bg-danger-50 px-4 py-3 text-danger-700" role="alert"><%= emailDetail || 'Message saved in the portal, but the customer email notification was not sent.' %></div><% } %>
 
   <% if (plan.status === 'awaiting_agent' || plan.status === 'new') { %>
     <div class="mb-4 rounded-card border border-danger-100 bg-danger-50 px-4 py-3 text-danger-700" role="status">
       Action required — <%= plan.status === 'new' ? 'new planning request waiting for you.' : 'client message waiting for your reply.' %>
+    </div>
+  <% } %>
+
+  <% if (isBooked) { %>
+    <div class="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-card border border-success-100 bg-success-50 px-4 py-3 text-success-700" role="status">
+      <span>
+        <%= plan.status === 'confirmed' ? 'Booking confirmed' : 'Booked — awaiting confirmation' %><% if (plan.bookingReference) { %> · ref <strong><%= plan.bookingReference %></strong><% } %>
+      </span>
+      <a href="?tab=booking" class="text-sm font-semibold underline">Booking details</a>
     </div>
   <% } %>
 
@@ -98,6 +109,77 @@
             <h3 class="text-xl">Hotel snapshot</h3>
             <p class="mt-3 whitespace-pre-wrap text-sm text-primary-800"><%= plan.hotel || 'Not added yet.' %></p>
             <a href="?tab=hotel" class="btn-ghost btn-sm mt-4 px-0">Edit hotel</a>
+          </div>
+        </div>
+        <% if (isBooked) { %>
+          <div class="card">
+            <div class="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h3 class="text-xl">Booking</h3>
+                <p class="mt-1 text-sm text-primary-600">
+                  <%= statusLabel(plan.status) %><% if (plan.bookingReference) { %> · ref <%= plan.bookingReference %><% } %>
+                </p>
+              </div>
+              <a href="?tab=booking" class="btn-secondary btn-sm">Booking details</a>
+            </div>
+            <% if (plan.confirmationDetails) { %>
+              <p class="mt-3 whitespace-pre-wrap text-sm text-primary-800"><%= plan.confirmationDetails %></p>
+            <% } %>
+          </div>
+        <% } %>
+      <% } else if (tab === 'booking') { %>
+        <div class="card space-y-5">
+          <div>
+            <h2 class="text-2xl">Booking details</h2>
+            <p class="mt-1 text-sm text-primary-600">
+              The reference and confirmation notes below appear in the client portal and in their branded PDF confirmation.
+            </p>
+          </div>
+
+          <div class="grid gap-3 sm:grid-cols-3">
+            <div class="rounded-2xl bg-primary-50 px-4 py-3">
+              <p class="text-xs uppercase tracking-wider text-primary-500">Status</p>
+              <p class="mt-1"><%- include('../partials/status-badge', { status: plan.status }) %></p>
+            </div>
+            <div class="rounded-2xl bg-primary-50 px-4 py-3">
+              <p class="text-xs uppercase tracking-wider text-primary-500">Booked</p>
+              <p class="mt-1 text-sm font-semibold text-primary-900"><%= plan.bookedAt ? formatDateTime(plan.bookedAt) : 'Not yet' %></p>
+            </div>
+            <div class="rounded-2xl bg-primary-50 px-4 py-3">
+              <p class="text-xs uppercase tracking-wider text-primary-500">Confirmed</p>
+              <p class="mt-1 text-sm font-semibold text-primary-900"><%= plan.confirmedAt ? formatDateTime(plan.confirmedAt) : 'Not yet' %></p>
+            </div>
+          </div>
+
+          <form method="post" action="/agent/plans/<%= plan.id %>/booking" class="space-y-5">
+            <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+            <div>
+              <label class="label" for="bookingReference">Booking reference</label>
+              <input class="field" id="bookingReference" name="bookingReference" value="<%= plan.bookingReference || '' %>" placeholder="e.g. DWD-2026-0148" />
+              <p class="help">Shown to the client and printed on their confirmation PDF.</p>
+            </div>
+            <div>
+              <label class="label" for="confirmationDetails">Confirmation details for the client</label>
+              <textarea class="field min-h-[200px]" id="confirmationDetails" name="confirmationDetails" placeholder="Deposit of £200 received on 3 August. Balance of £1,240 due by 12 October.&#10;Park tickets: 3-day Hopper included.&#10;Transfers: Magical Shuttle, 14:20 pick-up."><%= plan.confirmationDetails || '' %></textarea>
+              <p class="help">Payments taken, balance due dates, tickets, transfers — anything the client should keep.</p>
+            </div>
+            <div class="flex flex-wrap gap-2 border-t border-primary-100 pt-4">
+              <button class="btn-secondary" type="submit" name="action" value="save">Save details</button>
+              <button class="btn-secondary" type="submit" name="action" value="booked">Mark as booked</button>
+              <button class="btn-primary" type="submit" name="action" value="confirmed" onclick="return confirm('Confirm this booking and email the client?');">Confirm booking &amp; email client</button>
+            </div>
+            <p class="text-xs text-primary-500">
+              Marking as booked or confirmed saves the details above and emails <%= plan.customer.email || 'the client' %>.
+            </p>
+          </form>
+
+          <div class="border-t border-primary-100 pt-4">
+            <h3 class="text-lg">Preview the client PDFs</h3>
+            <div class="mt-3 flex flex-wrap gap-2">
+              <a href="/agent/plans/<%= plan.id %>/pdf?type=confirmation" class="btn-ghost btn-sm">Booking confirmation</a>
+              <a href="/agent/plans/<%= plan.id %>/pdf?type=itinerary" class="btn-ghost btn-sm">Itinerary</a>
+              <a href="/agent/plans/<%= plan.id %>/pdf?type=plan" class="btn-ghost btn-sm">Full plan (with your notes)</a>
+            </div>
           </div>
         </div>
       <% } else { %>
@@ -215,6 +297,14 @@
           <% if (priceFields && priceFields.total) { %>
             <div class="kv-row"><span class="kv-label">Quoted total</span><span class="kv-value"><%= formatMoney(priceFields.total) %></span></div>
           <% } %>
+          <% if (plan.bookingReference) { %>
+            <div class="kv-row"><span class="kv-label">Booking ref</span><span class="kv-value"><%= plan.bookingReference %></span></div>
+          <% } %>
+          <% if (plan.confirmedAt) { %>
+            <div class="kv-row"><span class="kv-label">Confirmed</span><span class="kv-value"><%= formatDateTime(plan.confirmedAt) %></span></div>
+          <% } else if (plan.bookedAt) { %>
+            <div class="kv-row"><span class="kv-label">Booked</span><span class="kv-value"><%= formatDateTime(plan.bookedAt) %></span></div>
+          <% } %>
           <% if (priceFields && priceFields.margin) { %>
             <div class="rounded-2xl bg-primary-50 px-3 py-2 text-xs text-primary-700"><strong>Margin:</strong> <%= priceFields.margin %></div>
           <% } %>
@@ -237,7 +327,20 @@
           <button class="btn-primary w-full" type="submit">Send to client</button>
         </form>
 
+        <a href="/agent/plans/<%= plan.id %>?tab=booking" class="btn-secondary w-full"><%= isBooked ? 'Booking details' : 'Enter booking details' %></a>
+
         <a href="/agent/plans/<%= plan.id %>?tab=messages" class="btn-ghost w-full">Quick message</a>
+
+        <div class="border-t border-primary-100 pt-4">
+          <p class="text-xs font-semibold uppercase tracking-wider text-primary-500">Branded PDFs</p>
+          <div class="mt-3 space-y-2">
+            <% if (canDownloadConfirmation(plan.status)) { %>
+              <a href="/agent/plans/<%= plan.id %>/pdf?type=confirmation" class="btn-ghost btn-sm w-full">Booking confirmation</a>
+            <% } %>
+            <a href="/agent/plans/<%= plan.id %>/pdf?type=itinerary" class="btn-ghost btn-sm w-full">Itinerary</a>
+            <a href="/agent/plans/<%= plan.id %>/pdf?type=plan" class="btn-ghost btn-sm w-full">Full plan (agent copy)</a>
+          </div>
+        </div>
 
         <form method="post" action="/agent/plans/<%= plan.id %>/delete" class="border-t border-primary-100 pt-4" onsubmit="return confirm('Permanently delete this holiday plan and all of its messages? This cannot be undone.');">
           <input type="hidden" name="_csrf" value="<%= csrfToken %>" />

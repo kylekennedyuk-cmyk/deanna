@@ -213,6 +213,14 @@
     @apply badge bg-secondary-100 text-secondary-800;
   }
 
+  .badge-status-booked {
+    @apply badge bg-secondary-200 text-secondary-900;
+  }
+
+  .badge-status-confirmed {
+    @apply badge bg-success-100 text-success-700;
+  }
+
   .badge-status-completed {
     @apply badge bg-success-100 text-success-700;
   }

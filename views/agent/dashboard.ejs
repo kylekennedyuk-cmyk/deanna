@@ -26,11 +26,16 @@
     </div>
   </div>
 
-  <div class="mb-10 grid gap-4 sm:grid-cols-3">
+  <div class="mb-10 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
     <article class="card">
       <p class="text-sm text-primary-500">Action required</p>
       <p class="mt-2 font-display text-4xl text-primary-950"><%= kpis.actionRequired %></p>
       <p class="mt-1 text-sm text-primary-600">New + awaiting your reply</p>
+    </article>
+    <article class="card">
+      <p class="text-sm text-primary-500">Bookings</p>
+      <p class="mt-2 font-display text-4xl text-primary-950"><%= kpis.bookedCount %></p>
+      <p class="mt-1 text-sm text-primary-600">Booked or confirmed</p>
     </article>
     <article class="card">
       <p class="text-sm text-primary-500">Awaiting client</p>
@@ -105,5 +110,31 @@
       <% } %>
     </section>
   </div>
+
+  <section class="card mt-6">
+    <div class="mb-4 flex items-center justify-between gap-2">
+      <h2 class="text-2xl">Bookings</h2>
+      <a href="/agent/plans?filter=bookings" class="text-sm font-semibold text-secondary-700 hover:underline">View all</a>
+    </div>
+    <ul class="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+      <% if (!bookedPlans.length) { %>
+        <li class="rounded-2xl bg-primary-50/70 px-4 py-3 text-sm text-primary-600">No bookings yet — mark a plan as booked from its Booking tab.</li>
+      <% } %>
+      <% bookedPlans.forEach(function(plan) { %>
+        <li>
+          <a class="block rounded-2xl border border-transparent px-3 py-3 transition hover:border-secondary-200 hover:bg-secondary-50/50" href="/agent/plans/<%= plan.id %>?tab=booking">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <span class="font-semibold text-primary-950"><%= plan.customer.name %></span>
+              <%- include('../partials/status-badge', { status: plan.status }) %>
+            </div>
+            <div class="mt-1 text-sm text-primary-600"><%= plan.travelDates %></div>
+            <div class="mt-1 text-xs text-primary-500">
+              <%= plan.bookingReference ? 'Ref ' + plan.bookingReference : 'No reference yet' %>
+            </div>
+          </a>
+        </li>
+      <% }) %>
+    </ul>
+  </section>
 </section>
 <%- include('../partials/shell-end') %>
