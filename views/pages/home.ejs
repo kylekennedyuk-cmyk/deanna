@@ -7,16 +7,30 @@
 
 <% pageSections.forEach(function(section) { %>
   <% if (section.type === 'hero') { %>
-<section class="home-hero relative isolate overflow-hidden bg-primary-950 text-white" data-home-hero>
+<%
+  const overlayPct = Math.min(100, Math.max(0, Number(section.overlayOpacity != null ? section.overlayOpacity : 70)));
+  const panelPct = Math.min(100, Math.max(0, Number(section.panelOpacity != null ? section.panelOpacity : 20)));
+  const overlayStart = (overlayPct / 100 * 0.75).toFixed(2);
+  const overlayMid = (overlayPct / 100 * 0.45).toFixed(2);
+  const overlayBottom = (overlayPct / 100 * 0.9).toFixed(2);
+  const panelAlpha = (panelPct / 100).toFixed(2);
+%>
+<section
+  class="home-hero relative isolate overflow-hidden bg-primary-950 text-white"
+  data-home-hero
+  style="--hero-panel-opacity: <%= panelAlpha %>"
+>
   <div class="absolute inset-0">
+    <% if (section.image) { %>
     <img
-      src="<%= section.image || '' %>"
+      src="<%= section.image %>"
       alt="<%= section.imageAlt || 'Disneyland Paris' %>"
       class="h-full w-full object-cover"
       fetchpriority="high"
     />
-    <div class="absolute inset-0 bg-gradient-to-r from-primary-950/75 via-primary-950/45 to-transparent"></div>
-    <div class="absolute inset-0 bg-gradient-to-t from-primary-950/90 via-transparent to-transparent"></div>
+    <% } %>
+    <div class="absolute inset-0" style="background: linear-gradient(to right, rgba(15,26,40,<%= overlayStart %>) 0%, rgba(15,26,40,<%= overlayMid %>) 55%, transparent 100%);"></div>
+    <div class="absolute inset-0" style="background: linear-gradient(to top, rgba(15,26,40,<%= overlayBottom %>) 0%, transparent 55%);"></div>
   </div>
 
   <div class="home-hero-content relative mx-auto flex w-full max-w-6xl items-center px-4 sm:px-6 lg:px-8">

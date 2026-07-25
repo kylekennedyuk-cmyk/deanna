@@ -317,9 +317,26 @@
   }
 
   .hero-copy-panel {
-    background-color: rgb(15 26 40 / 0.2) !important;
+    background-color: rgb(15 26 40 / var(--hero-panel-opacity, 0.2)) !important;
     -webkit-backdrop-filter: blur(14px) saturate(1.15);
     backdrop-filter: blur(14px) saturate(1.15);
+  }
+
+  .social-icon-link {
+    @apply inline-flex items-center justify-center rounded-full transition duration-250;
+  }
+
+  .social-icon-link:hover {
+    color: color-mix(in srgb, var(--brand-secondary, #d1a24a) 72%, #1a2b40) !important;
+    background-color: color-mix(in srgb, var(--brand-secondary, #d1a24a) 12%, white);
+  }
+
+  .social-icon-link-drawer {
+    @apply rounded-xl px-4 py-3 text-base font-medium hover:bg-secondary-50;
+  }
+
+  .social-icon-link-footer:hover {
+    background-color: rgb(255 255 255 / 0.08);
   }
 
   .brand-logo {

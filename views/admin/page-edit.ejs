@@ -143,6 +143,18 @@
               <label class="label">Image description</label>
               <input class="field" data-field="imageAlt" value="<%= section.imageAlt || '' %>" placeholder="Describe the image for screen readers" />
             </div>
+            <div class="hero-overlay-fields md:col-span-2 grid gap-4 md:grid-cols-2" data-hero-fields <%= section.type === 'hero' ? '' : 'hidden' %>>
+              <div>
+                <label class="label">Hero image overlay darkness (%)</label>
+                <input class="field" type="number" min="0" max="100" data-field="overlayOpacity" value="<%= section.overlayOpacity != null ? section.overlayOpacity : '' %>" placeholder="70" />
+                <p class="help">Darkens the hero photo so headline text stays readable. 0 = lightest, 100 = darkest.</p>
+              </div>
+              <div>
+                <label class="label">Hero text panel transparency (%)</label>
+                <input class="field" type="number" min="0" max="100" data-field="panelOpacity" value="<%= section.panelOpacity != null ? section.panelOpacity : '' %>" placeholder="20" />
+                <p class="help">Glass panel behind the headline. Lower = more see-through.</p>
+              </div>
+            </div>
             <div>
               <label class="label">Primary button label</label>
               <input class="field" data-field="primaryLabel" value="<%= section.primaryLabel || (section.primaryCta && section.primaryCta.label) || '' %>" />
@@ -222,6 +234,18 @@
       <div class="md:col-span-2"><label class="label">Main text</label><textarea class="field min-h-[110px]" data-field="text"></textarea></div>
       <div><label class="label">Image URL</label><input class="field" data-field="image" list="media-urls" /></div>
       <div><label class="label">Image description</label><input class="field" data-field="imageAlt" /></div>
+      <div class="hero-overlay-fields md:col-span-2 grid gap-4 md:grid-cols-2" data-hero-fields hidden>
+        <div>
+          <label class="label">Hero image overlay darkness (%)</label>
+          <input class="field" type="number" min="0" max="100" data-field="overlayOpacity" placeholder="70" />
+          <p class="help">Darkens the hero photo so headline text stays readable.</p>
+        </div>
+        <div>
+          <label class="label">Hero text panel transparency (%)</label>
+          <input class="field" type="number" min="0" max="100" data-field="panelOpacity" placeholder="20" />
+          <p class="help">Glass panel behind the headline. Lower = more see-through.</p>
+        </div>
+      </div>
       <div><label class="label">Primary button label</label><input class="field" data-field="primaryLabel" /></div>
       <div><label class="label">Primary button link</label><input class="field" data-field="primaryHref" /></div>
       <div><label class="label">Secondary button label</label><input class="field" data-field="secondaryLabel" /></div>

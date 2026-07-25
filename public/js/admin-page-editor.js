@@ -19,7 +19,7 @@
     hotelGrid: 'One per line: Hotel | price level | best for | description.',
     why: 'One per line: Card title | supporting text. Heading field becomes the section title.',
     process: 'One per line: Step title | supporting text. Heading field becomes the section title.',
-    hero: 'Heading = headline. Main text = subheadline. Bullet points = benefit lines (one per line).',
+    hero: 'Heading = headline. Main text = subheadline. Image URL = hero photo. Overlay darkness & panel transparency control readability. Bullet points = benefit lines (one per line).',
     split: 'Line 1 of bullet/panel box = panel title. Line 2 = panel text. Extra lines = optional bullets.',
     cta: 'Heading, main text, and primary button fields only.',
   };
@@ -139,6 +139,14 @@
         label: values.secondaryLabel,
         href: values.secondaryHref,
       });
+      if (values.overlayOpacity !== '') {
+        const overlayOpacity = Number(values.overlayOpacity);
+        if (!Number.isNaN(overlayOpacity)) result.overlayOpacity = overlayOpacity;
+      }
+      if (values.panelOpacity !== '') {
+        const panelOpacity = Number(values.panelOpacity);
+        if (!Number.isNaN(panelOpacity)) result.panelOpacity = panelOpacity;
+      }
     }
     if (type === 'cta') {
       delete result.eyebrow;
@@ -178,6 +186,10 @@
             ? 'Hero: one benefit bullet per line.'
             : 'Optional bullet points, one per line.';
     }
+
+    section.querySelectorAll('[data-hero-fields]').forEach((block) => {
+      block.hidden = type !== 'hero';
+    });
   }
 
   function bindSection(section) {

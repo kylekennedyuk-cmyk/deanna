@@ -24,6 +24,8 @@ const homeDefaults = [
     text: 'Deanna plans park days, Disney hotels, dining and travel from the UK — so your trip feels magical, not overwhelming.',
     image: img.hero,
     imageAlt: 'Fireworks over Sleeping Beauty Castle at Disneyland Paris',
+    overlayOpacity: 70,
+    panelOpacity: 20,
     primaryLabel: 'Start planning your trip',
     primaryHref: '/planner',
     secondaryLabel: 'Explore the guide',
