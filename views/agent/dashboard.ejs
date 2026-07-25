@@ -1,4 +1,7 @@
 <%- include('../partials/shell-start', { bodyClass: 'portal-shell' }) %>
+<%
+  const previewLimit = typeof messagePreviewLimit === 'number' ? messagePreviewLimit : 5;
+%>
 <section class="section-sm">
   <%- include('../partials/portal-nav') %>
   <div class="mb-10 flex flex-wrap items-end justify-between gap-4">
@@ -16,8 +19,8 @@
         Plan inbox
         <%- include('../partials/count-badge', { count: badgeCounts.messages, label: badgeCounts.messages + ' unread plan messages' }) %>
       </a>
-      <a href="/agent/plans" class="btn-primary">
-        All plans
+      <a href="/agent/plans?filter=active" class="btn-primary">
+        Plans
         <%- include('../partials/count-badge', { count: badgeCounts.plans, label: badgeCounts.plans + ' plans needing action' }) %>
       </a>
     </div>
@@ -25,19 +28,19 @@
 
   <div class="mb-10 grid gap-4 sm:grid-cols-3">
     <article class="card">
-      <p class="text-sm text-primary-500">Open requests</p>
+      <p class="text-sm text-primary-500">Action required</p>
+      <p class="mt-2 font-display text-4xl text-primary-950"><%= kpis.actionRequired %></p>
+      <p class="mt-1 text-sm text-primary-600">New + awaiting your reply</p>
+    </article>
+    <article class="card">
+      <p class="text-sm text-primary-500">Awaiting client</p>
+      <p class="mt-2 font-display text-4xl text-primary-950"><%= kpis.awaitingClient %></p>
+      <p class="mt-1 text-sm text-primary-600">Ball is with the customer</p>
+    </article>
+    <article class="card">
+      <p class="text-sm text-primary-500">Active plans</p>
       <p class="mt-2 font-display text-4xl text-primary-950"><%= kpis.openRequests %></p>
-      <p class="mt-1 text-sm text-primary-600">New + in progress</p>
-    </article>
-    <article class="card">
-      <p class="text-sm text-primary-500">Needs review</p>
-      <p class="mt-2 font-display text-4xl text-primary-950"><%= kpis.needsReview %></p>
-      <p class="mt-1 text-sm text-primary-600">Sent — awaiting client reply</p>
-    </article>
-    <article class="card">
-      <p class="text-sm text-primary-500">New today</p>
-      <p class="mt-2 font-display text-4xl text-primary-950"><%= kpis.newCount %></p>
-      <p class="mt-1 text-sm text-primary-600">Fresh planning requests</p>
+      <p class="mt-1 text-sm text-primary-600">Not completed or archived · <%= kpis.newCount %> new today</p>
     </article>
   </div>
 
@@ -62,14 +65,14 @@
 
     <section class="card xl:col-span-1">
       <div class="mb-4 flex items-center justify-between gap-2">
-        <h2 class="text-2xl">In progress</h2>
-        <span class="badge bg-primary-100 text-primary-800"><%= activePlans.length %></span>
+        <h2 class="text-2xl">Action required</h2>
+        <a href="/agent/plans?filter=action" class="text-sm font-semibold text-secondary-700 hover:underline">View all</a>
       </div>
       <ul class="space-y-3">
-        <% if (!activePlans.length) { %><li class="rounded-2xl bg-primary-50/70 px-4 py-3 text-sm text-primary-600">No active builds right now.</li><% } %>
-        <% activePlans.forEach(function(plan) { %>
+        <% if (!actionPlans.length) { %><li class="rounded-2xl bg-primary-50/70 px-4 py-3 text-sm text-primary-600">No client replies waiting.</li><% } %>
+        <% actionPlans.forEach(function(plan) { %>
           <li>
-            <a class="block rounded-2xl border border-transparent px-3 py-3 transition hover:border-secondary-200 hover:bg-secondary-50/50" href="/agent/plans/<%= plan.id %>">
+            <a class="block rounded-2xl border border-transparent px-3 py-3 transition hover:border-secondary-200 hover:bg-secondary-50/50" href="/agent/plans/<%= plan.id %>?tab=messages">
               <div class="flex items-center justify-between gap-2">
                 <span class="font-semibold text-primary-950"><%= plan.customer.name %></span>
                 <%- include('../partials/status-badge', { status: plan.status }) %>
@@ -86,10 +89,10 @@
         <h2 class="text-2xl">Recent messages</h2>
         <a href="/agent/inbox" class="text-sm font-semibold text-secondary-700 hover:underline">Open inbox</a>
       </div>
-      <ul class="space-y-3">
+      <ul class="space-y-3" data-show-more-list>
         <% if (!recentMessages.length) { %><li class="text-sm text-primary-600">No messages yet.</li><% } %>
-        <% recentMessages.forEach(function(msg) { %>
-          <li>
+        <% recentMessages.forEach(function(msg, index) { %>
+          <li<%= index >= previewLimit ? ' hidden data-show-more-item' : '' %>>
             <a class="block rounded-2xl bg-primary-50/60 px-3 py-3" href="/agent/plans/<%= msg.planId %>?tab=messages">
               <div class="text-sm font-semibold text-primary-950"><%= msg.sender.name %> · <%= msg.plan.customer.name %></div>
               <p class="mt-1 line-clamp-2 text-sm text-primary-700"><%= msg.content %></p>
@@ -97,6 +100,9 @@
           </li>
         <% }) %>
       </ul>
+      <% if (recentMessages.length > previewLimit) { %>
+        <button type="button" class="btn-ghost btn-sm mt-3 px-0" data-show-more>Show more</button>
+      <% } %>
     </section>
   </div>
 </section>

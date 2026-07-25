@@ -11,12 +11,32 @@ const {
   saveDraft,
   sendMailboxMail,
 } = require('../../config/mailbox');
-const { statusLabel } = require('../../utils/format');
+const { statusLabel, nextStatusAfterMessage, ACTIVE_PLAN_STATUSES, STAFF_ACTION_STATUSES } = require('../../utils/format');
 const { markPlanMessagesRead, refreshBadgeCounts } = require('../../utils/notifications');
 const { requireRole } = require('../../middleware/auth');
 
 const router = express.Router();
 router.use(requireRole(['agent', 'admin']));
+
+const RECENT_MESSAGE_PREVIEW = 5;
+const RECENT_MESSAGE_FETCH = 20;
+const PLAN_STATUS_FILTERS = [
+  'new',
+  'in_progress',
+  'awaiting_agent',
+  'awaiting_client',
+  'sent',
+  'completed',
+  'archived',
+];
+
+async function applyMessagingPlanStatus(plan, senderIsStaff, agentId) {
+  const next = nextStatusAfterMessage(plan.status, senderIsStaff);
+  if (!next || next === plan.status) return;
+  const data = { status: next };
+  if (senderIsStaff && agentId) data.agentId = agentId;
+  await prisma.holidayPlan.update({ where: { id: plan.id }, data });
+}
 
 function mailboxFolder(req) {
   return String(req.query.folder || req.body.folder || 'INBOX').trim() || 'INBOX';
@@ -117,35 +137,42 @@ router.get('/', async (req, res, next) => {
     const startOfDay = new Date();
     startOfDay.setHours(0, 0, 0, 0);
 
-    const [newPlans, activePlans, recentMessages, openRequests, needsReview, newCount] = await Promise.all([
-      prisma.holidayPlan.findMany({
-        where: { status: 'new' },
-        include: { customer: true },
-        orderBy: { createdAt: 'desc' },
-        take: 10,
-      }),
-      prisma.holidayPlan.findMany({
-        where: { status: 'in_progress' },
-        include: { customer: true },
-        orderBy: { updatedAt: 'desc' },
-        take: 10,
-      }),
-      prisma.message.findMany({
-        include: { sender: true, plan: { include: { customer: true } } },
-        orderBy: { createdAt: 'desc' },
-        take: 8,
-      }),
-      prisma.holidayPlan.count({ where: { status: { in: ['new', 'in_progress'] } } }),
-      prisma.holidayPlan.count({ where: { status: 'sent' } }),
-      prisma.holidayPlan.count({ where: { status: 'new', createdAt: { gte: startOfDay } } }),
-    ]);
+    const [newPlans, actionPlans, recentMessages, openRequests, actionRequired, awaitingClient, newCount] =
+      await Promise.all([
+        prisma.holidayPlan.findMany({
+          where: { status: 'new' },
+          include: { customer: true },
+          orderBy: { createdAt: 'desc' },
+          take: 10,
+        }),
+        prisma.holidayPlan.findMany({
+          where: { status: 'awaiting_agent' },
+          include: { customer: true },
+          orderBy: { updatedAt: 'desc' },
+          take: 10,
+        }),
+        prisma.message.findMany({
+          include: { sender: true, plan: { include: { customer: true } } },
+          orderBy: { createdAt: 'desc' },
+          take: RECENT_MESSAGE_FETCH,
+        }),
+        prisma.holidayPlan.count({
+          where: { status: { in: ACTIVE_PLAN_STATUSES } },
+        }),
+        prisma.holidayPlan.count({ where: { status: { in: STAFF_ACTION_STATUSES } } }),
+        prisma.holidayPlan.count({
+          where: { status: { in: ['awaiting_client', 'sent'] } },
+        }),
+        prisma.holidayPlan.count({ where: { status: 'new', createdAt: { gte: startOfDay } } }),
+      ]);
 
     res.render('agent/dashboard', {
       title: 'Agent workspace',
       newPlans,
-      activePlans,
+      actionPlans,
       recentMessages,
-      kpis: { openRequests, needsReview, newCount },
+      messagePreviewLimit: RECENT_MESSAGE_PREVIEW,
+      kpis: { openRequests, actionRequired, awaitingClient, newCount },
     });
   } catch (err) {
     next(err);
@@ -154,11 +181,61 @@ router.get('/', async (req, res, next) => {
 
 router.get('/plans', async (req, res, next) => {
   try {
+    const filter = String(req.query.filter || 'active').toLowerCase();
+    let where = {};
+    let title = 'Active plans';
+
+    if (filter === 'all') {
+      where = {};
+      title = 'All plans';
+    } else if (filter === 'action') {
+      where = { status: { in: STAFF_ACTION_STATUSES } };
+      title = 'Action required';
+    } else if (filter === 'awaiting_client') {
+      where = { status: { in: ['awaiting_client', 'sent'] } };
+      title = 'Awaiting client';
+    } else if (PLAN_STATUS_FILTERS.includes(filter)) {
+      where = { status: filter };
+      title = statusLabel(filter);
+    } else {
+      // active (default): exclude completed / archived
+      where = { status: { in: ACTIVE_PLAN_STATUSES } };
+      title = 'Active plans';
+    }
+
     const plans = await prisma.holidayPlan.findMany({
-      include: { customer: true },
+      where,
+      include: {
+        customer: true,
+        messages: { orderBy: { createdAt: 'desc' }, take: 1 },
+      },
       orderBy: { updatedAt: 'desc' },
     });
-    res.render('agent/plans', { title: 'All plans', plans });
+
+    const unreadByPlan = {};
+    if (plans.length) {
+      const unread = await prisma.message.findMany({
+        where: {
+          planId: { in: plans.map((p) => p.id) },
+          senderId: { not: req.user.id },
+          reads: { none: { userId: req.user.id } },
+        },
+        select: { planId: true },
+      });
+      unread.forEach((m) => {
+        unreadByPlan[m.planId] = (unreadByPlan[m.planId] || 0) + 1;
+      });
+    }
+
+    res.render('agent/plans', {
+      title,
+      plans,
+      filter: ['all', 'active', 'action', 'awaiting_client', ...PLAN_STATUS_FILTERS].includes(filter)
+        ? filter
+        : 'active',
+      unreadByPlan,
+      deleted: req.query.deleted === '1',
+    });
   } catch (err) {
     next(err);
   }
@@ -202,6 +279,7 @@ router.get('/plans/:id', async (req, res, next) => {
       tab,
       planUnreadMessages,
       saved: req.query.saved === '1',
+      deleted: req.query.deleted === '1',
       emailed: req.query.emailed === '1',
       emailWarn: req.query.email_warn === '1',
       emailDetail: req.query.email_detail ? String(req.query.email_detail) : '',
@@ -289,6 +367,53 @@ router.post('/plans/:id/send', async (req, res, next) => {
   }
 });
 
+router.post('/plans/:id/delete', async (req, res, next) => {
+  try {
+    const id = Number(req.params.id);
+    const plan = await prisma.holidayPlan.findUnique({ where: { id } });
+    if (!plan) {
+      return res.status(404).render('pages/error', {
+        title: 'Not found',
+        message: 'Plan not found.',
+        status: 404,
+      });
+    }
+
+    await prisma.$transaction(async (tx) => {
+      await tx.messageRead.deleteMany({ where: { message: { planId: id } } });
+      await tx.message.deleteMany({ where: { planId: id } });
+      await tx.document.deleteMany({ where: { planId: id } });
+      await tx.holidayPlan.delete({ where: { id } });
+    });
+
+    res.redirect('/agent/plans?filter=active&deleted=1');
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/plans/:id/messages/:messageId/delete', async (req, res, next) => {
+  try {
+    const planId = Number(req.params.id);
+    const messageId = Number(req.params.messageId);
+    const message = await prisma.message.findFirst({
+      where: { id: messageId, planId },
+    });
+    if (!message) {
+      return res.status(404).render('pages/error', {
+        title: 'Not found',
+        message: 'Message not found.',
+        status: 404,
+      });
+    }
+
+    await prisma.message.delete({ where: { id: messageId } });
+    res.redirect(`/agent/plans/${planId}?tab=messages&deleted=1`);
+  } catch (err) {
+    next(err);
+  }
+});
+
 router.post('/plans/:id/messages', async (req, res, next) => {
   try {
     const planId = Number(req.params.id);
@@ -310,6 +435,7 @@ router.post('/plans/:id/messages', async (req, res, next) => {
     }
 
     await prisma.message.create({ data: { planId, senderId: req.user.id, content } });
+    await applyMessagingPlanStatus(plan, true, req.user.id);
     await markPlanMessagesRead(req.user, planId);
 
     const params = new URLSearchParams({ tab: 'messages' });
@@ -357,7 +483,12 @@ router.get('/inbox', async (req, res, next) => {
           m.plan.customer.name.toLowerCase().includes(q)
       );
     }
-    res.render('agent/inbox', { title: 'Inbox', messages, q });
+    res.render('agent/inbox', {
+      title: 'Inbox',
+      messages,
+      q,
+      messagePreviewLimit: RECENT_MESSAGE_PREVIEW,
+    });
   } catch (err) {
     next(err);
   }

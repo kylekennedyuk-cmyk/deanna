@@ -4,6 +4,7 @@ const { sendNotificationAsync } = require('../../config/email');
 const { getSettings } = require('../../config/settings');
 const { requireRole } = require('../../middleware/auth');
 const { markPlanMessagesRead, refreshBadgeCounts } = require('../../utils/notifications');
+const { nextStatusAfterMessage } = require('../../utils/format');
 
 const router = express.Router();
 router.use(requireRole(['customer', 'admin']));
@@ -100,6 +101,13 @@ router.post('/plans/:id/messages', async (req, res, next) => {
       await prisma.message.create({
         data: { planId, senderId: req.user.id, content },
       });
+      const nextStatus = nextStatusAfterMessage(plan.status, false);
+      if (nextStatus && nextStatus !== plan.status) {
+        await prisma.holidayPlan.update({
+          where: { id: planId },
+          data: { status: nextStatus },
+        });
+      }
       await markPlanMessagesRead(req.user, planId);
       const settings = await getSettings();
       const recipient =

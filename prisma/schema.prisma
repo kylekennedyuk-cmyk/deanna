@@ -44,7 +44,7 @@ model HolidayPlan {
   customer    User       @relation("PlanCustomer", fields: [customerId], references: [id])
   agentId     Int?
   agent       User?      @relation("PlanAgent", fields: [agentId], references: [id])
-  status      String     @default("new") // new | in_progress | sent | completed | archived
+  status      String     @default("new") // new | in_progress | awaiting_agent | awaiting_client | sent | completed | archived
   travelDates String
   partySize   Int
   budget      Int
@@ -63,7 +63,7 @@ model HolidayPlan {
 model Message {
   id         Int           @id @default(autoincrement())
   planId     Int
-  plan       HolidayPlan   @relation(fields: [planId], references: [id])
+  plan       HolidayPlan   @relation(fields: [planId], references: [id], onDelete: Cascade)
   senderId   Int
   sender     User          @relation(fields: [senderId], references: [id])
   content    String
@@ -130,7 +130,7 @@ model SiteSetting {
 model Document {
   id         Int          @id @default(autoincrement())
   planId     Int?
-  plan       HolidayPlan? @relation(fields: [planId], references: [id])
+  plan       HolidayPlan? @relation(fields: [planId], references: [id], onDelete: Cascade)
   userId     Int?
   user       User?        @relation(fields: [userId], references: [id])
   url        String

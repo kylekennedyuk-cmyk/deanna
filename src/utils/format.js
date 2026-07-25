@@ -1,6 +1,8 @@
 const STATUS_LABELS = {
   new: 'New request',
   in_progress: 'In progress',
+  awaiting_agent: 'Action required',
+  awaiting_client: 'Awaiting client',
   sent: 'Sent to you',
   completed: 'Completed',
   archived: 'Archived',
@@ -9,10 +11,37 @@ const STATUS_LABELS = {
 const STATUS_NEXT = {
   new: 'Waiting on Deanna',
   in_progress: 'Deanna is building your plan',
+  awaiting_agent: 'Deanna will reply soon',
+  awaiting_client: 'Your reply is needed',
   sent: 'Review your proposal',
   completed: 'Trip ready — enjoy!',
   archived: 'Archived plan',
 };
+
+/** Statuses agents can set manually (includes messaging workflow). */
+const PLAN_STATUS_OPTIONS = [
+  'new',
+  'in_progress',
+  'awaiting_agent',
+  'awaiting_client',
+  'sent',
+  'completed',
+  'archived',
+];
+
+const CLOSED_PLAN_STATUSES = ['completed', 'archived'];
+const ACTIVE_PLAN_STATUSES = PLAN_STATUS_OPTIONS.filter((s) => !CLOSED_PLAN_STATUSES.includes(s));
+const STAFF_ACTION_STATUSES = ['new', 'awaiting_agent'];
+const CLIENT_ACTION_STATUSES = ['awaiting_client', 'sent'];
+
+/**
+ * Auto status after a portal message. Returns null if plan is closed (do not reopen).
+ * Staff message → awaiting_client; customer message → awaiting_agent.
+ */
+function nextStatusAfterMessage(currentStatus, senderIsStaff) {
+  if (CLOSED_PLAN_STATUSES.includes(currentStatus)) return null;
+  return senderIsStaff ? 'awaiting_client' : 'awaiting_agent';
+}
 
 const PREF_LABELS = {
   dates: 'Travel dates',
@@ -52,9 +81,7 @@ function nextAction(status) {
 }
 
 function statusBadgeClass(status) {
-  const key = ['new', 'in_progress', 'sent', 'completed', 'archived'].includes(status)
-    ? status
-    : 'new';
+  const key = PLAN_STATUS_OPTIONS.includes(status) ? status : 'new';
   return `badge-status-${key}`;
 }
 
@@ -117,6 +144,12 @@ module.exports = {
   preferenceEntries,
   planTitle,
   selectedList,
+  nextStatusAfterMessage,
   PREF_LABELS,
   STATUS_LABELS,
+  PLAN_STATUS_OPTIONS,
+  CLOSED_PLAN_STATUSES,
+  ACTIVE_PLAN_STATUSES,
+  STAFF_ACTION_STATUSES,
+  CLIENT_ACTION_STATUSES,
 };

@@ -39,6 +39,7 @@ function applySafeLocals(res) {
   res.locals.formatDateTime = format.formatDateTime;
   res.locals.preferenceEntries = format.preferenceEntries;
   res.locals.planTitle = format.planTitle;
+  res.locals.PLAN_STATUS_OPTIONS = format.PLAN_STATUS_OPTIONS;
 }
 
 function createApp() {

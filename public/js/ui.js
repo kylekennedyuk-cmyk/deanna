@@ -100,6 +100,18 @@
     });
   });
 
+  document.querySelectorAll('[data-show-more]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const root = btn.closest('section') || document;
+      root.querySelectorAll('[data-show-more-item]').forEach((el) => {
+        el.hidden = false;
+        el.removeAttribute('hidden');
+        el.classList.remove('is-show-more-hidden');
+      });
+      btn.hidden = true;
+    });
+  });
+
   if (!reduceMotion) {
     document.querySelectorAll('[data-float]').forEach((el) => {
       el.classList.add('animate-floaty');

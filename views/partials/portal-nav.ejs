@@ -18,7 +18,7 @@
     <a href="/admin/settings" class="btn-ghost btn-sm">Settings</a>
     <a href="/admin/notifications" class="btn-ghost btn-sm">Email</a>
     <a href="/agent" class="btn-ghost btn-sm">Agent workspace</a>
-    <a href="/agent/plans" class="btn-ghost btn-sm">
+    <a href="/agent/plans?filter=active" class="btn-ghost btn-sm">
       Plans
       <%- include('count-badge', { count: counts.plans, label: counts.plans + ' plans needing action' }) %>
     </a>
@@ -31,8 +31,8 @@
       <%- include('count-badge', { count: counts.mailbox, label: counts.mailbox + ' unread emails' }) %>
     </a>
   <% } else if (role === 'agent') { %>
-    <a href="/agent/plans" class="btn-ghost btn-sm">
-      All plans
+    <a href="/agent/plans?filter=active" class="btn-ghost btn-sm">
+      Plans
       <%- include('count-badge', { count: counts.plans, label: counts.plans + ' plans needing action' }) %>
     </a>
     <a href="/agent/inbox" class="btn-ghost btn-sm">

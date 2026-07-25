@@ -128,15 +128,16 @@ async function countUnreadPlanMessages(user) {
 
 async function countActionPlans(user) {
   if (isStaff(user)) {
+    // New requests + customer replies waiting on the agent.
     return prisma.holidayPlan.count({
-      where: { status: { in: ['new', 'in_progress'] } },
+      where: { status: { in: ['new', 'awaiting_agent'] } },
     });
   }
 
   return prisma.holidayPlan.count({
     where: {
       customerId: user.id,
-      status: 'sent',
+      status: { in: ['awaiting_client', 'sent'] },
     },
   });
 }
