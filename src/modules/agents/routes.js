@@ -183,6 +183,9 @@ router.get('/plans/:id', async (req, res, next) => {
       preferences: safeJson(plan.preferences),
       tab: req.query.tab || 'overview',
       saved: req.query.saved === '1',
+      emailed: req.query.emailed === '1',
+      emailWarn: req.query.email_warn === '1',
+      emailDetail: req.query.email_detail ? String(req.query.email_detail) : '',
       flightFields: parseLabeled(plan.flights),
       hotelFields: parseLabeled(plan.hotel),
       priceFields,
@@ -221,23 +224,22 @@ router.post('/plans/:id/update', async (req, res, next) => {
     Object.keys(data).forEach((k) => data[k] === undefined && delete data[k]);
 
     await prisma.holidayPlan.update({ where: { id }, data });
-    if (
-      existingPlan &&
-      existingPlan.customer.emailNotify &&
-      data.status &&
-      data.status !== existingPlan.status
-    ) {
-      await sendNotification('status_update', {
-        to: existingPlan.customer.email,
-        values: {
-          customerName: existingPlan.customer.name,
-          planTitle: `Plan #${id}`,
-          status: statusLabel(data.status),
-        },
-        body: `Deanna has updated your holiday plan to “${statusLabel(data.status)}”. Log in to review the latest details and messages.`,
-        buttonLabel: 'View your holiday plan',
-        buttonUrl: `${process.env.APP_URL || 'http://localhost:3000'}/customer/plans/${id}`,
-      });
+    if (existingPlan && data.status && data.status !== existingPlan.status && existingPlan.customer?.email) {
+      try {
+        await sendNotification('status_update', {
+          to: existingPlan.customer.email,
+          values: {
+            customerName: existingPlan.customer.name,
+            planTitle: `Plan #${id}`,
+            status: statusLabel(data.status),
+          },
+          body: `Deanna has updated your holiday plan to “${statusLabel(data.status)}”. Log in to review the latest details and messages.`,
+          buttonLabel: 'View your holiday plan',
+          buttonUrl: `${process.env.APP_URL || 'http://localhost:3000'}/customer/plans/${id}`,
+        });
+      } catch (err) {
+        console.error('[agent status email]', err);
+      }
     }
     res.redirect(`/agent/plans/${id}?tab=${req.body.tab || 'overview'}&saved=1`);
   } catch (err) {
@@ -253,18 +255,22 @@ router.post('/plans/:id/send', async (req, res, next) => {
       data: { status: 'sent', agentId: req.user.id },
       include: { customer: true },
     });
-    if (plan.customer.emailNotify) {
-      await sendNotification('status_update', {
-        to: plan.customer.email,
-        values: {
-          customerName: plan.customer.name,
-          planTitle: `Plan #${id}`,
-          status: 'Ready to review',
-        },
-        body: 'Deanna has shared your holiday proposal. Review the details in your portal and send a message if you would like anything adjusted.',
-        buttonLabel: 'Review your proposal',
-        buttonUrl: `${process.env.APP_URL || 'http://localhost:3000'}/customer/plans/${id}`,
-      });
+    if (plan.customer?.email) {
+      try {
+        await sendNotification('status_update', {
+          to: plan.customer.email,
+          values: {
+            customerName: plan.customer.name,
+            planTitle: `Plan #${id}`,
+            status: 'Ready to review',
+          },
+          body: 'Deanna has shared your holiday proposal. Review the details in your portal and send a message if you would like anything adjusted.',
+          buttonLabel: 'Review your proposal',
+          buttonUrl: `${process.env.APP_URL || 'http://localhost:3000'}/customer/plans/${id}`,
+        });
+      } catch (err) {
+        console.error('[agent proposal email]', err);
+      }
     }
     res.redirect(`/agent/plans/${id}?tab=overview&saved=1`);
   } catch (err) {
@@ -276,33 +282,68 @@ router.post('/plans/:id/messages', async (req, res, next) => {
   try {
     const planId = Number(req.params.id);
     const content = String(req.body.content || '').trim();
-    if (content) {
-      const plan = await prisma.holidayPlan.findUnique({
-        where: { id: planId },
-        include: { customer: true },
-      });
-      if (!plan) {
-        return res.status(404).render('pages/error', {
-          title: 'Not found',
-          message: 'Plan not found.',
-          status: 404,
-        });
-      }
-      await prisma.message.create({ data: { planId, senderId: req.user.id, content } });
-      if (plan.customer.emailNotify) {
-        await sendNotification('new_message', {
-          to: plan.customer.email,
-          values: {
-            senderName: req.user.name,
-            planTitle: `Plan #${planId}`,
-          },
-          body: content,
-          buttonLabel: 'Reply in your portal',
-          buttonUrl: `${process.env.APP_URL || 'http://localhost:3000'}/customer/plans/${planId}/messages`,
-        });
-      }
+    if (!content) {
+      return res.redirect(`/agent/plans/${planId}?tab=messages`);
     }
-    res.redirect(`/agent/plans/${planId}?tab=messages`);
+
+    const plan = await prisma.holidayPlan.findUnique({
+      where: { id: planId },
+      include: { customer: true },
+    });
+    if (!plan) {
+      return res.status(404).render('pages/error', {
+        title: 'Not found',
+        message: 'Plan not found.',
+        status: 404,
+      });
+    }
+
+    await prisma.message.create({ data: { planId, senderId: req.user.id, content } });
+
+    const params = new URLSearchParams({ tab: 'messages' });
+    const customerEmail = String(plan.customer?.email || '').trim();
+
+    if (!customerEmail) {
+      params.set('email_warn', '1');
+      params.set('email_detail', 'Message saved, but the customer has no email address on file.');
+      return res.redirect(`/agent/plans/${planId}?${params.toString()}`);
+    }
+
+    try {
+      const result = await sendNotification('new_message', {
+        to: customerEmail,
+        values: {
+          senderName: req.user.name,
+          customerName: plan.customer.name || '',
+          planTitle: `Plan #${planId}`,
+        },
+        body: content,
+        buttonLabel: 'Reply in your portal',
+        buttonUrl: `${process.env.APP_URL || 'http://localhost:3000'}/customer/plans/${planId}/messages`,
+      });
+
+      if (result && result.skipped) {
+        params.set('email_warn', '1');
+        params.set(
+          'email_detail',
+          result.reason || 'Message saved in the portal, but the notification email was not sent (SMTP not configured).'
+        );
+      } else {
+        params.set('emailed', '1');
+        if (plan.customer.emailNotify === false) {
+          params.set('email_detail', 'Email sent. Note: this customer previously turned off email notifications in their profile.');
+        }
+      }
+    } catch (err) {
+      console.error('[agent message email]', err);
+      params.set('email_warn', '1');
+      params.set(
+        'email_detail',
+        `Message saved in the portal, but email failed: ${err.message || 'unknown error'}`
+      );
+    }
+
+    return res.redirect(`/agent/plans/${planId}?${params.toString()}`);
   } catch (err) {
     next(err);
   }

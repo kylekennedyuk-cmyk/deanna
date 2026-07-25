@@ -76,18 +76,29 @@ router.post('/plans/:id/messages', async (req, res, next) => {
       const recipient =
         (plan.agent && plan.agent.email) ||
         settings.support_email ||
-        process.env.SUPPORT_EMAIL;
+        process.env.SUPPORT_EMAIL ||
+        process.env.SMTP_FROM_EMAIL ||
+        process.env.SMTP_USER;
       if (recipient) {
-        await sendNotification('new_message', {
-          to: recipient,
-          values: {
-            senderName: req.user.name,
-            planTitle: `Plan #${plan.id}`,
-          },
-          body: content,
-          buttonLabel: 'Reply in the agent workspace',
-          buttonUrl: `${process.env.APP_URL || 'http://localhost:3000'}/agent/plans/${plan.id}?tab=messages`,
-        });
+        try {
+          const result = await sendNotification('new_message', {
+            to: recipient,
+            values: {
+              senderName: req.user.name,
+              planTitle: `Plan #${plan.id}`,
+            },
+            body: content,
+            buttonLabel: 'Reply in the agent workspace',
+            buttonUrl: `${process.env.APP_URL || 'http://localhost:3000'}/agent/plans/${plan.id}?tab=messages`,
+          });
+          if (result && result.skipped) {
+            console.warn('[customer message email skipped]', result.reason);
+          }
+        } catch (err) {
+          console.error('[customer message email]', err);
+        }
+      } else {
+        console.warn('[customer message email] no agent/support recipient configured');
       }
     }
     res.redirect(`/customer/plans/${planId}/messages`);

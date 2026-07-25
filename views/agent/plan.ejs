@@ -14,6 +14,8 @@
 <section class="section-sm">
   <%- include('../partials/portal-nav', { backHref: '/agent/plans', backLabel: 'All plans' }) %>
   <% if (saved) { %><div class="mb-4 rounded-card border border-success-100 bg-success-50 px-4 py-3 text-success-700">Saved.</div><% } %>
+  <% if (typeof emailed !== 'undefined' && emailed) { %><div class="mb-4 rounded-card border border-success-100 bg-success-50 px-4 py-3 text-success-700">Message saved and email sent to <%= plan.customer.email %>.<% if (typeof emailDetail !== 'undefined' && emailDetail) { %> <%= emailDetail %><% } %></div><% } %>
+  <% if (typeof emailWarn !== 'undefined' && emailWarn) { %><div class="mb-4 rounded-card border border-danger-100 bg-danger-50 px-4 py-3 text-danger-700" role="alert"><%= emailDetail || 'Message saved in the portal, but the customer email notification was not sent.' %></div><% } %>
 
   <div class="mb-6 flex flex-wrap items-start justify-between gap-4">
     <div>
@@ -57,6 +59,7 @@
             <label class="label" for="agent-message">Reply</label>
             <textarea class="field min-h-[120px]" id="agent-message" name="content" required></textarea>
             <button class="btn-primary" type="submit">Send reply</button>
+            <p class="text-xs text-primary-500">Saves in the portal and emails <%= plan.customer.email %>.</p>
           </form>
         </div>
       <% } else if (tab === 'overview') { %>
