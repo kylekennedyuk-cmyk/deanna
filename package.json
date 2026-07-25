@@ -19,8 +19,8 @@
     "content:sync-home": "node scripts/sync-home-content.js",
     "mail:apply": "node scripts/apply-mail-settings.js",
     "mail:verify": "node scripts/verify-mail.js",
-    "deploy": "prisma generate && prisma db push && node prisma/seed.js && node scripts/sync-public-content.js && npm run build:css",
-    "update": "prisma generate && prisma db push && node scripts/sync-public-content.js && npm run build:css",
+    "deploy": "prisma generate && prisma db push && node prisma/seed.js && npm run build:css",
+    "update": "prisma generate && prisma db push && npm run build:css",
     "setup": "npm install && npx prisma generate && npx prisma db push && node prisma/seed.js && npm run build:css",
     "postinstall": "prisma generate"
   },

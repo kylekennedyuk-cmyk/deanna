@@ -138,7 +138,7 @@ What `deploy` does:
 
 - generates the Prisma client
 - creates `data/deanna.db`
-- seeds admin user + default pages/nav/settings
+- seeds missing admin/default records and pages without replacing existing CMS page content
 - builds Tailwind CSS into `public/css/app.css`
 
 ### 6) Writable folders
@@ -212,9 +212,27 @@ npm install
 npm run update
 ```
 
-`update` refreshes the Prisma client, applies schema changes and rebuilds CSS — without re-running the seed.
+`update` refreshes the Prisma client, applies schema changes and rebuilds CSS. It does not seed or sync pages, so content edited in Admin → Pages is preserved.
 
-Do **not** re-run `node prisma/seed.js` on an existing live site unless you intend to re-seed missing defaults only (seed is upsert-safe for many keys, but `npm run content:sync` overwrites public page content deliberately).
+`deploy` and `db:seed` are also safe for existing CMS pages: they create missing defaults but do not replace page titles, SEO or sections.
+
+The explicit content sync commands run in safe mode by default. They create missing pages and fill empty stubs, while skipping pages that already contain CMS content:
+
+```bash
+npm run content:sync
+npm run content:sync-home
+```
+
+Only force-reset pages when you intentionally want to discard Admin edits and restore the bundled repo defaults:
+
+```bash
+npm run content:sync -- --force
+npm run content:sync-home -- --force
+# Alternatively on Linux/Plesk:
+FORCE=1 npm run content:sync
+```
+
+Force sync is destructive for the affected page content and should never be part of a routine pull/update.
 
 ---
 
@@ -225,7 +243,7 @@ Do **not** re-run `node prisma/seed.js` on an existing live site unless you inte
 | **Site loads unstyled / no CSS** | Document root is wrong. Set it to `/httpdocs/public`, then Restart App |
 | **`/health` says “file not found”** | Same cause — set document root to `/httpdocs/public` |
 | **Home works, every other page is Apache 500** | Leftover WordPress. Delete `public/.htaccess` (WordPress one), `public/index.php`, and `wp-*` folders. Pull so the repo’s `public/.htaccess` is installed, then Restart App |
-| **Guide pages only show a CTA / missing hotels & dining** | Run script `update` (includes content sync) or `content:sync`, then Restart App. Admin → Pages can also rebuild sections |
+| **Guide pages only show a CTA / missing hotels & dining** | Review and edit the page in Admin → Pages. Safe `content:sync` only creates missing pages or fills empty stubs; force sync is a destructive manual reset, not a routine fix |
 | `npm error Missing script: "npx"` | Plesk's Run script box takes a script **name** only. Use `deploy` or `update` |
 | `DATABASE_URL is missing` when running a script | Create `httpdocs/.env` with `DATABASE_URL=file:../data/deanna.db` — panel env vars are often ignored by Run script |
 | `EADDRINUSE :::3000` | Do not run script `start`. Passenger already runs the app. Use `deploy`, then **Restart App**. Remove any `PORT` variable |

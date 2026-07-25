@@ -62,10 +62,21 @@ See [DEPLOY-PLESK.md](./DEPLOY-PLESK.md) — designed for minimal effort.
 
 ## Content defaults
 
-New installations receive the full specialist content automatically from the seed. To intentionally replace existing public CMS content with the current bundled defaults, run:
+New installations receive the full specialist content automatically from the seed. Routine `deploy`, `update` and `db:seed` runs preserve pages edited in the admin CMS.
+
+The explicit sync commands are also safe by default: they create missing pages or fill empty/legacy stubs, and skip populated CMS pages.
 
 ```bash
 npm run content:sync
+npm run content:sync-home
 ```
 
-This command overwrites the affected public page content, so do not use it after editing those pages in admin unless that is intentional.
+To intentionally discard CMS edits and replace content with the bundled defaults, use force mode:
+
+```bash
+npm run content:sync -- --force
+npm run content:sync-home -- --force
+# Or set FORCE=1 in the command environment.
+```
+
+Force sync is destructive and should only be run as a manual reset, never as part of a routine deployment.

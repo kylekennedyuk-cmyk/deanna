@@ -88,14 +88,7 @@ async function main() {
 
   await prisma.page.upsert({
     where: { slug: 'home' },
-    update: {
-      title: 'Home',
-      seoTitle: 'Destinations With Deanna | Disneyland Paris Specialist',
-      seoDesc:
-        'Premium Disneyland Paris holiday planning with Deanna. Tailored itineraries, Disney hotels, and specialist advice.',
-      sections: homeSections,
-      published: true,
-    },
+    update: {},
     create: {
       slug: 'home',
       title: 'Home',
@@ -186,13 +179,7 @@ async function main() {
   for (const [slug, page] of Object.entries(publicPages)) {
     await prisma.page.upsert({
       where: { slug },
-      update: {
-        title: page.title,
-        seoTitle: page.seoTitle,
-        seoDesc: page.seoDesc,
-        sections: JSON.stringify(page.sections),
-        published: true,
-      },
+      update: {},
       create: {
         slug,
         title: page.title,
