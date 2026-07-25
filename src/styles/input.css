@@ -93,6 +93,15 @@
     @apply btn bg-danger-700 text-white hover:bg-red-800;
   }
 
+  .btn-logout {
+    @apply btn whitespace-nowrap text-white shadow-soft hover:-translate-y-0.5 hover:shadow-lift active:translate-y-0;
+    background-color: #b42318;
+  }
+
+  .btn-logout:hover {
+    background-color: #912018;
+  }
+
   .btn-sm {
     @apply px-4 py-2 text-xs;
   }
@@ -265,16 +274,18 @@
   }
 
   .site-header {
-    /* Solid white bar at the top over every page */
+    /* Soft white glass — readable logo, slight see-through */
     position: sticky;
     top: 0;
     z-index: 40;
-    background-color: #ffffff !important;
+    background-color: rgb(255 255 255 / 0.88) !important;
     border-color: rgb(26 43 64 / 0.1);
     box-shadow: 0 1px 0 rgb(26 43 64 / 0.06);
+    -webkit-backdrop-filter: blur(14px) saturate(1.1);
+    backdrop-filter: blur(14px) saturate(1.1);
   }
 
-  .site-header a:not(.btn-primary):not(.btn),
+  .site-header a:not(.btn-primary):not(.btn-logout):not(.btn),
   .site-header .font-display,
   .site-header .text-primary-950,
   .site-header .text-primary-800,
@@ -286,6 +297,11 @@
 
   .site-header [data-menu-toggle] {
     border-color: rgb(26 43 64 / 0.2);
+  }
+
+  .site-header .btn-logout,
+  .site-header .btn-primary {
+    color: #ffffff !important;
   }
 
   /* Hero fills the space under the white menu; copy box centred */

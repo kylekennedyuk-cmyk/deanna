@@ -12,7 +12,7 @@
       <% } %>
     </a>
 
-    <nav class="hidden items-center gap-6 lg:flex xl:gap-8" aria-label="Primary">
+    <nav class="hidden min-w-0 flex-1 items-center justify-center gap-5 xl:gap-8 lg:flex" aria-label="Primary">
       <% (navHeader || []).forEach(function(item) { %>
         <% if (item.href !== '/planner') { %>
           <a href="<%= item.href %>" class="whitespace-nowrap text-sm font-medium text-primary-800 transition duration-250 hover:text-secondary-700"><%= item.label %></a>
@@ -20,17 +20,19 @@
       <% }) %>
     </nav>
 
-    <div class="flex items-center gap-2">
+    <div class="flex shrink-0 items-center gap-2 sm:gap-3">
       <% if (currentUser) { %>
-        <a href="<%= currentUser.role === 'admin' ? '/admin' : (currentUser.role === 'agent' ? '/agent' : '/customer') %>" class="btn-ghost btn-sm hidden lg:inline-flex">Dashboard</a>
-        <form action="/logout" method="post" class="hidden lg:block">
-          <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
-          <button type="submit" class="btn-ghost btn-sm">Log out</button>
-        </form>
-      <% } else { %>
-        <a href="/login" class="btn-ghost btn-sm hidden lg:inline-flex">Log in</a>
+        <a href="<%= currentUser.role === 'admin' ? '/admin' : (currentUser.role === 'agent' ? '/agent' : '/customer') %>" class="btn-ghost btn-sm hidden whitespace-nowrap lg:inline-flex">Dashboard</a>
       <% } %>
       <a href="/planner" class="btn-primary btn-sm hidden whitespace-nowrap sm:inline-flex lg:px-6 lg:py-3">Start Planning</a>
+      <% if (currentUser) { %>
+        <form action="/logout" method="post" class="hidden lg:block">
+          <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+          <button type="submit" class="btn-logout btn-sm whitespace-nowrap">Log out</button>
+        </form>
+      <% } else { %>
+        <a href="/login" class="btn-primary btn-sm hidden whitespace-nowrap lg:inline-flex lg:px-6 lg:py-3">Log in</a>
+      <% } %>
 
       <button
         type="button"
@@ -72,9 +74,9 @@
       <a href="/planner" class="btn-primary w-full">Start Planning</a>
       <% if (currentUser) { %>
         <a href="<%= currentUser.role === 'admin' ? '/admin' : (currentUser.role === 'agent' ? '/agent' : '/customer') %>" class="btn-secondary w-full">Dashboard</a>
-        <form action="/logout" method="post"><input type="hidden" name="_csrf" value="<%= csrfToken %>" /><button type="submit" class="btn-ghost w-full">Log out</button></form>
+        <form action="/logout" method="post"><input type="hidden" name="_csrf" value="<%= csrfToken %>" /><button type="submit" class="btn-logout w-full">Log out</button></form>
       <% } else { %>
-        <a href="/login" class="btn-secondary w-full">Log in</a>
+        <a href="/login" class="btn-primary w-full">Log in</a>
       <% } %>
     </div>
   </div>
