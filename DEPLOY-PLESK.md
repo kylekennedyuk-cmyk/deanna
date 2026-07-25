@@ -256,6 +256,7 @@ Force sync is destructive for the affected page content and should never be part
 | SMTP password “forgotten” | `SETTINGS_ENCRYPTION_KEY` was changed — set the password again in admin |
 | Uploads fail | Ensure `public/uploads` is writable |
 | Planner closed / maintenance page | Turn those off in Admin → Settings |
+| 3CX chat / call widget | Admin → Settings → **Live chat & calls (3CX)**. Enable, paste phonesystem URL + party id from 3CX Live Chat embed. Optional Talk URL and call number. Widget is public-site only |
 
 Health check: `https://your-domain/health` should return `{"ok":true}`.
 

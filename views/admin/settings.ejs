@@ -123,6 +123,55 @@
       </div>
     </section>
 
+    <section class="card">
+      <h2 class="text-2xl">Live chat &amp; calls (3CX)</h2>
+      <p class="mt-2 text-sm text-primary-700">Shows a branded floating button on the public site (not admin/agent/customer portals). Visitors can open live chat or call you. The default 3CX bubble is hidden — your logo and brand colours are the primary UI.</p>
+      <div class="mt-5 space-y-4">
+        <div class="grid gap-4 md:grid-cols-2">
+          <div>
+            <label class="label" for="tcx_enabled">3CX widget</label>
+            <select class="field" id="tcx_enabled" name="tcx_enabled">
+              <option value="false" <%= settings.tcx_enabled !== 'true' ? 'selected' : '' %>>Disabled</option>
+              <option value="true" <%= settings.tcx_enabled === 'true' ? 'selected' : '' %>>Enabled</option>
+            </select>
+          </div>
+          <div>
+            <label class="label" for="tcx_greeting">Panel greeting</label>
+            <input class="field" id="tcx_greeting" name="tcx_greeting" value="<%= settings.tcx_greeting || 'Chat or call Destinations With Deanna' %>" maxlength="120" />
+          </div>
+        </div>
+        <div class="grid gap-4 md:grid-cols-2">
+          <div>
+            <label class="label" for="tcx_phonesystem_url">Phone system URL</label>
+            <input class="field" id="tcx_phonesystem_url" name="tcx_phonesystem_url" value="<%= settings.tcx_phonesystem_url || '' %>" placeholder="https://company.3cx.uk" autocomplete="off" />
+            <p class="help">From 3CX Admin → Voice &amp; chat → Live Chat → Information / embed code (<code>phonesystem-url</code>).</p>
+          </div>
+          <div>
+            <label class="label" for="tcx_party">Live Chat party ID</label>
+            <input class="field" id="tcx_party" name="tcx_party" value="<%= settings.tcx_party || '' %>" placeholder="LiveChat12345" autocomplete="off" />
+            <p class="help">The <code>party="LiveChat…"</code> value from the same embed snippet.</p>
+          </div>
+        </div>
+        <div>
+          <label class="label" for="tcx_embed_snippet">Embed snippet (optional, advanced)</label>
+          <textarea class="field min-h-[100px] font-mono text-sm" id="tcx_embed_snippet" name="tcx_embed_snippet" placeholder='&lt;call-us-selector phonesystem-url="https://…" party="LiveChat…"&gt;&lt;/call-us-selector&gt;'><%= settings.tcx_embed_snippet || '' %></textarea>
+          <p class="help">Paste the full 3CX HTML if preferred. We only use the phonesystem URL and party from it (script tags from non-3CX domains are ignored). Prefer the fields above when possible.</p>
+        </div>
+        <div class="grid gap-4 md:grid-cols-2">
+          <div>
+            <label class="label" for="tcx_talk_url">3CX Talk / Meet link (optional)</label>
+            <input class="field" id="tcx_talk_url" name="tcx_talk_url" value="<%= settings.tcx_talk_url || '' %>" placeholder="https://…3cx…/join/…" autocomplete="off" />
+            <p class="help">Browser click-to-call without dialling. Opens in a new tab as “Call in browser”.</p>
+          </div>
+          <div>
+            <label class="label" for="tcx_call_number">Click-to-call number (optional)</label>
+            <input class="field" id="tcx_call_number" name="tcx_call_number" value="<%= settings.tcx_call_number || '' %>" placeholder="Falls back to Phone above" autocomplete="tel" />
+            <p class="help">Used for the <code>tel:</code> “Call now” action. Leave blank to use the Contact phone setting.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
     <button class="btn-primary" type="submit">Save site settings</button>
   </form>
 </section>

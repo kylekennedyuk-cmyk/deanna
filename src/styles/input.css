@@ -570,3 +570,244 @@
 .bg-ivory\/95 {
   background-color: color-mix(in srgb, var(--brand-bg, #fbf8f3) 92%, white) !important;
 }
+
+/* ——— Branded 3CX floating widget (public site only) ——— */
+.tcx-widget {
+  position: fixed;
+  right: 1rem;
+  bottom: 1rem;
+  z-index: 40;
+  font-family: inherit;
+}
+
+@media (max-width: 640px) {
+  .tcx-widget {
+    right: 0.75rem;
+    bottom: 5.5rem; /* leave room for toast / mobile browser chrome */
+  }
+}
+
+.tcx-fab {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 3.5rem;
+  height: 3.5rem;
+  border-radius: 9999px;
+  border: 2px solid color-mix(in srgb, var(--brand-secondary, #d1a24a) 70%, white);
+  background: var(--brand-primary, #1a2b40);
+  color: #fff;
+  box-shadow: 0 10px 28px rgba(15, 26, 40, 0.28);
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.tcx-fab:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 14px 32px rgba(15, 26, 40, 0.34);
+}
+
+.tcx-fab-logo {
+  width: 2.25rem;
+  height: 2.25rem;
+  object-fit: contain;
+  border-radius: 9999px;
+  background: #fff;
+}
+
+.tcx-fab-icon {
+  width: 1.5rem;
+  height: 1.5rem;
+}
+
+.tcx-panel {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 0.75rem);
+  width: min(20.5rem, calc(100vw - 1.5rem));
+  padding: 1rem 1rem 1.1rem;
+  border-radius: 1.25rem;
+  border: 1px solid color-mix(in srgb, var(--brand-primary, #1a2b40) 12%, transparent);
+  background: color-mix(in srgb, var(--brand-bg, #fbf8f3) 92%, white);
+  box-shadow: 0 18px 40px rgba(15, 26, 40, 0.22);
+}
+
+.tcx-panel-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.tcx-panel-logo {
+  max-height: 2.5rem;
+  width: auto;
+  max-width: 10rem;
+  object-fit: contain;
+}
+
+.tcx-panel-brand {
+  margin: 0;
+  font-family: var(--font-display, Fraunces, Georgia, serif);
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--brand-primary, #1a2b40);
+}
+
+.tcx-panel-close {
+  flex-shrink: 0;
+  width: 2rem;
+  height: 2rem;
+  border: 0;
+  border-radius: 9999px;
+  background: color-mix(in srgb, var(--brand-primary, #1a2b40) 8%, white);
+  color: var(--brand-primary, #1a2b40);
+  font-size: 1.35rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.tcx-panel-greeting {
+  margin: 0.75rem 0 0;
+  font-size: 0.95rem;
+  line-height: 1.45;
+  color: color-mix(in srgb, var(--brand-primary, #1a2b40) 78%, #333);
+}
+
+.tcx-panel-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  margin-top: 1rem;
+}
+
+.tcx-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  width: 100%;
+  padding: 0.7rem 1rem;
+  border-radius: 9999px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  text-align: center;
+  text-decoration: none;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: transform 0.15s ease, background-color 0.15s ease;
+}
+
+.tcx-action:hover {
+  transform: translateY(-1px);
+}
+
+.tcx-action-primary {
+  background: var(--brand-primary, #1a2b40);
+  color: #fff;
+}
+
+.tcx-action-secondary {
+  background: transparent;
+  color: var(--brand-primary, #1a2b40);
+  border-color: color-mix(in srgb, var(--brand-secondary, #d1a24a) 80%, transparent);
+}
+
+.tcx-action-secondary:hover {
+  background: color-mix(in srgb, var(--brand-secondary, #d1a24a) 16%, white);
+}
+
+/* 3CX host stays in-flow for the open chat plate; only the default bubble is hidden via JS.
+   Do not clip/overflow-hide this host — that would trap the expanded chat UI. */
+.tcx-embed-host {
+  position: fixed;
+  right: 1rem;
+  bottom: 1rem;
+  width: 0;
+  height: 0;
+  z-index: 39;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.tcx-embed-host call-us-selector,
+.tcx-embed-host call-us {
+  pointer-events: auto;
+}
+
+/* If 3CX injects a second launcher outside our host, park it off-screen */
+body:not(.portal-shell) > call-us-selector,
+body:not(.portal-shell) > call-us {
+  position: fixed !important;
+  right: -9999px !important;
+  bottom: -9999px !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  z-index: -1 !important;
+}
+
+.tcx-fallback {
+  position: fixed;
+  inset: 0;
+  z-index: 45;
+}
+
+.tcx-fallback-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 26, 40, 0.45);
+}
+
+.tcx-fallback-sheet {
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: min(26rem, 100vw);
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  box-shadow: -12px 0 40px rgba(15, 26, 40, 0.25);
+}
+
+.tcx-fallback-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.85rem 1rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--brand-primary, #1a2b40) 10%, transparent);
+  background: var(--brand-primary, #1a2b40);
+  color: #fff;
+}
+
+.tcx-fallback-title {
+  margin: 0;
+  font-weight: 600;
+}
+
+.tcx-fallback-toolbar .tcx-panel-close {
+  background: rgba(255, 255, 255, 0.15);
+  color: #fff;
+}
+
+.tcx-fallback-frame {
+  flex: 1;
+  width: 100%;
+  border: 0;
+  background: #f5f5f5;
+}
+
+.tcx-fallback-hint {
+  margin: 0;
+  padding: 0.65rem 1rem;
+  font-size: 0.8rem;
+  color: color-mix(in srgb, var(--brand-primary, #1a2b40) 70%, #444);
+  border-top: 1px solid color-mix(in srgb, var(--brand-primary, #1a2b40) 10%, transparent);
+}
+
+.tcx-fallback-hint a {
+  font-weight: 600;
+  color: var(--brand-primary, #1a2b40);
+  text-decoration: underline;
+}

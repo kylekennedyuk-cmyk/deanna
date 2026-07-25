@@ -13,6 +13,7 @@ const { configurePassport } = require('./config/passport');
 const { createSessionMiddleware } = require('./config/session');
 const format = require('./utils/format');
 const { emptyBadgeCounts, getBadgeCounts } = require('./utils/notifications');
+const { resolveTcxConfig, renderTcxEmbedHtml } = require('./utils/tcx');
 
 const authRoutes = require('./modules/auth/routes');
 const cmsRoutes = require('./modules/cms/routes');
@@ -25,6 +26,8 @@ function applySafeLocals(res) {
   res.locals.siteName = res.locals.siteName || 'Destinations With Deanna';
   res.locals.siteTagline = res.locals.siteTagline || '';
   res.locals.settings = res.locals.settings || {};
+  res.locals.tcx = res.locals.tcx || { show: false, enabled: false, hasChat: false, hasCall: false };
+  res.locals.tcxEmbedHtml = res.locals.tcxEmbedHtml || '';
   res.locals.navHeader = res.locals.navHeader || [];
   res.locals.navFooter = res.locals.navFooter || [];
   res.locals.currentUser = res.locals.currentUser || null;
@@ -104,6 +107,8 @@ function createApp() {
       res.locals.siteName = settings.site_name || 'Destinations With Deanna';
       res.locals.siteTagline = settings.site_tagline || '';
       res.locals.settings = settings;
+      res.locals.tcx = resolveTcxConfig(settings);
+      res.locals.tcxEmbedHtml = renderTcxEmbedHtml(res.locals.tcx);
       res.locals.navHeader = nav.filter((n) => n.location === 'header');
       res.locals.navFooter = nav.filter((n) => n.location === 'footer');
       res.locals.currentUser = req.user || null;

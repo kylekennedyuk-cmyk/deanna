@@ -11,6 +11,7 @@ Premium Disneyland Paris holiday planning site with public pages, multi-step pla
 - Visual CMS section editor with preview
 - Media library with image metadata and folders
 - Editable branding, logo, navigation and footer
+- Branded 3CX live chat + click-to-call floating widget (Admin → Settings)
 - Dashboard-managed SMTP, branded notification templates and test email
 - Email notifications for requests, messages and plan status changes
 - Secure one-time password reset links
@@ -21,6 +22,16 @@ Premium Disneyland Paris holiday planning site with public pages, multi-step pla
 - **Password:** `password`
 
 Change this password after first login.
+
+## 3CX live chat & calls
+
+1. In 3CX Admin go to **Voice & chat → Live Chat** and open **Information** / the HTML embed snippet.
+2. Copy the `phonesystem-url` (e.g. `https://company.3cx.uk`) and `party` id (e.g. `LiveChat12345`).
+3. In the site: **Admin → Settings → Live chat & calls (3CX)** — set Widget to Enabled, paste URL + party (or the full snippet into the advanced field).
+4. Optional: add a **3CX Talk / Meet** link for browser calling, and/or a click-to-call number (falls back to the site Phone field).
+5. Save. The public site shows a branded FAB (logo + brand colours); the default 3CX bubble stays hidden. Portals (admin/agent/customer) never show the widget.
+
+**Live chat** clicks the hidden 3CX `#wplc-chat-button` (nested shadow DOM). If that fails to mount, a slide-over fallback opens `{phonesystem}/callus/#party=…` (best-effort) with a new-tab link.
 
 ## Local setup (Windows)
 

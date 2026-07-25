@@ -57,6 +57,13 @@ async function main() {
     ['smtp_reply_to', process.env.SUPPORT_EMAIL || 'hello@destinationswithdeanna.com'],
     ['planner_enabled', 'true'],
     ['maintenance_mode', 'false'],
+    ['tcx_enabled', 'false'],
+    ['tcx_phonesystem_url', ''],
+    ['tcx_party', ''],
+    ['tcx_embed_snippet', ''],
+    ['tcx_talk_url', ''],
+    ['tcx_call_number', ''],
+    ['tcx_greeting', 'Chat or call Destinations With Deanna'],
   ];
 
   for (const [key, value] of defaults) {
