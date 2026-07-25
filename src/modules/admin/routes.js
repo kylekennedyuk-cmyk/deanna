@@ -5,7 +5,7 @@ const fs = require('fs');
 const multer = require('multer');
 const { prisma } = require('../../config/database');
 const { createTransport } = require('../../config/email');
-const { encryptSecret, getSettings, setSettings } = require('../../config/settings');
+const { encryptSecret, decryptSecret, getSettings, setSettings } = require('../../config/settings');
 const { requireRole } = require('../../middleware/auth');
 
 const router = express.Router();
@@ -449,10 +449,17 @@ router.post('/media/:id/delete', async (req, res, next) => {
 router.get('/notifications', async (req, res, next) => {
   try {
     const settings = await getSettings();
+    const decryptedPass = decryptSecret(settings.smtp_pass || '');
+    const passBroken =
+      Boolean(settings.smtp_pass) &&
+      String(settings.smtp_pass).startsWith('enc:v1:') &&
+      !decryptedPass &&
+      !process.env.SMTP_PASS;
     return res.render('admin/notifications', {
       title: 'Email & notifications',
       settings,
-      passwordConfigured: Boolean(settings.smtp_pass || process.env.SMTP_PASS),
+      passwordConfigured: Boolean(decryptedPass || process.env.SMTP_PASS),
+      passwordBroken: passBroken,
       saved: req.query.saved === '1',
       tested: req.query.tested === '1',
       error: req.query.error || null,
@@ -464,12 +471,14 @@ router.get('/notifications', async (req, res, next) => {
 
 router.post('/notifications', async (req, res, next) => {
   try {
+    const port = String(req.body.smtp_port || '587').trim();
+    const secureChecked = req.body.smtp_secure === 'on' || port === '465';
     const values = {
       email_notifications_enabled:
         req.body.email_notifications_enabled === 'on' ? 'true' : 'false',
       smtp_host: String(req.body.smtp_host || '').trim(),
-      smtp_port: String(req.body.smtp_port || '587').trim(),
-      smtp_secure: req.body.smtp_secure === 'on' ? 'true' : 'false',
+      smtp_port: port,
+      smtp_secure: secureChecked ? 'true' : 'false',
       smtp_user: String(req.body.smtp_user || '').trim(),
       smtp_from_name: String(req.body.smtp_from_name || '').trim(),
       smtp_from_email: String(req.body.smtp_from_email || '').trim(),
@@ -507,23 +516,31 @@ router.post('/notifications', async (req, res, next) => {
 router.post('/notifications/test', async (req, res, next) => {
   try {
     const destination = String(req.body.test_email || req.user.email).trim();
-    const { transport, settings } = await createTransport();
+    const { transport, settings, reason } = await createTransport();
     if (!transport) {
       return res.redirect(
-        `/admin/notifications?error=${encodeURIComponent('SMTP is not configured or notifications are disabled.')}`
+        `/admin/notifications?error=${encodeURIComponent(reason || 'SMTP is not configured.')}`
       );
     }
+
+    await transport.verify();
     await transport.sendMail({
       from: `"${settings.fromName}" <${settings.fromEmail}>`,
       replyTo: settings.replyTo || undefined,
       to: destination,
       subject: 'Destinations With Deanna email test',
-      html: `<div style="font-family:Arial,sans-serif;padding:32px"><h1 style="color:#1a2b40">Email is working</h1><p>Your website can now send planning and portal notifications.</p></div>`,
-      text: 'Email is working. Your website can now send planning and portal notifications.',
+      html: `<div style="font-family:Arial,sans-serif;padding:32px"><h1 style="color:#1a2b40">Email is working</h1><p>Your website can now send planning and portal notifications via ${settings.host}:${settings.port}.</p></div>`,
+      text: `Email is working. Your website can now send planning and portal notifications via ${settings.host}:${settings.port}.`,
     });
     return res.redirect('/admin/notifications?tested=1');
   } catch (err) {
-    return res.redirect(`/admin/notifications?error=${encodeURIComponent(err.message)}`);
+    const detail = [err.responseCode, err.response, err.message]
+      .filter(Boolean)
+      .map(String)
+      .filter((part, index, arr) => arr.indexOf(part) === index)
+      .join(' — ');
+    console.error('[email test failed]', detail);
+    return res.redirect(`/admin/notifications?error=${encodeURIComponent(detail || 'Test email failed.')}`);
   }
 });
 

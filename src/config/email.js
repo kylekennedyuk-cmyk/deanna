@@ -18,22 +18,39 @@ function interpolate(template, values) {
 
 async function resolveEmailSettings() {
   const stored = await getSettings();
+  const port = Number(stored.smtp_port || process.env.SMTP_PORT || 587);
+  const secureFlag =
+    stored.smtp_secure === 'true' ||
+    String(process.env.SMTP_SECURE || '').toLowerCase() === 'true';
+  // Port 465 is always implicit TLS; port 587 uses STARTTLS when not marked secure.
+  const secure = port === 465 || secureFlag;
+  const encryptedPass = stored.smtp_pass || '';
+  const decryptedPass = decryptSecret(encryptedPass);
+  const passBroken =
+    Boolean(encryptedPass) &&
+    String(encryptedPass).startsWith('enc:v1:') &&
+    !decryptedPass &&
+    !process.env.SMTP_PASS;
+
   return {
     enabled: stored.email_notifications_enabled !== 'false',
-    host: stored.smtp_host || process.env.SMTP_HOST || '',
-    port: Number(stored.smtp_port || process.env.SMTP_PORT || 587),
-    secure:
-      stored.smtp_secure === 'true' ||
-      Number(stored.smtp_port || process.env.SMTP_PORT) === 465,
-    user: stored.smtp_user || process.env.SMTP_USER || '',
-    pass: decryptSecret(stored.smtp_pass || '') || process.env.SMTP_PASS || '',
+    host: String(stored.smtp_host || process.env.SMTP_HOST || '').trim(),
+    port,
+    secure,
+    requireTLS: port === 587 && !secure,
+    user: String(stored.smtp_user || process.env.SMTP_USER || '').trim(),
+    pass: decryptedPass || process.env.SMTP_PASS || '',
+    passBroken,
     fromName: stored.smtp_from_name || 'Destinations With Deanna',
-    fromEmail:
+    fromEmail: String(
       stored.smtp_from_email ||
-      process.env.SMTP_FROM_EMAIL ||
-      process.env.SUPPORT_EMAIL ||
-      '',
-    replyTo: stored.smtp_reply_to || stored.support_email || process.env.SUPPORT_EMAIL || '',
+        process.env.SMTP_FROM_EMAIL ||
+        process.env.SUPPORT_EMAIL ||
+        ''
+    ).trim(),
+    replyTo: String(
+      stored.smtp_reply_to || stored.support_email || process.env.SUPPORT_EMAIL || ''
+    ).trim(),
     siteName: stored.site_name || 'Destinations With Deanna',
     logoUrl: stored.logo_url || '',
     primaryColour: stored.primary_colour || '#1a2b40',
@@ -42,29 +59,58 @@ async function resolveEmailSettings() {
   };
 }
 
+function transportBlockReason(settings) {
+  if (!settings.enabled) {
+    return 'Email notifications are disabled. Turn on “Notifications enabled” and save.';
+  }
+  if (!settings.host) {
+    return 'SMTP host is missing. Enter prime.ax (or your mail host) and save.';
+  }
+  if (!settings.user) {
+    return 'SMTP username is missing. Use the full mailbox address, e.g. dee@destinationswithdeanna.com.';
+  }
+  if (settings.passBroken) {
+    return 'Saved SMTP password cannot be decrypted (encryption key changed). Re-enter the mailbox password and save.';
+  }
+  if (!settings.pass) {
+    return 'SMTP password is missing. Enter the mailbox password and save.';
+  }
+  if (!settings.fromEmail) {
+    return 'From email is missing. Use the same mailbox address you authenticate with.';
+  }
+  return null;
+}
+
 async function createTransport() {
   const settings = await resolveEmailSettings();
-  if (!settings.enabled || !settings.host) return { transport: null, settings };
+  const reason = transportBlockReason(settings);
+  if (reason) return { transport: null, settings, reason };
 
   const transport = nodemailer.createTransport({
     host: settings.host,
     port: settings.port,
     secure: settings.secure,
-    auth: settings.user
-      ? {
-          user: settings.user,
-          pass: settings.pass,
-        }
-      : undefined,
+    requireTLS: settings.requireTLS,
+    auth: {
+      user: settings.user,
+      pass: settings.pass,
+    },
+    connectionTimeout: 20000,
+    greetingTimeout: 20000,
+    socketTimeout: 30000,
+    tls: {
+      servername: settings.host,
+      minVersion: 'TLSv1.2',
+    },
   });
-  return { transport, settings };
+  return { transport, settings, reason: null };
 }
 
 async function sendMail({ to, subject, text, html }) {
-  const { transport, settings } = await createTransport();
+  const { transport, settings, reason } = await createTransport();
   if (!transport) {
-    console.log(`[email skipped] To: ${to} | ${subject}`);
-    return { skipped: true };
+    console.log(`[email skipped] To: ${to} | ${subject} | ${reason || 'not configured'}`);
+    return { skipped: true, reason };
   }
 
   return transport.sendMail({
@@ -170,4 +216,5 @@ module.exports = {
   resolveEmailSettings,
   sendMail,
   sendNotification,
+  transportBlockReason,
 };

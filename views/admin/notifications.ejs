@@ -10,6 +10,7 @@
   <% if (saved) { %><div class="mb-5 rounded-card border border-success-100 bg-success-50 px-4 py-3 text-success-700">Email settings saved.</div><% } %>
   <% if (tested) { %><div class="mb-5 rounded-card border border-success-100 bg-success-50 px-4 py-3 text-success-700">Test email sent successfully.</div><% } %>
   <% if (error) { %><div class="mb-5 rounded-card border border-danger-100 bg-danger-50 px-4 py-3 text-danger-700" role="alert"><%= error %></div><% } %>
+  <% if (typeof passwordBroken !== 'undefined' && passwordBroken) { %><div class="mb-5 rounded-card border border-danger-100 bg-danger-50 px-4 py-3 text-danger-700" role="alert">The saved SMTP password cannot be decrypted. Re-enter the mailbox password below and save.</div><% } %>
 
   <form method="post" action="/admin/notifications" class="space-y-6">
     <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
@@ -17,7 +18,7 @@
       <div class="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h2 class="text-2xl">SMTP delivery</h2>
-          <p class="mt-1 text-sm text-primary-600">Your SMTP password is encrypted before it is stored.</p>
+          <p class="mt-1 text-sm text-primary-600">Use your mailbox SMTP details. Port <strong>465</strong> needs SSL/TLS (ticked automatically when you save).</p>
         </div>
         <label class="flex items-center gap-3 rounded-full bg-primary-50 px-4 py-2 text-sm font-semibold">
           <input type="checkbox" name="email_notifications_enabled" <%= settings.email_notifications_enabled !== 'false' ? 'checked' : '' %> />
@@ -26,19 +27,29 @@
       </div>
 
       <div class="mt-6 grid gap-4 md:grid-cols-2">
-        <div><label class="label" for="smtp_host">SMTP host</label><input class="field" id="smtp_host" name="smtp_host" value="<%= settings.smtp_host || '' %>" placeholder="smtp.example.com" /></div>
-        <div class="grid grid-cols-[1fr_auto] gap-3">
-          <div><label class="label" for="smtp_port">Port</label><input class="field" id="smtp_port" name="smtp_port" type="number" value="<%= settings.smtp_port || '587' %>" /></div>
-          <label class="mt-7 flex items-center gap-2 text-sm"><input type="checkbox" name="smtp_secure" <%= settings.smtp_secure === 'true' ? 'checked' : '' %> /> SSL/TLS</label>
+        <div>
+          <label class="label" for="smtp_host">SMTP host</label>
+          <input class="field" id="smtp_host" name="smtp_host" value="<%= settings.smtp_host || '' %>" placeholder="prime.ax" />
         </div>
-        <div><label class="label" for="smtp_user">Username</label><input class="field" id="smtp_user" name="smtp_user" value="<%= settings.smtp_user || '' %>" autocomplete="off" /></div>
+        <div class="grid grid-cols-[1fr_auto] gap-3">
+          <div><label class="label" for="smtp_port">Port</label><input class="field" id="smtp_port" name="smtp_port" type="number" value="<%= settings.smtp_port || '465' %>" /></div>
+          <label class="mt-7 flex items-center gap-2 text-sm"><input type="checkbox" name="smtp_secure" <%= settings.smtp_secure === 'true' || settings.smtp_port === '465' || !settings.smtp_port ? 'checked' : '' %> /> SSL/TLS</label>
+        </div>
+        <div>
+          <label class="label" for="smtp_user">Username</label>
+          <input class="field" id="smtp_user" name="smtp_user" value="<%= settings.smtp_user || '' %>" placeholder="dee@destinationswithdeanna.com" autocomplete="off" />
+        </div>
         <div>
           <label class="label" for="smtp_pass">Password</label>
-          <input class="field" id="smtp_pass" name="smtp_pass" type="password" placeholder="<%= passwordConfigured ? 'Password saved — leave blank to keep it' : 'SMTP password' %>" autocomplete="new-password" />
+          <input class="field" id="smtp_pass" name="smtp_pass" type="password" placeholder="<%= passwordConfigured ? 'Password saved — leave blank to keep it' : 'Mailbox password' %>" autocomplete="new-password" />
         </div>
         <div><label class="label" for="smtp_from_name">From name</label><input class="field" id="smtp_from_name" name="smtp_from_name" value="<%= settings.smtp_from_name || 'Destinations With Deanna' %>" /></div>
-        <div><label class="label" for="smtp_from_email">From email</label><input class="field" id="smtp_from_email" name="smtp_from_email" type="email" value="<%= settings.smtp_from_email || '' %>" /></div>
-        <div class="md:col-span-2"><label class="label" for="smtp_reply_to">Reply-to email</label><input class="field" id="smtp_reply_to" name="smtp_reply_to" type="email" value="<%= settings.smtp_reply_to || settings.support_email || '' %>" /></div>
+        <div>
+          <label class="label" for="smtp_from_email">From email</label>
+          <input class="field" id="smtp_from_email" name="smtp_from_email" type="email" value="<%= settings.smtp_from_email || '' %>" placeholder="dee@destinationswithdeanna.com" />
+          <p class="help">Should match the mailbox you authenticate with.</p>
+        </div>
+        <div class="md:col-span-2"><label class="label" for="smtp_reply_to">Reply-to email</label><input class="field" id="smtp_reply_to" name="smtp_reply_to" type="email" value="<%= settings.smtp_reply_to || settings.support_email || '' %>" placeholder="dee@destinationswithdeanna.com" /></div>
       </div>
     </section>
 
