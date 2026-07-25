@@ -56,9 +56,10 @@ async function resolveImapSettings() {
   const encryptedPass = stored.imap_pass || '';
   const decryptedPass = decryptSecret(encryptedPass);
   const port = Number(stored.imap_port || process.env.IMAP_PORT || 993);
+  const { normalizeSmtpHost } = require('./email');
 
   return {
-    host: String(stored.imap_host || process.env.IMAP_HOST || smtp.host || '').trim(),
+    host: normalizeSmtpHost(stored.imap_host || process.env.IMAP_HOST || smtp.host || ''),
     port,
     secure: port === 993 || String(stored.imap_tls || process.env.IMAP_TLS || 'true').toLowerCase() !== 'false',
     user: String(stored.imap_user || process.env.IMAP_USER || smtp.user || '').trim(),

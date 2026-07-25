@@ -16,6 +16,16 @@ function interpolate(template, values) {
   );
 }
 
+/** Fix common host typos (prime.sx is not the mail server — prime.ax is). */
+function normalizeSmtpHost(host) {
+  const value = String(host || '').trim().toLowerCase();
+  if (!value) return '';
+  if (value === 'prime.sx' || value === 'prime.as' || value === 'prine.ax') {
+    return 'prime.ax';
+  }
+  return String(host || '').trim();
+}
+
 async function resolveEmailSettings() {
   const stored = await getSettings();
   const port = Number(stored.smtp_port || process.env.SMTP_PORT || 587);
@@ -34,7 +44,7 @@ async function resolveEmailSettings() {
 
   return {
     enabled: stored.email_notifications_enabled !== 'false',
-    host: String(stored.smtp_host || process.env.SMTP_HOST || '').trim(),
+    host: normalizeSmtpHost(stored.smtp_host || process.env.SMTP_HOST || ''),
     port,
     secure,
     requireTLS: port === 587 && !secure,
@@ -126,9 +136,9 @@ function buildTransport(settings) {
     maxMessages: 100,
     rateDelta: 1000,
     rateLimit: 5,
-    connectionTimeout: 6000,
-    greetingTimeout: 6000,
-    socketTimeout: 12000,
+    connectionTimeout: 4000,
+    greetingTimeout: 4000,
+    socketTimeout: 8000,
     // Avoid slow IPv6 → IPv4 fallback delays on some hosts.
     family: 4,
     tls: {
@@ -388,6 +398,7 @@ module.exports = {
   closeCachedTransport,
   createTransport,
   escapeHtml,
+  normalizeSmtpHost,
   resolveEmailSettings,
   sendMail,
   sendNotification,

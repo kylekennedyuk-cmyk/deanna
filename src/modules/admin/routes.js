@@ -4,7 +4,7 @@ const path = require('path');
 const fs = require('fs');
 const multer = require('multer');
 const { prisma } = require('../../config/database');
-const { createTransport, closeCachedTransport, sendMail } = require('../../config/email');
+const { createTransport, closeCachedTransport, sendMail, normalizeSmtpHost } = require('../../config/email');
 const { encryptSecret, decryptSecret, getSettings, setSettings } = require('../../config/settings');
 const { requireRole } = require('../../middleware/auth');
 
@@ -449,6 +449,10 @@ router.post('/media/:id/delete', async (req, res, next) => {
 router.get('/notifications', async (req, res, next) => {
   try {
     const settings = await getSettings();
+    const displayed = {
+      ...settings,
+      smtp_host: normalizeSmtpHost(settings.smtp_host || '') || settings.smtp_host || '',
+    };
     const decryptedPass = decryptSecret(settings.smtp_pass || '');
     const passBroken =
       Boolean(settings.smtp_pass) &&
@@ -457,7 +461,7 @@ router.get('/notifications', async (req, res, next) => {
       !process.env.SMTP_PASS;
     return res.render('admin/notifications', {
       title: 'Email & notifications',
-      settings,
+      settings: displayed,
       passwordConfigured: Boolean(decryptedPass || process.env.SMTP_PASS),
       passwordBroken: passBroken,
       saved: req.query.saved === '1',
@@ -476,13 +480,16 @@ router.post('/notifications', async (req, res, next) => {
     const values = {
       email_notifications_enabled:
         req.body.email_notifications_enabled === 'on' ? 'true' : 'false',
-      smtp_host: String(req.body.smtp_host || '').trim(),
+      smtp_host: normalizeSmtpHost(req.body.smtp_host || ''),
       smtp_port: port,
       smtp_secure: secureChecked ? 'true' : 'false',
       smtp_user: String(req.body.smtp_user || '').trim(),
       smtp_from_name: String(req.body.smtp_from_name || '').trim(),
       smtp_from_email: String(req.body.smtp_from_email || '').trim(),
       smtp_reply_to: String(req.body.smtp_reply_to || '').trim(),
+      // Keep IMAP aligned with SMTP host when using the same provider
+      imap_host: normalizeSmtpHost(req.body.smtp_host || process.env.IMAP_HOST || ''),
+      imap_user: String(req.body.smtp_user || '').trim(),
       email_new_request_subject: String(req.body.email_new_request_subject || '').trim(),
       email_new_request_heading: String(req.body.email_new_request_heading || '').trim(),
       email_new_request_intro: String(req.body.email_new_request_intro || '').trim(),
@@ -505,6 +512,7 @@ router.post('/notifications', async (req, res, next) => {
 
     if (req.body.smtp_pass) {
       values.smtp_pass = encryptSecret(req.body.smtp_pass);
+      values.imap_pass = values.smtp_pass;
     }
     await setSettings(values);
     closeCachedTransport();
@@ -524,12 +532,30 @@ router.post('/notifications/test', async (req, res, next) => {
       );
     }
 
-    await sendMail({
-      to: destination,
-      subject: 'Destinations With Deanna email test',
-      html: `<div style="font-family:Arial,sans-serif;padding:32px"><h1 style="color:#1a2b40">Email is working</h1><p>Your website can now send planning and portal notifications via ${settings.host}:${settings.port}.</p></div>`,
-      text: `Email is working. Your website can now send planning and portal notifications via ${settings.host}:${settings.port}.`,
-    });
+    // Cap wait so the admin UI never hangs for 20+ seconds.
+    const result = await Promise.race([
+      sendMail({
+        to: destination,
+        subject: 'Destinations With Deanna email test',
+        html: `<div style="font-family:Arial,sans-serif;padding:32px"><h1 style="color:#1a2b40">Email is working</h1><p>Your website can now send planning and portal notifications via ${settings.host}:${settings.port}.</p></div>`,
+        text: `Email is working. Your website can now send planning and portal notifications via ${settings.host}:${settings.port}.`,
+      }),
+      new Promise((_, reject) => {
+        setTimeout(() => {
+          reject(
+            new Error(
+              `Connection timed out talking to ${settings.host}:${settings.port}. Check the host is prime.ax (not prime.sx), port 465 with SSL, and that the server can reach outbound SMTP.`
+            )
+          );
+        }, 12000);
+      }),
+    ]);
+
+    if (result && result.skipped) {
+      return res.redirect(
+        `/admin/notifications?error=${encodeURIComponent(result.reason || 'SMTP is not configured.')}`
+      );
+    }
     return res.redirect('/admin/notifications?tested=1');
   } catch (err) {
     const detail = [err.responseCode, err.response, err.message]

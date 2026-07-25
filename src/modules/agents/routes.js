@@ -515,17 +515,19 @@ router.post('/mailbox/send', async (req, res) => {
   }
 
   try {
-    const result = await sendMailboxMail({
-      to,
-      cc: cc || undefined,
-      subject,
-      text: body,
-      inReplyTo: inReplyTo || undefined,
-      references: references || undefined,
+    // Send in the background so compose doesn't hang on slow SMTP.
+    setImmediate(() => {
+      sendMailboxMail({
+        to,
+        cc: cc || undefined,
+        subject,
+        text: body,
+        inReplyTo: inReplyTo || undefined,
+        references: references || undefined,
+      }).catch((err) => {
+        console.error('[mailbox send]', err.message || err);
+      });
     });
-    if (result && result.skipped) {
-      throw new Error(result.reason || 'SMTP is not configured.');
-    }
     return res.redirect('/agent/mailbox?folder=Sent&sent=1');
   } catch (err) {
     return res.render('agent/mailbox-compose', {

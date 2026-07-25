@@ -9,7 +9,7 @@
 
   <% if (saved) { %><div class="mb-5 rounded-card border border-success-100 bg-success-50 px-4 py-3 text-success-700">Email settings saved.</div><% } %>
   <% if (tested) { %><div class="mb-5 rounded-card border border-success-100 bg-success-50 px-4 py-3 text-success-700">Test email sent successfully.</div><% } %>
-  <% if (error) { %><div class="mb-5 rounded-card border border-danger-100 bg-danger-50 px-4 py-3 text-danger-700" role="alert"><%= error %></div><% } %>
+  <% if (error) { %><div class="mb-5 rounded-card border border-danger-100 bg-danger-50 px-4 py-3 text-danger-700" role="alert"><%= error %><% if (/timeout|prime\.sx/i.test(String(error || ''))) { %><br /><span class="mt-2 block text-sm">Confirm SMTP host is <strong>prime.ax</strong> (with an “a”), port <strong>465</strong>, SSL/TLS on, then Save and try again.</span><% } %></div><% } %>
   <% if (typeof passwordBroken !== 'undefined' && passwordBroken) { %><div class="mb-5 rounded-card border border-danger-100 bg-danger-50 px-4 py-3 text-danger-700" role="alert">The saved SMTP password cannot be decrypted. Re-enter the mailbox password below and save.</div><% } %>
 
   <form method="post" action="/admin/notifications" class="space-y-6">
@@ -30,6 +30,7 @@
         <div>
           <label class="label" for="smtp_host">SMTP host</label>
           <input class="field" id="smtp_host" name="smtp_host" value="<%= settings.smtp_host || '' %>" placeholder="prime.ax" />
+          <p class="help">Must be <strong>prime.ax</strong> — not prime.sx.</p>
         </div>
         <div class="grid grid-cols-[1fr_auto] gap-3">
           <div><label class="label" for="smtp_port">Port</label><input class="field" id="smtp_port" name="smtp_port" type="number" value="<%= settings.smtp_port || '465' %>" /></div>
