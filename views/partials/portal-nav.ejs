@@ -2,7 +2,7 @@
   const role = currentUser && currentUser.role;
   const portalHome = role === 'admin' ? '/admin' : (role === 'agent' ? '/agent' : '/customer');
   const portalLabel = role === 'admin' ? 'Admin dashboard' : (role === 'agent' ? 'Agent dashboard' : 'My dashboard');
-  const counts = typeof badgeCounts !== 'undefined' && badgeCounts ? badgeCounts : { messages: 0, plans: 0, mailbox: 0, total: 0 };
+  const counts = typeof badgeCounts !== 'undefined' && badgeCounts ? badgeCounts : { messages: 0, plans: 0, mailbox: 0, changeRequests: 0, total: 0 };
 %>
 <nav class="mb-6 flex flex-wrap items-center gap-2 border-b border-primary-100/80 pb-4" aria-label="Portal">
   <a href="<%= portalHome %>" class="btn-ghost btn-sm">
@@ -17,6 +17,10 @@
     <a href="/admin/users" class="btn-ghost btn-sm">Users</a>
     <a href="/admin/settings" class="btn-ghost btn-sm">Settings</a>
     <a href="/admin/notifications" class="btn-ghost btn-sm">Email</a>
+    <a href="/admin/change-requests" class="btn-ghost btn-sm">
+      Site changes
+      <%- include('count-badge', { count: counts.changeRequests, label: counts.changeRequests + ' open site change requests' }) %>
+    </a>
     <a href="/agent" class="btn-ghost btn-sm">Agent workspace</a>
     <a href="/agent/plans?filter=active" class="btn-ghost btn-sm">
       Plans
@@ -44,6 +48,7 @@
       Mailbox
       <%- include('count-badge', { count: counts.mailbox, label: counts.mailbox + ' unread emails' }) %>
     </a>
+    <a href="/agent/change-requests" class="btn-ghost btn-sm">Site changes</a>
     <a href="/agent/password" class="btn-ghost btn-sm">Password</a>
   <% } %>
   <a href="/" class="btn-ghost btn-sm ml-auto">View website</a>

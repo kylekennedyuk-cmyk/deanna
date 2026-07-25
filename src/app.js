@@ -35,6 +35,9 @@ function applySafeLocals(res) {
   res.locals.statusLabel = format.statusLabel;
   res.locals.nextAction = format.nextAction;
   res.locals.statusBadgeClass = format.statusBadgeClass;
+  res.locals.changeRequestStatusLabel = format.changeRequestStatusLabel;
+  res.locals.changeRequestStatusBadgeClass = format.changeRequestStatusBadgeClass;
+  res.locals.changeRequestAreaLabel = format.changeRequestAreaLabel;
   res.locals.formatMoney = format.formatMoney;
   res.locals.formatDateTime = format.formatDateTime;
   res.locals.preferenceEntries = format.preferenceEntries;
@@ -43,6 +46,8 @@ function applySafeLocals(res) {
   res.locals.isBookedStatus = format.isBookedStatus;
   res.locals.canDownloadConfirmation = format.canDownloadConfirmation;
   res.locals.PLAN_STATUS_OPTIONS = format.PLAN_STATUS_OPTIONS;
+  res.locals.CHANGE_REQUEST_STATUSES = format.CHANGE_REQUEST_STATUSES;
+  res.locals.CHANGE_REQUEST_AREAS = format.CHANGE_REQUEST_AREAS;
 }
 
 function createApp() {

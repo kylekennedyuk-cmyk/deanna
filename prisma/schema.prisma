@@ -26,6 +26,7 @@ model User {
   messageReads            MessageRead[]
   documents               Document[]
   resetTokens             PasswordResetToken[]
+  changeRequests          ChangeRequest[]
 }
 
 model PasswordResetToken {
@@ -157,4 +158,19 @@ model NavItem {
   visible   Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+/// Agent-submitted website content changes for admin to action.
+model ChangeRequest {
+  id             Int      @id @default(autoincrement())
+  requesterId    Int
+  requester      User     @relation(fields: [requesterId], references: [id])
+  area           String // homepage | offers | copy | navigation | other
+  title          String
+  details        String
+  /// open | in_progress | actioned | declined
+  status         String   @default("open")
+  resolutionNote String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 }

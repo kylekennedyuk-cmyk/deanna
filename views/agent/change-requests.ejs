@@ -1,0 +1,63 @@
+<%- include('../partials/shell-start', { bodyClass: 'portal-shell' }) %>
+<section class="section-sm">
+  <%- include('../partials/portal-nav', { backHref: '/agent', backLabel: 'Agent home' }) %>
+  <div class="mb-8">
+    <p class="badge bg-secondary-100 text-secondary-800">Website</p>
+    <h1 class="mt-3 text-display-md">Site changes</h1>
+    <p class="mt-2 text-primary-700">Tell admin which parts of the website need updating. Track the status of your requests below.</p>
+  </div>
+
+  <% if (saved) { %><div class="mb-5 rounded-card border border-success-100 bg-success-50 px-4 py-3 text-success-700">Change request submitted.</div><% } %>
+  <% if (error) { %><div class="mb-5 rounded-card border border-danger-100 bg-danger-50 px-4 py-3 text-danger-700"><%= error %></div><% } %>
+
+  <form method="post" action="/agent/change-requests" class="card space-y-4">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+    <h2 class="text-2xl">New request</h2>
+    <div>
+      <label class="label" for="area">Area</label>
+      <select class="field" id="area" name="area" required>
+        <% areas.forEach(function(item) { %>
+          <option value="<%= item.value %>" <%= form.area === item.value ? 'selected' : '' %>><%= item.label %></option>
+        <% }) %>
+      </select>
+    </div>
+    <div>
+      <label class="label" for="title">Title</label>
+      <input class="field" id="title" name="title" value="<%= form.title || '' %>" required maxlength="200" />
+    </div>
+    <div>
+      <label class="label" for="details">Details</label>
+      <textarea class="field min-h-[120px]" id="details" name="details" required><%= form.details || '' %></textarea>
+      <p class="help">Describe what should change and where it appears on the site.</p>
+    </div>
+    <button class="btn-primary" type="submit">Submit request</button>
+  </form>
+
+  <div class="mt-8 space-y-4">
+    <h2 class="text-2xl">Your requests</h2>
+    <% if (!requests.length) { %>
+      <div class="card text-primary-600">No site change requests yet.</div>
+    <% } %>
+    <% requests.forEach(function(item) { %>
+      <article class="card">
+        <div class="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h3 class="text-xl text-primary-950"><%= item.title %></h3>
+            <p class="mt-1 text-sm text-primary-600">
+              <%= changeRequestAreaLabel(item.area) %>
+              · <%= formatDateTime(item.createdAt) %>
+            </p>
+          </div>
+          <%- include('../partials/change-request-badge', { status: item.status }) %>
+        </div>
+        <p class="mt-3 whitespace-pre-wrap text-primary-800"><%= item.details %></p>
+        <% if (item.resolutionNote) { %>
+          <p class="mt-3 rounded-2xl bg-primary-50/70 px-3 py-2 text-sm text-primary-700">
+            <span class="font-semibold">Admin note:</span> <%= item.resolutionNote %>
+          </p>
+        <% } %>
+      </article>
+    <% }) %>
+  </div>
+</section>
+<%- include('../partials/shell-end') %>

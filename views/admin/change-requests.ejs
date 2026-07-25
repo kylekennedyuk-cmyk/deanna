@@ -1,0 +1,63 @@
+<%- include('../partials/shell-start', { bodyClass: 'portal-shell' }) %>
+<section class="section-sm">
+  <%- include('../partials/portal-nav', { backHref: '/admin', backLabel: 'Admin home' }) %>
+  <div class="mb-8">
+    <p class="badge bg-secondary-100 text-secondary-800">Website</p>
+    <h1 class="mt-3 text-display-md">Site change requests</h1>
+    <p class="mt-2 text-primary-700">Review agent requests, update status when work is done, or delete items that are no longer needed.</p>
+  </div>
+
+  <% if (saved) { %><div class="mb-5 rounded-card border border-success-100 bg-success-50 px-4 py-3 text-success-700">Request updated.</div><% } %>
+  <% if (typeof deleted !== 'undefined' && deleted) { %><div class="mb-5 rounded-card border border-success-100 bg-success-50 px-4 py-3 text-success-700">Request deleted.</div><% } %>
+
+  <div class="space-y-4">
+    <% if (!requests.length) { %>
+      <div class="card text-primary-600">No site change requests yet.</div>
+    <% } %>
+    <% requests.forEach(function(item) { %>
+      <article class="card space-y-4">
+        <div class="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h2 class="text-2xl text-primary-950"><%= item.title %></h2>
+            <p class="mt-1 text-sm text-primary-600">
+              <%= changeRequestAreaLabel(item.area) %>
+              · <%= item.requester ? item.requester.name : 'Unknown' %>
+              <% if (item.requester && item.requester.email) { %>(<%= item.requester.email %>)<% } %>
+              · <%= formatDateTime(item.createdAt) %>
+            </p>
+          </div>
+          <%- include('../partials/change-request-badge', { status: item.status }) %>
+        </div>
+        <p class="whitespace-pre-wrap text-primary-800"><%= item.details %></p>
+
+        <form method="post" action="/admin/change-requests/<%= item.id %>" class="space-y-3 border-t border-primary-100 pt-4">
+          <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+          <div class="grid gap-4 sm:grid-cols-2">
+            <div>
+              <label class="label" for="status-<%= item.id %>">Status</label>
+              <select class="field" id="status-<%= item.id %>" name="status" required>
+                <% statuses.forEach(function(status) { %>
+                  <option value="<%= status %>" <%= item.status === status ? 'selected' : '' %>><%= changeRequestStatusLabel(status) %></option>
+                <% }) %>
+              </select>
+            </div>
+            <div>
+              <label class="label" for="note-<%= item.id %>">Resolution note</label>
+              <input class="field" id="note-<%= item.id %>" name="resolutionNote" value="<%= item.resolutionNote || '' %>" placeholder="Optional note for the agent" />
+            </div>
+          </div>
+          <div class="flex flex-wrap gap-2">
+            <button class="btn-primary btn-sm" type="submit">Save status</button>
+            <button
+              class="btn-logout btn-sm"
+              type="submit"
+              formaction="/admin/change-requests/<%= item.id %>/delete"
+              onclick="return confirm('Delete this change request permanently?')"
+            >Delete</button>
+          </div>
+        </form>
+      </article>
+    <% }) %>
+  </div>
+</section>
+<%- include('../partials/shell-end') %>

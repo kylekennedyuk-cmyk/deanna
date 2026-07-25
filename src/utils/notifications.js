@@ -4,6 +4,7 @@ const EMPTY_COUNTS = Object.freeze({
   messages: 0,
   plans: 0,
   mailbox: 0,
+  changeRequests: 0,
   total: 0,
 });
 
@@ -167,6 +168,14 @@ async function countMailboxUnseen(user) {
   }
 }
 
+/** Open + in-progress site change requests — admin nav badge only. */
+async function countOpenChangeRequests(user) {
+  if (!user || user.role !== 'admin') return 0;
+  return prisma.changeRequest.count({
+    where: { status: { in: ['open', 'in_progress'] } },
+  });
+}
+
 /**
  * Role-scoped badge counts for nav / header.
  * Fail-soft: never throws to the request pipeline.
@@ -175,18 +184,21 @@ async function getBadgeCounts(user) {
   if (!user) return emptyBadgeCounts();
 
   try {
-    const [messages, plans, mailbox] = await Promise.all([
+    const [messages, plans, mailbox, changeRequests] = await Promise.all([
       countUnreadPlanMessages(user),
       countActionPlans(user),
       countMailboxUnseen(user),
+      countOpenChangeRequests(user),
     ]);
 
-    const total = messages + plans + (isStaff(user) ? mailbox : 0);
+    const total =
+      messages + plans + (isStaff(user) ? mailbox : 0) + (user.role === 'admin' ? changeRequests : 0);
 
     return {
       messages: messages || 0,
       plans: plans || 0,
       mailbox: mailbox || 0,
+      changeRequests: changeRequests || 0,
       total: total || 0,
     };
   } catch (err) {

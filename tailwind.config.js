@@ -1,5 +1,11 @@
 /** @type {import('tailwindcss').Config} */
 module.exports = {
+  safelist: [
+    'badge-change-open',
+    'badge-change-in_progress',
+    'badge-change-actioned',
+    'badge-change-declined',
+  ],
   content: ['./views/**/*.ejs', './src/**/*.js', './public/js/**/*.js'],
   theme: {
     extend: {

@@ -18,6 +18,7 @@ const {
   ACTIVE_PLAN_STATUSES,
   BOOKED_PLAN_STATUSES,
   STAFF_ACTION_STATUSES,
+  CHANGE_REQUEST_AREAS,
 } = require('../../utils/format');
 const { markPlanMessagesRead, refreshBadgeCounts } = require('../../utils/notifications');
 const { streamPlanPdf } = require('../../utils/brandedPdf');
@@ -880,6 +881,62 @@ router.post('/password', async (req, res, next) => {
     return res.redirect('/agent/password?saved=1');
   } catch (err) {
     return next(err);
+  }
+});
+
+router.get('/change-requests', async (req, res, next) => {
+  try {
+    const requests = await prisma.changeRequest.findMany({
+      where: { requesterId: req.user.id },
+      orderBy: { createdAt: 'desc' },
+    });
+    res.render('agent/change-requests', {
+      title: 'Site changes',
+      requests,
+      areas: CHANGE_REQUEST_AREAS,
+      saved: req.query.saved === '1',
+      error: null,
+      form: { area: 'homepage', title: '', details: '' },
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/change-requests', async (req, res, next) => {
+  try {
+    const areaRaw = String(req.body.area || '').trim();
+    const title = String(req.body.title || '').trim();
+    const details = String(req.body.details || '').trim();
+    const validAreas = CHANGE_REQUEST_AREAS.map((item) => item.value);
+    const area = validAreas.includes(areaRaw) ? areaRaw : 'other';
+
+    if (!title || !details) {
+      const requests = await prisma.changeRequest.findMany({
+        where: { requesterId: req.user.id },
+        orderBy: { createdAt: 'desc' },
+      });
+      return res.status(400).render('agent/change-requests', {
+        title: 'Site changes',
+        requests,
+        areas: CHANGE_REQUEST_AREAS,
+        saved: false,
+        error: 'Title and details are required.',
+        form: { area, title, details },
+      });
+    }
+
+    await prisma.changeRequest.create({
+      data: {
+        requesterId: req.user.id,
+        area,
+        title,
+        details,
+      },
+    });
+    res.redirect('/agent/change-requests?saved=1');
+  } catch (err) {
+    next(err);
   }
 });
 

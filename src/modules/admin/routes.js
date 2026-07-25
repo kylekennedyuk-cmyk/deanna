@@ -8,6 +8,7 @@ const { createTransport, closeCachedTransport, sendMail, normalizeSmtpHost } = r
 const { encryptSecret, decryptSecret, getSettings, setSettings } = require('../../config/settings');
 const { requireRole } = require('../../middleware/auth');
 const { resolveHomeSections } = require('../../content/homeDefaults');
+const { CHANGE_REQUEST_STATUSES } = require('../../utils/format');
 
 const router = express.Router();
 router.use(requireRole(['admin']));
@@ -41,15 +42,16 @@ const mediaUpload = multer({
 
 router.get('/', async (req, res, next) => {
   try {
-    const [users, plans, pages, deals] = await Promise.all([
+    const [users, plans, pages, deals, changeRequests] = await Promise.all([
       prisma.user.count(),
       prisma.holidayPlan.count(),
       prisma.page.count(),
       prisma.deal.count({ where: { active: true } }),
+      prisma.changeRequest.count({ where: { status: { in: ['open', 'in_progress'] } } }),
     ]);
     res.render('admin/dashboard', {
       title: 'Admin',
-      stats: { users, plans, pages, deals },
+      stats: { users, plans, pages, deals, changeRequests },
     });
   } catch (err) {
     next(err);
@@ -685,6 +687,55 @@ router.post('/notifications/test', async (req, res, next) => {
       .join(' — ');
     console.error('[email test failed]', detail);
     return res.redirect(`/admin/notifications?error=${encodeURIComponent(detail || 'Test email failed.')}`);
+  }
+});
+
+router.get('/change-requests', async (req, res, next) => {
+  try {
+    const requests = await prisma.changeRequest.findMany({
+      include: { requester: { select: { id: true, name: true, email: true } } },
+      orderBy: { createdAt: 'desc' },
+    });
+    res.render('admin/change-requests', {
+      title: 'Site change requests',
+      requests,
+      statuses: CHANGE_REQUEST_STATUSES,
+      saved: req.query.saved === '1',
+      deleted: req.query.deleted === '1',
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/change-requests/:id', async (req, res, next) => {
+  try {
+    const id = Number(req.params.id);
+    const status = String(req.body.status || '').trim();
+    if (!id || !CHANGE_REQUEST_STATUSES.includes(status)) {
+      return res.redirect('/admin/change-requests');
+    }
+    const resolutionNote = String(req.body.resolutionNote || '').trim();
+    await prisma.changeRequest.update({
+      where: { id },
+      data: {
+        status,
+        resolutionNote: resolutionNote || null,
+      },
+    });
+    res.redirect('/admin/change-requests?saved=1');
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/change-requests/:id/delete', async (req, res, next) => {
+  try {
+    const id = Number(req.params.id);
+    await prisma.changeRequest.delete({ where: { id } });
+    res.redirect('/admin/change-requests?deleted=1');
+  } catch (err) {
+    next(err);
   }
 });
 

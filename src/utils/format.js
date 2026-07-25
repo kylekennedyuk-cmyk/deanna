@@ -104,6 +104,38 @@ function statusBadgeClass(status) {
   return `badge-status-${key}`;
 }
 
+/** Site change-request workflow (separate from holiday plan statuses). */
+const CHANGE_REQUEST_STATUS_LABELS = {
+  open: 'Open',
+  in_progress: 'In progress',
+  actioned: 'Actioned',
+  declined: 'Declined',
+};
+
+const CHANGE_REQUEST_STATUSES = ['open', 'in_progress', 'actioned', 'declined'];
+
+const CHANGE_REQUEST_AREAS = [
+  { value: 'homepage', label: 'Homepage' },
+  { value: 'offers', label: 'Offers' },
+  { value: 'copy', label: 'Copy / wording' },
+  { value: 'navigation', label: 'Navigation' },
+  { value: 'other', label: 'Other' },
+];
+
+function changeRequestStatusLabel(status) {
+  return CHANGE_REQUEST_STATUS_LABELS[status] || String(status || '').replace(/_/g, ' ');
+}
+
+function changeRequestStatusBadgeClass(status) {
+  const key = CHANGE_REQUEST_STATUSES.includes(status) ? status : 'open';
+  return `badge-change-${key}`;
+}
+
+function changeRequestAreaLabel(area) {
+  const found = CHANGE_REQUEST_AREAS.find((item) => item.value === area);
+  return found ? found.label : String(area || '').replace(/_/g, ' ');
+}
+
 function formatMoney(value) {
   const n = Number(value);
   if (!n && n !== 0) return '—';
@@ -172,6 +204,9 @@ module.exports = {
   statusLabel,
   nextAction,
   statusBadgeClass,
+  changeRequestStatusLabel,
+  changeRequestStatusBadgeClass,
+  changeRequestAreaLabel,
   formatMoney,
   formatDateTime,
   preferenceEntries,
@@ -189,4 +224,7 @@ module.exports = {
   STAFF_ACTION_STATUSES,
   CLIENT_ACTION_STATUSES,
   BOOKED_PLAN_STATUSES,
+  CHANGE_REQUEST_STATUS_LABELS,
+  CHANGE_REQUEST_STATUSES,
+  CHANGE_REQUEST_AREAS,
 };
