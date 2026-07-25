@@ -330,11 +330,11 @@
     flex-shrink: 0;
   }
 
-  /* Keep the mobile bar compact regardless of the admin logo size setting. */
+  /* Mobile logo size from admin settings */
   @media (max-width: 1023px) {
     .brand-logo {
-      height: min(var(--logo-height, 4.5rem), 2.5rem);
-      max-width: min(var(--logo-max-width, 20rem), 10.5rem);
+      height: var(--logo-height-mobile, 2.5rem);
+      max-width: var(--logo-max-width-mobile, 10.5rem);
     }
   }
 

@@ -43,6 +43,8 @@ async function main() {
     ['logo_mode', 'text'],
     ['logo_height', '96'],
     ['logo_max_width', '380'],
+    ['logo_height_mobile', '40'],
+    ['logo_max_width_mobile', '168'],
     ['footer_intro', 'Disneyland Paris specialist planning with practical advice, tailored itineraries and one place to manage your holiday.'],
     ['primary_colour', '#1a2b40'],
     ['secondary_colour', '#d1a24a'],
