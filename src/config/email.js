@@ -279,8 +279,18 @@ async function sendMail(payload) {
 }
 
 function brandedLayout(settings, { heading, intro, bodyHtml, buttonLabel, buttonUrl }) {
-  const logo = settings.logoUrl
-    ? `<img src="${escapeHtml(settings.logoUrl.startsWith('http') ? settings.logoUrl : `${settings.appUrl}${settings.logoUrl}`)}" alt="${escapeHtml(settings.siteName)}" style="max-height:64px;max-width:220px;margin:0 auto 20px;display:block">`
+  const logoSrc = settings.logoUrl
+    ? escapeHtml(
+        settings.logoUrl.startsWith('http')
+          ? settings.logoUrl
+          : `${settings.appUrl}${settings.logoUrl}`
+      )
+    : '';
+  // Keep natural aspect ratio — many email clients stretch imgs without height:auto + width:auto.
+  const logo = logoSrc
+    ? `<table role="presentation" cellpadding="0" cellspacing="0" border="0" align="center" style="margin:0 auto 20px"><tr><td align="center" style="text-align:center">
+        <img src="${logoSrc}" alt="${escapeHtml(settings.siteName)}" width="200" style="display:block;margin:0 auto;border:0;outline:none;text-decoration:none;-ms-interpolation-mode:bicubic;width:auto;max-width:200px;height:auto;max-height:72px" />
+      </td></tr></table>`
     : `<div style="font-family:Georgia,serif;font-size:28px;font-weight:700;color:#1a2b40;text-align:center;margin-bottom:20px">${escapeHtml(settings.siteName)}</div>`;
 
   const button =
@@ -292,7 +302,7 @@ function brandedLayout(settings, { heading, intro, bodyHtml, buttonLabel, button
 <html><body style="margin:0;background:#fbf8f3;font-family:Arial,sans-serif;color:#1a2b40">
   <div style="padding:32px 16px">
     <div style="max-width:640px;margin:0 auto;background:#fff;border-radius:20px;overflow:hidden;box-shadow:0 10px 35px rgba(15,26,40,.08)">
-      <div style="padding:36px 36px 20px">${logo}</div>
+      <div style="padding:36px 36px 20px;text-align:center">${logo}</div>
       <div style="padding:0 36px 36px">
         <h1 style="font-family:Georgia,serif;font-size:32px;line-height:1.2;margin:0 0 16px;color:#1a2b40">${escapeHtml(heading)}</h1>
         <p style="font-size:16px;line-height:1.65;color:#3d5b79;margin:0 0 20px">${escapeHtml(intro)}</p>
