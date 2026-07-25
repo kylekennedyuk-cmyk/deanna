@@ -217,6 +217,7 @@ async function sendNotification(type, { to, values = {}, body = '', buttonLabel,
 module.exports = {
   brandedLayout,
   createTransport,
+  escapeHtml,
   resolveEmailSettings,
   sendMail,
   sendNotification,

@@ -1,10 +1,10 @@
 <%- include('../partials/shell-start', { bodyClass: 'portal-shell' }) %>
 <section class="section-sm max-w-3xl">
-  <%- include('../partials/portal-nav', { backHref: '/agent/mailbox', backLabel: 'Mailbox' }) %>
+  <%- include('../partials/portal-nav', { backHref: '/agent/mailbox?folder=' + encodeURIComponent(activeFolder || 'INBOX'), backLabel: 'Mailbox' }) %>
   <div class="mb-8">
     <p class="badge bg-white text-secondary-800 shadow-soft">Mailbox</p>
     <h1 class="mt-3 text-display-md"><%= mode === 'reply' ? 'Reply' : 'Compose' %></h1>
-    <p class="mt-2 text-primary-700">Send from the Destinations With Deanna mailbox via SMTP.</p>
+    <p class="mt-2 text-primary-700">Outgoing mail is sent in the Destinations With Deanna branded template (logo, styling and signature).</p>
   </div>
 
   <% if (error) { %><div class="mb-5 rounded-card border border-danger-100 bg-danger-50 px-4 py-3 text-danger-700" role="alert"><%= error %></div><% } %>
@@ -12,12 +12,13 @@
   <form method="post" action="/agent/mailbox/send" class="card space-y-4">
     <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
     <input type="hidden" name="mode" value="<%= mode %>" />
+    <input type="hidden" name="folder" value="<%= form.folder || activeFolder || 'INBOX' %>" />
     <input type="hidden" name="inReplyTo" value="<%= form.inReplyTo || '' %>" />
     <input type="hidden" name="references" value="<%= form.references || '' %>" />
 
     <div>
       <label class="label" for="to">To</label>
-      <input class="field" id="to" name="to" type="text" required value="<%= form.to || '' %>" placeholder="client@example.com" />
+      <input class="field" id="to" name="to" type="text" value="<%= form.to || '' %>" placeholder="client@example.com" />
     </div>
     <div>
       <label class="label" for="cc">Cc <span class="font-normal text-primary-500">(optional)</span></label>
@@ -25,16 +26,18 @@
     </div>
     <div>
       <label class="label" for="subject">Subject</label>
-      <input class="field" id="subject" name="subject" type="text" required value="<%= form.subject || '' %>" />
+      <input class="field" id="subject" name="subject" type="text" value="<%= form.subject || '' %>" />
     </div>
     <div>
       <label class="label" for="body">Message</label>
-      <textarea class="field min-h-[260px]" id="body" name="body" required><%= form.body || '' %></textarea>
+      <textarea class="field min-h-[260px]" id="body" name="body"><%= form.body || '' %></textarea>
+      <p class="help">Your message is wrapped in the branded email layout with logo and signature when sent.</p>
     </div>
 
     <div class="flex flex-wrap gap-2 pt-2">
-      <button class="btn-primary" type="submit">Send email</button>
-      <a href="/agent/mailbox" class="btn-secondary">Cancel</a>
+      <button class="btn-primary" type="submit" name="action" value="send">Send email</button>
+      <button class="btn-secondary" type="submit" name="action" value="draft">Save draft</button>
+      <a href="/agent/mailbox?folder=<%= encodeURIComponent(activeFolder || 'INBOX') %>" class="btn-ghost">Cancel</a>
     </div>
   </form>
 </section>

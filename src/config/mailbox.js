@@ -1,7 +1,7 @@
 const { ImapFlow } = require('imapflow');
 const { simpleParser } = require('mailparser');
 const { decryptSecret, getSettings } = require('./settings');
-const { resolveEmailSettings } = require('./email');
+const { brandedLayout, createTransport, escapeHtml, resolveEmailSettings } = require('./email');
 
 function addressList(value) {
   if (!value) return '';
@@ -29,6 +29,25 @@ function firstAddress(value) {
     return value.value[0].address || '';
   }
   return '';
+}
+
+function textFromParsed(parsed) {
+  return (
+    (parsed.text && parsed.text.trim()) ||
+    String(parsed.html || '')
+      .replace(/<style[\s\S]*?<\/style>/gi, '')
+      .replace(/<script[\s\S]*?<\/script>/gi, '')
+      .replace(/<br\s*\/?>/gi, '\n')
+      .replace(/<\/p>/gi, '\n\n')
+      .replace(/<[^>]+>/g, ' ')
+      .replace(/&nbsp;/gi, ' ')
+      .replace(/&amp;/gi, '&')
+      .replace(/&lt;/gi, '<')
+      .replace(/&gt;/gi, '>')
+      .replace(/[ \t]+\n/g, '\n')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim()
+  );
 }
 
 async function resolveImapSettings() {
@@ -106,12 +125,102 @@ function summariseEnvelope(envelope = {}) {
   };
 }
 
-async function listInbox({ limit = 40 } = {}) {
+function classifyFolder(box) {
+  const path = box.path || '';
+  const name = String(box.name || path.split(/[/.\[]/).pop() || path).trim();
+  const special = String(box.specialUse || '').toLowerCase();
+  const lower = `${path} ${name}`.toLowerCase();
+
+  if (special === '\\inbox' || path.toUpperCase() === 'INBOX') {
+    return { key: 'inbox', label: 'Inbox', order: 1 };
+  }
+  if (special === '\\sent' || /\bsent\b/.test(lower) || lower.includes('outbox')) {
+    return { key: 'sent', label: 'Sent', order: 2 };
+  }
+  if (special === '\\drafts' || /\bdraft/.test(lower)) {
+    return { key: 'drafts', label: 'Drafts', order: 3 };
+  }
+  if (special === '\\trash' || /\b(trash|deleted|bin)\b/.test(lower)) {
+    return { key: 'trash', label: 'Deleted', order: 4 };
+  }
+  if (special === '\\junk' || /\b(junk|spam)\b/.test(lower)) {
+    return { key: 'junk', label: 'Junk', order: 5 };
+  }
+  if (special === '\\archive' || /\barchive\b/.test(lower)) {
+    return { key: 'archive', label: 'Archive', order: 6 };
+  }
+  return { key: 'other', label: name || path, order: 50 };
+}
+
+function mapListedFolders(listed) {
+  const folders = listed
+    .filter((box) => box && box.path && !box.flags?.has('\\Noselect'))
+    .map((box) => {
+      const kind = classifyFolder(box);
+      return {
+        path: box.path,
+        name: box.name || box.path,
+        label: kind.label,
+        key: kind.key,
+        order: kind.order,
+        specialUse: box.specialUse || '',
+      };
+    });
+
+  folders.sort((a, b) => a.order - b.order || a.label.localeCompare(b.label));
+
+  const preferred = [];
+  const seenKeys = new Set();
+  for (const folder of folders) {
+    if (folder.key !== 'other' && seenKeys.has(folder.key)) continue;
+    if (folder.key !== 'other') seenKeys.add(folder.key);
+    preferred.push(folder);
+  }
+
+  if (!preferred.some((f) => f.key === 'inbox')) {
+    preferred.unshift({
+      path: 'INBOX',
+      name: 'INBOX',
+      label: 'Inbox',
+      key: 'inbox',
+      order: 1,
+      specialUse: '\\Inbox',
+    });
+  }
+
+  return preferred;
+}
+
+async function listFolders() {
+  return withImap(async (client) => mapListedFolders(await client.list()));
+}
+
+async function resolveFolderMap() {
+  const folders = await listFolders();
+  const byKey = Object.fromEntries(folders.filter((f) => f.key !== 'other').map((f) => [f.key, f.path]));
+  return { folders, byKey };
+}
+
+function normalizeFolder(folder, folders = []) {
+  const requested = String(folder || 'INBOX').trim() || 'INBOX';
+  if (folders.some((f) => f.path === requested)) return requested;
+  const byLabel = folders.find((f) => f.label.toLowerCase() === requested.toLowerCase());
+  if (byLabel) return byLabel.path;
+  const byKey = folders.find((f) => f.key === requested.toLowerCase());
+  if (byKey) return byKey.path;
+  return requested;
+}
+
+async function listMessages(folder = 'INBOX', { limit = 50 } = {}) {
   return withImap(async (client) => {
-    const lock = await client.getMailboxLock('INBOX');
+    const folders = mapListedFolders(await client.list());
+    const path = normalizeFolder(folder, folders);
+    const lock = await client.getMailboxLock(path);
     try {
       const total = client.mailbox.exists || 0;
-      if (!total) return { messages: [], total: 0 };
+      if (!total) {
+        return { messages: [], total: 0, folder: path, folders };
+      }
 
       const start = Math.max(1, total - limit + 1);
       const messages = [];
@@ -130,6 +239,7 @@ async function listInbox({ limit = 40 } = {}) {
           to: summary.to,
           date: msg.internalDate || summary.date,
           unseen: !(msg.flags && msg.flags.has('\\Seen')),
+          draft: Boolean(msg.flags && msg.flags.has('\\Draft')),
         });
       }
 
@@ -139,14 +249,14 @@ async function listInbox({ limit = 40 } = {}) {
         return bTime - aTime;
       });
 
-      return { messages, total };
+      return { messages, total, folder: path, folders };
     } finally {
       lock.release();
     }
   });
 }
 
-async function getMessage(uid) {
+async function getMessage(folder, uid) {
   const numericUid = Number(uid);
   if (!Number.isFinite(numericUid) || numericUid < 1) {
     const err = new Error('Invalid message id.');
@@ -155,7 +265,9 @@ async function getMessage(uid) {
   }
 
   return withImap(async (client) => {
-    const lock = await client.getMailboxLock('INBOX');
+    const folders = await listFoldersViaClient(client);
+    const path = normalizeFolder(folder, folders);
+    const lock = await client.getMailboxLock(path);
     try {
       const msg = await client.fetchOne(
         String(numericUid),
@@ -169,21 +281,8 @@ async function getMessage(uid) {
       }
 
       const parsed = await simpleParser(msg.source);
-      const text =
-        (parsed.text && parsed.text.trim()) ||
-        String(parsed.html || '')
-          .replace(/<style[\s\S]*?<\/style>/gi, '')
-          .replace(/<script[\s\S]*?<\/script>/gi, '')
-          .replace(/<br\s*\/?>/gi, '\n')
-          .replace(/<\/p>/gi, '\n\n')
-          .replace(/<[^>]+>/g, ' ')
-          .replace(/&nbsp;/gi, ' ')
-          .replace(/&amp;/gi, '&')
-          .replace(/&lt;/gi, '<')
-          .replace(/&gt;/gi, '>')
-          .replace(/[ \t]+\n/g, '\n')
-          .replace(/\n{3,}/g, '\n\n')
-          .trim();
+      const text = textFromParsed(parsed);
+      const folderMeta = folders.find((f) => f.path === path);
 
       if (!(msg.flags && msg.flags.has('\\Seen'))) {
         try {
@@ -195,6 +294,9 @@ async function getMessage(uid) {
 
       return {
         uid: msg.uid,
+        folder: path,
+        folderKey: folderMeta?.key || 'other',
+        folderLabel: folderMeta?.label || path,
         subject: parsed.subject || msg.envelope?.subject || '(no subject)',
         from: addressList(parsed.from) || summariseEnvelope(msg.envelope).from,
         fromAddress: firstAddress(parsed.from),
@@ -209,6 +311,7 @@ async function getMessage(uid) {
             : String(parsed.references)
           : '',
         text,
+        draft: Boolean(msg.flags && msg.flags.has('\\Draft')),
         attachments: (parsed.attachments || []).map((file) => ({
           filename: file.filename || 'attachment',
           size: file.size || 0,
@@ -221,41 +324,215 @@ async function getMessage(uid) {
   });
 }
 
+async function listFoldersViaClient(client) {
+  return mapListedFolders(await client.list());
+}
+
+async function findFolderPath(client, key) {
+  const folders = await listFoldersViaClient(client);
+  const match = folders.find((f) => f.key === key);
+  return match ? match.path : null;
+}
+
+async function moveMessage(folder, uid, targetKeyOrPath) {
+  const numericUid = Number(uid);
+  if (!Number.isFinite(numericUid) || numericUid < 1) {
+    throw new Error('Invalid message id.');
+  }
+
+  return withImap(async (client) => {
+    const folders = await listFoldersViaClient(client);
+    const source = normalizeFolder(folder, folders);
+    let destination = targetKeyOrPath;
+    const byKey = folders.find((f) => f.key === String(targetKeyOrPath || '').toLowerCase());
+    if (byKey) destination = byKey.path;
+    destination = normalizeFolder(destination, folders);
+
+    if (source === destination) return { moved: false, folder: source };
+
+    const lock = await client.getMailboxLock(source);
+    try {
+      const result = await client.messageMove(String(numericUid), destination, { uid: true });
+      if (!result) throw new Error('Could not move message.');
+      return { moved: true, folder: destination };
+    } finally {
+      lock.release();
+    }
+  });
+}
+
+async function deleteMessage(folder, uid) {
+  const numericUid = Number(uid);
+  if (!Number.isFinite(numericUid) || numericUid < 1) {
+    throw new Error('Invalid message id.');
+  }
+
+  return withImap(async (client) => {
+    const folders = await listFoldersViaClient(client);
+    const source = normalizeFolder(folder, folders);
+    const sourceMeta = folders.find((f) => f.path === source);
+    const trashPath = (await findFolderPath(client, 'trash')) || 'Trash';
+
+    const lock = await client.getMailboxLock(source);
+    try {
+      if (sourceMeta?.key === 'trash' || source === trashPath) {
+        await client.messageDelete(String(numericUid), { uid: true });
+        return { deleted: true, permanent: true, folder: source };
+      }
+
+      const result = await client.messageMove(String(numericUid), trashPath, { uid: true });
+      if (!result) {
+        // Fallback: flag deleted + expunge if move fails
+        await client.messageFlagsAdd(numericUid, ['\\Deleted'], { uid: true });
+        await client.expunge();
+        return { deleted: true, permanent: true, folder: source };
+      }
+      return { deleted: true, permanent: false, folder: trashPath };
+    } finally {
+      lock.release();
+    }
+  });
+}
+
+function brandedOutgoingHtml(settings, { subject, bodyText }) {
+  const paragraphs = String(bodyText || '')
+    .split(/\n{2,}/)
+    .map((block) => block.trim())
+    .filter(Boolean)
+    .map(
+      (block) =>
+        `<p style="margin:0 0 16px;font-size:16px;line-height:1.7;color:#1a2b40;white-space:pre-wrap">${escapeHtml(block)}</p>`
+    )
+    .join('');
+
+  const bodyHtml = `
+    ${paragraphs || `<p style="margin:0;color:#3d5b79"> </p>`}
+    <p style="margin:28px 0 0;font-size:15px;line-height:1.6;color:#3d5b79">
+      Warm regards,<br />
+      <strong style="color:#1a2b40">${escapeHtml(settings.fromName || settings.siteName)}</strong><br />
+      <span style="color:#5a738c">${escapeHtml(settings.siteName)}</span>
+      ${settings.fromEmail ? `<br /><a href="mailto:${escapeHtml(settings.fromEmail)}" style="color:#1a2b40;text-decoration:none">${escapeHtml(settings.fromEmail)}</a>` : ''}
+    </p>
+  `;
+
+  return brandedLayout(settings, {
+    heading: subject || 'Message from Destinations With Deanna',
+    intro: 'A personal note from your Disneyland Paris specialist.',
+    bodyHtml,
+  });
+}
+
+function buildMime({ from, to, cc, subject, text, html, inReplyTo, references, draft = false }) {
+  const boundary = `dwd_${Date.now().toString(16)}`;
+  const headers = [
+    `From: ${from}`,
+    `To: ${to}`,
+    cc ? `Cc: ${cc}` : null,
+    `Subject: ${subject}`,
+    `MIME-Version: 1.0`,
+    `Content-Type: multipart/alternative; boundary="${boundary}"`,
+    `Date: ${new Date().toUTCString()}`,
+    draft ? 'X-Draft: yes' : null,
+    inReplyTo ? `In-Reply-To: ${inReplyTo}` : null,
+    references ? `References: ${references}` : null,
+  ]
+    .filter(Boolean)
+    .join('\r\n');
+
+  return `${headers}\r\n\r\n--${boundary}\r\nContent-Type: text/plain; charset=utf-8\r\nContent-Transfer-Encoding: 7bit\r\n\r\n${text}\r\n\r\n--${boundary}\r\nContent-Type: text/html; charset=utf-8\r\nContent-Transfer-Encoding: 7bit\r\n\r\n${html}\r\n\r\n--${boundary}--\r\n`;
+}
+
+async function appendToFolder(folderKey, raw, flags = []) {
+  return withImap(async (client) => {
+    const path = (await findFolderPath(client, folderKey)) || (folderKey === 'sent' ? 'Sent' : folderKey === 'drafts' ? 'Drafts' : null);
+    if (!path) return { appended: false };
+    await client.append(path, raw, flags);
+    return { appended: true, folder: path };
+  });
+}
+
 function replySubject(subject) {
   const value = String(subject || '').trim() || '(no subject)';
   return /^re:/i.test(value) ? value : `Re: ${value}`;
 }
 
 async function sendMailboxMail({ to, cc, subject, text, inReplyTo, references }) {
-  const { createTransport } = require('./email');
   const { transport, settings, reason } = await createTransport();
   if (!transport) return { skipped: true, reason };
 
-  const html = `<div style="white-space:pre-wrap;font-family:Arial,sans-serif;color:#1a2b40">${String(text || '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')}</div>`;
+  const html = brandedOutgoingHtml(settings, { subject, bodyText: text });
+  const from = `"${settings.fromName}" <${settings.fromEmail}>`;
 
   await transport.sendMail({
-    from: `"${settings.fromName}" <${settings.fromEmail}>`,
+    from,
     replyTo: settings.replyTo || undefined,
     to,
     cc: cc || undefined,
     subject,
-    text,
+    text: `${text}\n\n—\n${settings.fromName}\n${settings.siteName}\n${settings.fromEmail || ''}`,
     html,
     inReplyTo: inReplyTo || undefined,
     references: references || undefined,
   });
 
+  try {
+    const raw = buildMime({
+      from,
+      to,
+      cc,
+      subject,
+      text,
+      html,
+      inReplyTo,
+      references,
+    });
+    await appendToFolder('sent', raw, ['\\Seen']);
+  } catch (err) {
+    console.warn('[mailbox] could not append to Sent:', err.message);
+  }
+
   return { sent: true };
 }
 
+async function saveDraft({ to, cc, subject, text }) {
+  const settings = await resolveEmailSettings();
+  const html = brandedOutgoingHtml(settings, { subject: subject || 'Draft', bodyText: text || '' });
+  const from = `"${settings.fromName}" <${settings.fromEmail || settings.user || 'draft@localhost'}>`;
+  const raw = buildMime({
+    from,
+    to: to || settings.fromEmail || 'draft@localhost',
+    cc,
+    subject: subject || '(no subject)',
+    text: text || '',
+    html,
+    draft: true,
+  });
+
+  const result = await appendToFolder('drafts', raw, ['\\Draft', '\\Seen']);
+  if (!result.appended) {
+    throw new Error('Could not find a Drafts folder on this mailbox.');
+  }
+  return result;
+}
+
+/** Back-compat helpers used by older routes */
+async function listInbox(options) {
+  return listMessages('INBOX', options);
+}
+
 module.exports = {
+  appendToFolder,
+  brandedOutgoingHtml,
+  deleteMessage,
   getMessage,
   imapBlockReason,
+  listFolders,
   listInbox,
+  listMessages,
+  moveMessage,
   replySubject,
+  resolveFolderMap,
   resolveImapSettings,
+  saveDraft,
   sendMailboxMail,
 };

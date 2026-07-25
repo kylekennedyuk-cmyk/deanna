@@ -1,12 +1,41 @@
 const express = require('express');
 const { prisma } = require('../../config/database');
 const { sendNotification } = require('../../config/email');
-const { getMessage, listInbox, replySubject, sendMailboxMail } = require('../../config/mailbox');
+const {
+  deleteMessage,
+  getMessage,
+  listMessages,
+  moveMessage,
+  replySubject,
+  saveDraft,
+  sendMailboxMail,
+} = require('../../config/mailbox');
 const { statusLabel } = require('../../utils/format');
 const { requireRole } = require('../../middleware/auth');
 
 const router = express.Router();
 router.use(requireRole(['agent', 'admin']));
+
+function mailboxFolder(req) {
+  return String(req.query.folder || req.body.folder || 'INBOX').trim() || 'INBOX';
+}
+
+function mailboxUrl(folder, suffix = '') {
+  const q = `folder=${encodeURIComponent(folder || 'INBOX')}`;
+  return suffix ? `/agent/mailbox${suffix}?${q}` : `/agent/mailbox?${q}`;
+}
+
+function folderSidebar(folders, activePath) {
+  const essentials = ['inbox', 'sent', 'drafts', 'trash', 'junk', 'archive'];
+  const primary = [];
+  const other = [];
+  (folders || []).forEach((folder) => {
+    if (essentials.includes(folder.key)) primary.push(folder);
+    else other.push(folder);
+  });
+  primary.sort((a, b) => essentials.indexOf(a.key) - essentials.indexOf(b.key));
+  return { primary, other, activePath };
+}
 
 function safeJson(value) {
   try {
@@ -302,23 +331,36 @@ router.get('/inbox', async (req, res, next) => {
 });
 
 router.get('/mailbox', async (req, res) => {
+  const folder = mailboxFolder(req);
   let messages = [];
   let total = 0;
+  let folders = [];
+  let activeFolder = folder;
   let error = req.query.error ? String(req.query.error) : null;
   const sent = req.query.sent === '1';
+  const saved = req.query.saved === '1';
+  const deleted = req.query.deleted === '1';
   try {
-    const inbox = await listInbox({ limit: 50 });
-    messages = inbox.messages || [];
-    total = inbox.total || messages.length;
+    const result = await listMessages(folder, { limit: 60 });
+    messages = result.messages || [];
+    total = result.total || messages.length;
+    folders = result.folders || [];
+    activeFolder = result.folder || folder;
   } catch (err) {
     error = err.message || 'Could not load mailbox.';
   }
+  const sidebar = folderSidebar(folders, activeFolder);
   return res.render('agent/mailbox', {
     title: 'Email mailbox',
     messages,
     total,
+    folders,
+    sidebar,
+    activeFolder,
     error,
     sent,
+    saved,
+    deleted,
     account: process.env.SMTP_FROM_EMAIL || process.env.SMTP_USER || process.env.IMAP_USER || '',
   });
 });
@@ -328,6 +370,7 @@ router.get('/mailbox/compose', async (req, res) => {
     title: 'Compose email',
     mode: 'compose',
     error: req.query.error || null,
+    activeFolder: mailboxFolder(req),
     form: {
       to: '',
       cc: '',
@@ -335,13 +378,15 @@ router.get('/mailbox/compose', async (req, res) => {
       body: '',
       inReplyTo: '',
       references: '',
+      folder: mailboxFolder(req),
     },
   });
 });
 
-router.get('/mailbox/:uid/reply', async (req, res) => {
+router.get('/mailbox/m/:uid/reply', async (req, res) => {
+  const folder = mailboxFolder(req);
   try {
-    const message = await getMessage(req.params.uid);
+    const message = await getMessage(folder, req.params.uid);
     const quoted = String(message.text || '')
       .split('\n')
       .map((line) => `> ${line}`)
@@ -350,6 +395,7 @@ router.get('/mailbox/:uid/reply', async (req, res) => {
       title: 'Reply',
       mode: 'reply',
       error: null,
+      activeFolder: folder,
       form: {
         to: message.fromAddress || message.from || '',
         cc: '',
@@ -357,29 +403,61 @@ router.get('/mailbox/:uid/reply', async (req, res) => {
         body: `\n\nOn ${message.date ? new Date(message.date).toUTCString() : 'the original message'}, ${message.from} wrote:\n${quoted}`,
         inReplyTo: message.messageId || '',
         references: [message.references, message.messageId].filter(Boolean).join(' ').trim(),
+        folder,
       },
     });
   } catch (err) {
     return res.redirect(
-      `/agent/mailbox?error=${encodeURIComponent(err.message || 'Could not open message for reply.')}`
+      `${mailboxUrl(folder)}&error=${encodeURIComponent(err.message || 'Could not open message for reply.')}`
     );
   }
 });
 
-router.get('/mailbox/:uid', async (req, res) => {
+router.get('/mailbox/m/:uid', async (req, res) => {
+  const folder = mailboxFolder(req);
   try {
-    const message = await getMessage(req.params.uid);
+    const message = await getMessage(folder, req.params.uid);
     return res.render('agent/mailbox-message', {
       title: message.subject,
       message,
+      activeFolder: folder,
       error: null,
     });
   } catch (err) {
     return res.status(404).render('agent/mailbox-message', {
       title: 'Message',
       message: null,
+      activeFolder: folder,
       error: err.message || 'Could not open message.',
     });
+  }
+});
+
+router.post('/mailbox/m/:uid/delete', async (req, res) => {
+  const folder = mailboxFolder(req);
+  try {
+    const result = await deleteMessage(folder, req.params.uid);
+    if (result.permanent) {
+      return res.redirect(`${mailboxUrl(folder)}&deleted=1`);
+    }
+    return res.redirect(`${mailboxUrl(result.folder || 'Trash')}&deleted=1`);
+  } catch (err) {
+    return res.redirect(
+      `${mailboxUrl(folder)}&error=${encodeURIComponent(err.message || 'Could not delete message.')}`
+    );
+  }
+});
+
+router.post('/mailbox/m/:uid/move', async (req, res) => {
+  const folder = mailboxFolder(req);
+  const destination = String(req.body.destination || '').trim();
+  try {
+    const result = await moveMessage(folder, req.params.uid, destination);
+    return res.redirect(mailboxUrl(result.folder || destination));
+  } catch (err) {
+    return res.redirect(
+      `${mailboxUrl(folder)}&error=${encodeURIComponent(err.message || 'Could not move message.')}`
+    );
   }
 });
 
@@ -391,14 +469,34 @@ router.post('/mailbox/send', async (req, res) => {
   const inReplyTo = String(req.body.inReplyTo || '').trim();
   const references = String(req.body.references || '').trim();
   const mode = String(req.body.mode || 'compose');
+  const folder = String(req.body.folder || 'INBOX').trim() || 'INBOX';
+  const action = String(req.body.action || 'send');
 
-  const form = { to, cc, subject, body, inReplyTo, references };
+  const form = { to, cc, subject, body, inReplyTo, references, folder };
+
+  if (action === 'draft') {
+    try {
+      const draft = await saveDraft({ to, cc, subject, text: body });
+      return res.redirect(
+        `/agent/mailbox?folder=${encodeURIComponent(draft.folder || 'Drafts')}&saved=1`
+      );
+    } catch (err) {
+      return res.render('agent/mailbox-compose', {
+        title: mode === 'reply' ? 'Reply' : 'Compose email',
+        mode,
+        error: err.message || 'Could not save draft.',
+        activeFolder: folder,
+        form,
+      });
+    }
+  }
 
   if (!to || !subject || !body) {
     return res.render('agent/mailbox-compose', {
       title: mode === 'reply' ? 'Reply' : 'Compose email',
       mode,
       error: 'To, subject and message are required.',
+      activeFolder: folder,
       form,
     });
   }
@@ -415,12 +513,13 @@ router.post('/mailbox/send', async (req, res) => {
     if (result && result.skipped) {
       throw new Error(result.reason || 'SMTP is not configured.');
     }
-    return res.redirect('/agent/mailbox?sent=1');
+    return res.redirect('/agent/mailbox?folder=Sent&sent=1');
   } catch (err) {
     return res.render('agent/mailbox-compose', {
       title: mode === 'reply' ? 'Reply' : 'Compose email',
       mode,
       error: err.message || 'Send failed.',
+      activeFolder: folder,
       form,
     });
   }

@@ -1,40 +1,72 @@
 <%- include('../partials/shell-start', { bodyClass: 'portal-shell' }) %>
+<%
+  const folderLabel = (sidebar.primary.concat(sidebar.other || []).find(function(f) { return f.path === activeFolder; }) || {}).label || activeFolder || 'Inbox';
+  const peerLabel = function(msg) {
+    if (/sent|draft/i.test(folderLabel)) return msg.to || msg.from;
+    return msg.from;
+  };
+%>
 <section class="section-sm">
   <%- include('../partials/portal-nav', { backHref: '/agent', backLabel: 'Agent home' }) %>
   <div class="mb-8 flex flex-wrap items-end justify-between gap-4">
     <div>
       <p class="badge bg-white text-secondary-800 shadow-soft">Mailbox</p>
-      <h1 class="mt-3 text-display-md">Email</h1>
-      <p class="mt-2 text-primary-700">Inbox for dee@destinationswithdeanna.com — read, reply, and send.</p>
+      <h1 class="mt-3 text-display-md"><%= folderLabel %></h1>
+      <p class="mt-2 text-primary-700"><%= account || 'Destinations With Deanna mailbox' %> — folders, delete, drafts and branded send.</p>
     </div>
     <div class="flex flex-wrap gap-2">
-      <a href="/agent/mailbox" class="btn-secondary">Refresh</a>
-      <a href="/agent/mailbox/compose" class="btn-primary">Compose</a>
+      <a href="/agent/mailbox?folder=<%= encodeURIComponent(activeFolder || 'INBOX') %>" class="btn-secondary">Refresh</a>
+      <a href="/agent/mailbox/compose?folder=<%= encodeURIComponent(activeFolder || 'INBOX') %>" class="btn-primary">Compose</a>
     </div>
   </div>
 
-  <% if (sent) { %><div class="mb-5 rounded-card border border-success-100 bg-success-50 px-4 py-3 text-success-700">Email sent.</div><% } %>
+  <% if (sent) { %><div class="mb-5 rounded-card border border-success-100 bg-success-50 px-4 py-3 text-success-700">Email sent and saved to Sent.</div><% } %>
+  <% if (saved) { %><div class="mb-5 rounded-card border border-success-100 bg-success-50 px-4 py-3 text-success-700">Draft saved.</div><% } %>
+  <% if (deleted) { %><div class="mb-5 rounded-card border border-success-100 bg-success-50 px-4 py-3 text-success-700">Message deleted.</div><% } %>
   <% if (error) { %><div class="mb-5 rounded-card border border-danger-100 bg-danger-50 px-4 py-3 text-danger-700" role="alert"><%= error %></div><% } %>
 
-  <div class="space-y-3">
-    <% if (!messages.length && !error) { %>
-      <div class="card text-primary-600">The inbox is empty.</div>
-    <% } %>
-    <% messages.forEach(function(msg) { %>
-      <a href="/agent/mailbox/<%= msg.uid %>" class="card-hover card-accent block <%= msg.unseen ? 'border-secondary-200 bg-secondary-50/40' : '' %>">
-        <div class="flex flex-wrap items-center justify-between gap-2">
-          <div class="text-sm font-semibold text-primary-950">
-            <% if (msg.unseen) { %><span class="mr-2 inline-block h-2 w-2 rounded-full bg-secondary-600" aria-hidden="true"></span><% } %>
-            <%= msg.from %>
+  <div class="grid gap-6 lg:grid-cols-[15rem_minmax(0,1fr)]">
+    <aside class="card h-fit p-3">
+      <p class="px-3 pb-2 text-xs font-semibold uppercase tracking-wide text-primary-500">Folders</p>
+      <nav class="space-y-1" aria-label="Mailbox folders">
+        <% (sidebar.primary || []).forEach(function(folder) { %>
+          <a
+            href="/agent/mailbox?folder=<%= encodeURIComponent(folder.path) %>"
+            class="block rounded-xl px-3 py-2.5 text-sm font-medium transition <%= folder.path === activeFolder ? 'bg-primary-950 text-white' : 'text-primary-800 hover:bg-primary-50' %>"
+          ><%= folder.label %></a>
+        <% }) %>
+        <% if (sidebar.other && sidebar.other.length) { %>
+          <p class="px-3 pb-1 pt-4 text-xs font-semibold uppercase tracking-wide text-primary-500">More</p>
+          <% sidebar.other.forEach(function(folder) { %>
+            <a
+              href="/agent/mailbox?folder=<%= encodeURIComponent(folder.path) %>"
+              class="block rounded-xl px-3 py-2.5 text-sm font-medium transition <%= folder.path === activeFolder ? 'bg-primary-950 text-white' : 'text-primary-800 hover:bg-primary-50' %>"
+            ><%= folder.label %></a>
+          <% }) %>
+        <% } %>
+      </nav>
+    </aside>
+
+    <div class="space-y-3">
+      <% if (!messages.length && !error) { %>
+        <div class="card text-primary-600">This folder is empty.</div>
+      <% } %>
+      <% messages.forEach(function(msg) { %>
+        <a href="/agent/mailbox/m/<%= msg.uid %>?folder=<%= encodeURIComponent(activeFolder || 'INBOX') %>" class="card-hover card-accent block <%= msg.unseen ? 'border-secondary-200 bg-secondary-50/40' : '' %>">
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <div class="text-sm font-semibold text-primary-950">
+              <% if (msg.unseen) { %><span class="mr-2 inline-block h-2 w-2 rounded-full bg-secondary-600" aria-hidden="true"></span><% } %>
+              <%= peerLabel(msg) %>
+            </div>
+            <div class="text-xs text-primary-500"><%= msg.date ? formatDateTime(msg.date) : '' %></div>
           </div>
-          <div class="text-xs text-primary-500"><%= msg.date ? formatDateTime(msg.date) : '' %></div>
-        </div>
-        <div class="mt-1 font-medium text-primary-900"><%= msg.subject %></div>
-      </a>
-    <% }) %>
+          <div class="mt-1 font-medium text-primary-900"><%= msg.subject %></div>
+        </a>
+      <% }) %>
+      <% if (total) { %>
+        <p class="pt-2 text-sm text-primary-500">Showing <%= messages.length %> of <%= total %> messages.</p>
+      <% } %>
+    </div>
   </div>
-  <% if (total) { %>
-    <p class="mt-6 text-sm text-primary-500">Showing <%= messages.length %> of <%= total %> messages in INBOX.</p>
-  <% } %>
 </section>
 <%- include('../partials/shell-end') %>
