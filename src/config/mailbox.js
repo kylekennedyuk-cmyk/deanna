@@ -196,6 +196,54 @@ async function listFolders() {
   return withImap(async (client) => mapListedFolders(await client.list()));
 }
 
+const UNSEEN_CACHE_TTL_MS = 45 * 1000;
+let unseenCache = { value: null, expiresAt: 0, inflight: null };
+
+function invalidateInboxUnseenCache() {
+  unseenCache = { value: null, expiresAt: 0, inflight: null };
+}
+
+/**
+ * Efficient INBOX unseen count via IMAP STATUS (not a full message list).
+ * Short in-process cache; misconfiguration / IMAP errors return 0 (cached briefly).
+ */
+async function getInboxUnseenCount({ force = false } = {}) {
+  const now = Date.now();
+  if (!force && unseenCache.value !== null && now < unseenCache.expiresAt) {
+    return unseenCache.value;
+  }
+  if (!force && unseenCache.inflight) {
+    return unseenCache.inflight;
+  }
+
+  const fetchPromise = (async () => {
+    try {
+      const count = await withImap(async (client) => {
+        const status = await client.status('INBOX', { unseen: true, messages: true });
+        return Number(status?.unseen || 0);
+      });
+      unseenCache = {
+        value: count,
+        expiresAt: Date.now() + UNSEEN_CACHE_TTL_MS,
+        inflight: null,
+      };
+      return count;
+    } catch (err) {
+      // Fail-soft: never break pages; cache zero briefly to avoid reconnect storms.
+      console.warn('[mailbox] unseen count failed:', err.message || err);
+      unseenCache = {
+        value: 0,
+        expiresAt: Date.now() + UNSEEN_CACHE_TTL_MS,
+        inflight: null,
+      };
+      return 0;
+    }
+  })();
+
+  unseenCache.inflight = fetchPromise;
+  return fetchPromise;
+}
+
 async function resolveFolderMap() {
   const folders = await listFolders();
   const byKey = Object.fromEntries(folders.filter((f) => f.key !== 'other').map((f) => [f.key, f.path]));
@@ -288,6 +336,9 @@ async function getMessage(folder, uid) {
       if (!(msg.flags && msg.flags.has('\\Seen'))) {
         try {
           await client.messageFlagsAdd(numericUid, ['\\Seen'], { uid: true });
+          if ((folderMeta?.key || '') === 'inbox' || path.toUpperCase() === 'INBOX') {
+            invalidateInboxUnseenCache();
+          }
         } catch {
           /* non-fatal */
         }
@@ -522,8 +573,10 @@ module.exports = {
   appendToFolder,
   brandedOutgoingHtml,
   deleteMessage,
+  getInboxUnseenCount,
   getMessage,
   imapBlockReason,
+  invalidateInboxUnseenCache,
   listFolders,
   listInbox,
   listMessages,

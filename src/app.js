@@ -12,6 +12,7 @@ const { prisma } = require('./config/database');
 const { configurePassport } = require('./config/passport');
 const { createSessionMiddleware } = require('./config/session');
 const format = require('./utils/format');
+const { emptyBadgeCounts, getBadgeCounts } = require('./utils/notifications');
 
 const authRoutes = require('./modules/auth/routes');
 const cmsRoutes = require('./modules/cms/routes');
@@ -29,6 +30,7 @@ function applySafeLocals(res) {
   res.locals.currentUser = res.locals.currentUser || null;
   res.locals.csrfToken = res.locals.csrfToken || '';
   res.locals.appUrl = res.locals.appUrl || process.env.APP_URL || '';
+  res.locals.badgeCounts = res.locals.badgeCounts || emptyBadgeCounts();
   res.locals.format = format;
   res.locals.statusLabel = format.statusLabel;
   res.locals.nextAction = format.nextAction;
@@ -98,6 +100,7 @@ function createApp() {
       res.locals.currentUser = req.user || null;
       res.locals.csrfToken = req.csrfToken ? req.csrfToken() : generateToken(req);
       res.locals.appUrl = process.env.APP_URL || '';
+      res.locals.badgeCounts = req.user ? await getBadgeCounts(req.user) : emptyBadgeCounts();
       applySafeLocals(res);
       next();
     } catch (err) {

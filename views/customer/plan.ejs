@@ -23,7 +23,10 @@
     </div>
     <div class="flex flex-wrap gap-2">
       <a href="/customer" class="btn-ghost">All plans</a>
-      <a href="/customer/plans/<%= plan.id %>/messages" class="btn-secondary">Messages</a>
+      <a href="/customer/plans/<%= plan.id %>/messages" class="btn-secondary">
+        Messages
+        <%- include('../partials/count-badge', { count: typeof planUnreadMessages !== 'undefined' ? planUnreadMessages : 0, label: (typeof planUnreadMessages !== 'undefined' ? planUnreadMessages : 0) + ' unread messages', compact: true }) %>
+      </a>
     </div>
   </div>
 
@@ -75,7 +78,10 @@
             <p class="text-sm text-primary-500"><%= plan.messages.length %> in this thread</p>
           </div>
         </div>
-        <a href="/customer/plans/<%= plan.id %>/messages" class="btn-primary btn-sm">Open messages</a>
+        <a href="/customer/plans/<%= plan.id %>/messages" class="btn-primary btn-sm">
+          Open messages
+          <%- include('../partials/count-badge', { count: typeof planUnreadMessages !== 'undefined' ? planUnreadMessages : 0, label: (typeof planUnreadMessages !== 'undefined' ? planUnreadMessages : 0) + ' unread messages', compact: true }) %>
+        </a>
       </div>
       <div class="mt-5 space-y-3">
         <% if (!plan.messages.length) { %>

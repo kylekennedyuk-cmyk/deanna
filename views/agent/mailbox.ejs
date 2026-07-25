@@ -32,8 +32,13 @@
         <% (sidebar.primary || []).forEach(function(folder) { %>
           <a
             href="/agent/mailbox?folder=<%= encodeURIComponent(folder.path) %>"
-            class="block rounded-xl px-3 py-2.5 text-sm font-medium transition <%= folder.path === activeFolder ? 'bg-primary-950 text-white' : 'text-primary-800 hover:bg-primary-50' %>"
-          ><%= folder.label %></a>
+            class="flex items-center justify-between gap-2 rounded-xl px-3 py-2.5 text-sm font-medium transition <%= folder.path === activeFolder ? 'bg-primary-950 text-white' : 'text-primary-800 hover:bg-primary-50' %>"
+          >
+            <span><%= folder.label %></span>
+            <% if (folder.key === 'inbox') { %>
+              <%- include('../partials/count-badge', { count: badgeCounts.mailbox, label: badgeCounts.mailbox + ' unread emails', compact: true }) %>
+            <% } %>
+          </a>
         <% }) %>
         <% if (sidebar.other && sidebar.other.length) { %>
           <p class="px-3 pb-1 pt-4 text-xs font-semibold uppercase tracking-wide text-primary-500">More</p>

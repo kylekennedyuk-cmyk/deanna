@@ -31,7 +31,12 @@
 
   <div class="mb-6 flex gap-2 overflow-x-auto pb-1" role="tablist" aria-label="Plan sections">
     <% tabs.forEach(function(t) { %>
-      <a href="?tab=<%= t.id %>" role="tab" aria-selected="<%= tab === t.id ? 'true' : 'false' %>" class="whitespace-nowrap rounded-full px-4 py-2 text-sm font-semibold transition <%= tab === t.id ? 'bg-primary-900 text-white' : 'bg-white text-primary-700 shadow-soft hover:bg-secondary-50' %>"><%= t.label %></a>
+      <a href="?tab=<%= t.id %>" role="tab" aria-selected="<%= tab === t.id ? 'true' : 'false' %>" class="inline-flex items-center gap-2 whitespace-nowrap rounded-full px-4 py-2 text-sm font-semibold transition <%= tab === t.id ? 'bg-primary-900 text-white' : 'bg-white text-primary-700 shadow-soft hover:bg-secondary-50' %>">
+        <%= t.label %>
+        <% if (t.id === 'messages') { %>
+          <%- include('../partials/count-badge', { count: typeof planUnreadMessages !== 'undefined' ? planUnreadMessages : 0, label: (typeof planUnreadMessages !== 'undefined' ? planUnreadMessages : 0) + ' unread messages on this plan', compact: true }) %>
+        <% } %>
+      </a>
     <% }) %>
   </div>
 

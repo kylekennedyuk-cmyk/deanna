@@ -4,7 +4,10 @@
   <div class="mb-8 flex flex-wrap items-end justify-between gap-4">
     <div>
       <p class="badge bg-white text-secondary-800 shadow-soft">Inbox</p>
-      <h1 class="mt-3 text-display-md">Messages</h1>
+      <h1 class="mt-3 inline-flex flex-wrap items-center gap-3 text-display-md">
+        Messages
+        <%- include('../partials/count-badge', { count: badgeCounts.messages, label: badgeCounts.messages + ' unread plan messages' }) %>
+      </h1>
       <p class="mt-2 text-primary-700">Every client conversation, organised by holiday plan.</p>
     </div>
     <form method="get" action="/agent/inbox" class="flex gap-2">

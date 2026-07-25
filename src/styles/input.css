@@ -177,6 +177,22 @@
     @apply inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold tracking-wide;
   }
 
+  .nav-count {
+    @apply ml-1 inline-flex min-w-[1.25rem] items-center justify-center rounded-full px-1.5 py-0.5 text-[0.65rem] font-bold leading-none tabular-nums text-white;
+    background-color: color-mix(in srgb, var(--brand-secondary, #d1a24a) 88%, #8a5a10);
+  }
+
+  .nav-count-sm {
+    @apply ml-1 min-w-[1.1rem] px-1 text-[0.6rem];
+  }
+
+  a.bg-primary-950 .nav-count,
+  a.bg-primary-900 .nav-count,
+  .btn-primary .nav-count {
+    background-color: #fff;
+    color: var(--brand-primary, #1a2b40);
+  }
+
   .badge-status-new {
     @apply badge bg-accent-100 text-accent-700;
   }

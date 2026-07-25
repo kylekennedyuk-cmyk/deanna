@@ -1,0 +1,8 @@
+<%
+  const n = typeof count === 'number' ? count : Number(count || 0);
+  if (n > 0) {
+    const display = n > 99 ? '99+' : String(n);
+    const aria = typeof label !== 'undefined' && label ? label : (display + ' notifications');
+%>
+<span class="nav-count<%= typeof compact !== 'undefined' && compact ? ' nav-count-sm' : '' %>" aria-label="<%= aria %>"><%= display %></span>
+<% } %>

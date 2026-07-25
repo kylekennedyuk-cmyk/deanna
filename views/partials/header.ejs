@@ -22,7 +22,14 @@
 
     <div class="flex shrink-0 items-center gap-2 sm:gap-3">
       <% if (currentUser) { %>
-        <a href="<%= currentUser.role === 'admin' ? '/admin' : (currentUser.role === 'agent' ? '/agent' : '/customer') %>" class="btn-ghost btn-sm hidden whitespace-nowrap lg:inline-flex">Dashboard</a>
+        <%
+          const dashHref = currentUser.role === 'admin' ? '/admin' : (currentUser.role === 'agent' ? '/agent' : '/customer');
+          const dashCounts = typeof badgeCounts !== 'undefined' && badgeCounts ? badgeCounts : { total: 0 };
+        %>
+        <a href="<%= dashHref %>" class="btn-ghost btn-sm hidden whitespace-nowrap lg:inline-flex">
+          Dashboard
+          <%- include('count-badge', { count: dashCounts.total, label: dashCounts.total + ' notifications' }) %>
+        </a>
       <% } %>
       <a href="/planner" class="btn-primary btn-sm hidden whitespace-nowrap sm:inline-flex lg:px-6 lg:py-3">Start Planning</a>
       <% if (currentUser) { %>
@@ -84,7 +91,14 @@
     <div class="space-y-3 border-t border-primary-100 px-5 py-5">
       <a href="/planner" class="btn-primary w-full">Start Planning</a>
       <% if (currentUser) { %>
-        <a href="<%= currentUser.role === 'admin' ? '/admin' : (currentUser.role === 'agent' ? '/agent' : '/customer') %>" class="btn-secondary w-full">Dashboard</a>
+        <%
+          const mobileDashHref = currentUser.role === 'admin' ? '/admin' : (currentUser.role === 'agent' ? '/agent' : '/customer');
+          const mobileCounts = typeof badgeCounts !== 'undefined' && badgeCounts ? badgeCounts : { total: 0 };
+        %>
+        <a href="<%= mobileDashHref %>" class="btn-secondary w-full">
+          Dashboard
+          <%- include('count-badge', { count: mobileCounts.total, label: mobileCounts.total + ' notifications' }) %>
+        </a>
         <form action="/logout" method="post"><input type="hidden" name="_csrf" value="<%= csrfToken %>" /><button type="submit" class="btn-logout w-full">Log out</button></form>
       <% } else { %>
         <a href="/login" class="btn-primary w-full">Log in</a>

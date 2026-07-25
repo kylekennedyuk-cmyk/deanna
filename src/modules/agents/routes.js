@@ -4,6 +4,7 @@ const { sendNotification, sendNotificationAsync } = require('../../config/email'
 const {
   deleteMessage,
   getMessage,
+  invalidateInboxUnseenCache,
   listMessages,
   moveMessage,
   replySubject,
@@ -11,6 +12,7 @@ const {
   sendMailboxMail,
 } = require('../../config/mailbox');
 const { statusLabel } = require('../../utils/format');
+const { markPlanMessagesRead, refreshBadgeCounts } = require('../../utils/notifications');
 const { requireRole } = require('../../middleware/auth');
 
 const router = express.Router();
@@ -176,12 +178,29 @@ router.get('/plans/:id', async (req, res, next) => {
       return res.status(404).render('pages/error', { title: 'Not found', message: 'Plan not found.', status: 404 });
     }
 
+    const tab = req.query.tab || 'overview';
+    let planUnreadMessages = 0;
+    if (tab === 'messages') {
+      await markPlanMessagesRead(req.user, plan.id);
+      await refreshBadgeCounts(res, req.user);
+      planUnreadMessages = 0;
+    } else {
+      planUnreadMessages = await prisma.message.count({
+        where: {
+          planId: plan.id,
+          senderId: { not: req.user.id },
+          reads: { none: { userId: req.user.id } },
+        },
+      });
+    }
+
     const priceFields = parseLabeled(plan.pricing);
     res.render('agent/plan', {
       title: `Plan #${plan.id}`,
       plan,
       preferences: safeJson(plan.preferences),
-      tab: req.query.tab || 'overview',
+      tab,
+      planUnreadMessages,
       saved: req.query.saved === '1',
       emailed: req.query.emailed === '1',
       emailWarn: req.query.email_warn === '1',
@@ -291,6 +310,7 @@ router.post('/plans/:id/messages', async (req, res, next) => {
     }
 
     await prisma.message.create({ data: { planId, senderId: req.user.id, content } });
+    await markPlanMessagesRead(req.user, planId);
 
     const params = new URLSearchParams({ tab: 'messages' });
     const customerEmail = String(plan.customer?.email || '').trim();
@@ -430,6 +450,9 @@ router.get('/mailbox/m/:uid', async (req, res) => {
   const folder = mailboxFolder(req);
   try {
     const message = await getMessage(folder, req.params.uid);
+    // getMessage marks IMAP \\Seen; force-refresh cached unseen for this response.
+    invalidateInboxUnseenCache();
+    await refreshBadgeCounts(res, req.user);
     return res.render('agent/mailbox-message', {
       title: message.subject,
       message,

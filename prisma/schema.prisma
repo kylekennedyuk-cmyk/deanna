@@ -8,21 +8,24 @@ datasource db {
 }
 
 model User {
-  id           Int           @id @default(autoincrement())
-  email        String        @unique
-  username     String?       @unique
-  passwordHash String
-  role         String        @default("customer") // customer | agent | admin
-  name         String
-  phone        String?
-  emailNotify  Boolean       @default(true)
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
-  plans        HolidayPlan[] @relation("PlanCustomer")
-  agentPlans   HolidayPlan[] @relation("PlanAgent")
-  messages     Message[]
-  documents    Document[]
-  resetTokens  PasswordResetToken[]
+  id                      Int           @id @default(autoincrement())
+  email                   String        @unique
+  username                String?       @unique
+  passwordHash            String
+  role                    String        @default("customer") // customer | agent | admin
+  name                    String
+  phone                   String?
+  emailNotify             Boolean       @default(true)
+  /// Once true, historical plan messages were backfilled as read for this user.
+  messageReadsInitialized Boolean       @default(false)
+  createdAt               DateTime      @default(now())
+  updatedAt               DateTime      @updatedAt
+  plans                   HolidayPlan[] @relation("PlanCustomer")
+  agentPlans              HolidayPlan[] @relation("PlanAgent")
+  messages                Message[]
+  messageReads            MessageRead[]
+  documents               Document[]
+  resetTokens             PasswordResetToken[]
 }
 
 model PasswordResetToken {
@@ -58,14 +61,32 @@ model HolidayPlan {
 }
 
 model Message {
-  id         Int         @id @default(autoincrement())
+  id         Int           @id @default(autoincrement())
   planId     Int
-  plan       HolidayPlan @relation(fields: [planId], references: [id])
+  plan       HolidayPlan   @relation(fields: [planId], references: [id])
   senderId   Int
-  sender     User        @relation(fields: [senderId], references: [id])
+  sender     User          @relation(fields: [senderId], references: [id])
   content    String
   attachment String?
-  createdAt  DateTime    @default(now())
+  createdAt  DateTime      @default(now())
+  reads      MessageRead[]
+}
+
+/// Per-user read receipts for in-app plan messages. Absence of a row means unread
+/// (for that user), but only after User.messageReadsInitialized is true — first
+/// visit backfills all currently accessible incoming messages as read so legacy
+/// history does not inflate badges.
+model MessageRead {
+  id        Int      @id @default(autoincrement())
+  messageId Int
+  message   Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  readAt    DateTime @default(now())
+
+  @@unique([messageId, userId])
+  @@index([userId])
+  @@index([messageId])
 }
 
 model Page {

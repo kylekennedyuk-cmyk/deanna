@@ -3,6 +3,7 @@ const { prisma } = require('../../config/database');
 const { sendNotificationAsync } = require('../../config/email');
 const { getSettings } = require('../../config/settings');
 const { requireRole } = require('../../middleware/auth');
+const { markPlanMessagesRead, refreshBadgeCounts } = require('../../utils/notifications');
 
 const router = express.Router();
 router.use(requireRole(['customer', 'admin']));
@@ -13,9 +14,26 @@ router.get('/', async (req, res, next) => {
       where: { customerId: req.user.id },
       orderBy: { updatedAt: 'desc' },
     });
+
+    const unreadByPlan = {};
+    if (plans.length) {
+      const unread = await prisma.message.findMany({
+        where: {
+          planId: { in: plans.map((p) => p.id) },
+          senderId: { not: req.user.id },
+          reads: { none: { userId: req.user.id } },
+        },
+        select: { planId: true },
+      });
+      unread.forEach((m) => {
+        unreadByPlan[m.planId] = (unreadByPlan[m.planId] || 0) + 1;
+      });
+    }
+
     res.render('customer/dashboard', {
       title: 'My holidays',
       plans,
+      unreadByPlan,
     });
   } catch (err) {
     next(err);
@@ -31,11 +49,19 @@ router.get('/plans/:id', async (req, res, next) => {
     if (!plan) {
       return res.status(404).render('pages/error', { title: 'Not found', message: 'Plan not found.', status: 404 });
     }
+    const planUnreadMessages = await prisma.message.count({
+      where: {
+        planId: plan.id,
+        senderId: { not: req.user.id },
+        reads: { none: { userId: req.user.id } },
+      },
+    });
     res.render('customer/plan', {
       title: `Plan #${plan.id}`,
       plan,
       preferences: safeJson(plan.preferences),
       created: req.query.created === '1',
+      planUnreadMessages,
     });
   } catch (err) {
     next(err);
@@ -51,6 +77,8 @@ router.get('/plans/:id/messages', async (req, res, next) => {
     if (!plan) {
       return res.status(404).render('pages/error', { title: 'Not found', message: 'Plan not found.', status: 404 });
     }
+    await markPlanMessagesRead(req.user, plan.id);
+    await refreshBadgeCounts(res, req.user);
     res.render('customer/messages', { title: 'Messages', plan });
   } catch (err) {
     next(err);
@@ -72,6 +100,7 @@ router.post('/plans/:id/messages', async (req, res, next) => {
       await prisma.message.create({
         data: { planId, senderId: req.user.id, content },
       });
+      await markPlanMessagesRead(req.user, planId);
       const settings = await getSettings();
       const recipient =
         (plan.agent && plan.agent.email) ||

@@ -17,6 +17,23 @@
     </div>
   </div>
 
+  <% if (badgeCounts.messages > 0 || badgeCounts.plans > 0) { %>
+  <div class="mb-8 flex flex-wrap gap-3">
+    <% if (badgeCounts.plans > 0) { %>
+      <a href="/customer" class="inline-flex items-center gap-2 rounded-full bg-secondary-100 px-4 py-2 text-sm font-semibold text-secondary-800">
+        Proposals to review
+        <%- include('../partials/count-badge', { count: badgeCounts.plans, label: badgeCounts.plans + ' proposals needing review' }) %>
+      </a>
+    <% } %>
+    <% if (badgeCounts.messages > 0) { %>
+      <span class="inline-flex items-center gap-2 rounded-full bg-primary-100 px-4 py-2 text-sm font-semibold text-primary-800">
+        Unread messages
+        <%- include('../partials/count-badge', { count: badgeCounts.messages, label: badgeCounts.messages + ' unread messages' }) %>
+      </span>
+    <% } %>
+  </div>
+  <% } %>
+
   <% if (latest) { %>
   <div class="mb-10 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
     <article class="card">
@@ -94,8 +111,17 @@
             <p class="mt-1 text-sm text-primary-700"><%= nextAction(plan.status) %></p>
           </div>
           <div class="flex flex-wrap gap-2 sm:justify-end">
-            <a href="/customer/plans/<%= plan.id %>" class="btn-primary btn-sm">View</a>
-            <a href="/customer/plans/<%= plan.id %>/messages" class="btn-secondary btn-sm">Message</a>
+            <a href="/customer/plans/<%= plan.id %>" class="btn-primary btn-sm">
+              View
+              <% if (plan.status === 'sent') { %>
+                <%- include('../partials/count-badge', { count: 1, label: 'Proposal needs review', compact: true }) %>
+              <% } %>
+            </a>
+            <% const planUnread = (typeof unreadByPlan !== 'undefined' && unreadByPlan[plan.id]) ? unreadByPlan[plan.id] : 0; %>
+            <a href="/customer/plans/<%= plan.id %>/messages" class="btn-secondary btn-sm">
+              Message
+              <%- include('../partials/count-badge', { count: planUnread, label: planUnread + ' unread messages', compact: true }) %>
+            </a>
           </div>
         </div>
       </article>

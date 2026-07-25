@@ -8,9 +8,18 @@
       <p class="mt-2 text-lg text-primary-700">Prioritised requests, focused tools, and everything you need to craft excellent holiday plans.</p>
     </div>
     <div class="flex flex-wrap gap-2">
-      <a href="/agent/mailbox" class="btn-secondary">Mailbox</a>
-      <a href="/agent/inbox" class="btn-secondary">Plan inbox</a>
-      <a href="/agent/plans" class="btn-primary">All plans</a>
+      <a href="/agent/mailbox" class="btn-secondary">
+        Mailbox
+        <%- include('../partials/count-badge', { count: badgeCounts.mailbox, label: badgeCounts.mailbox + ' unread emails' }) %>
+      </a>
+      <a href="/agent/inbox" class="btn-secondary">
+        Plan inbox
+        <%- include('../partials/count-badge', { count: badgeCounts.messages, label: badgeCounts.messages + ' unread plan messages' }) %>
+      </a>
+      <a href="/agent/plans" class="btn-primary">
+        All plans
+        <%- include('../partials/count-badge', { count: badgeCounts.plans, label: badgeCounts.plans + ' plans needing action' }) %>
+      </a>
     </div>
   </div>
 
