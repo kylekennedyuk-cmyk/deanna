@@ -1,6 +1,6 @@
 const express = require('express');
 const { prisma } = require('../../config/database');
-const { sendNotification } = require('../../config/email');
+const { sendNotification, sendNotificationAsync } = require('../../config/email');
 const {
   deleteMessage,
   getMessage,
@@ -225,21 +225,17 @@ router.post('/plans/:id/update', async (req, res, next) => {
 
     await prisma.holidayPlan.update({ where: { id }, data });
     if (existingPlan && data.status && data.status !== existingPlan.status && existingPlan.customer?.email) {
-      try {
-        await sendNotification('status_update', {
-          to: existingPlan.customer.email,
-          values: {
-            customerName: existingPlan.customer.name,
-            planTitle: `Plan #${id}`,
-            status: statusLabel(data.status),
-          },
-          body: `Deanna has updated your holiday plan to “${statusLabel(data.status)}”. Log in to review the latest details and messages.`,
-          buttonLabel: 'View your holiday plan',
-          buttonUrl: `${process.env.APP_URL || 'http://localhost:3000'}/customer/plans/${id}`,
-        });
-      } catch (err) {
-        console.error('[agent status email]', err);
-      }
+      sendNotificationAsync('status_update', {
+        to: existingPlan.customer.email,
+        values: {
+          customerName: existingPlan.customer.name,
+          planTitle: `Plan #${id}`,
+          status: statusLabel(data.status),
+        },
+        body: `Deanna has updated your holiday plan to “${statusLabel(data.status)}”. Log in to review the latest details and messages.`,
+        buttonLabel: 'View your holiday plan',
+        buttonUrl: `${process.env.APP_URL || 'http://localhost:3000'}/customer/plans/${id}`,
+      });
     }
     res.redirect(`/agent/plans/${id}?tab=${req.body.tab || 'overview'}&saved=1`);
   } catch (err) {
@@ -256,21 +252,17 @@ router.post('/plans/:id/send', async (req, res, next) => {
       include: { customer: true },
     });
     if (plan.customer?.email) {
-      try {
-        await sendNotification('status_update', {
-          to: plan.customer.email,
-          values: {
-            customerName: plan.customer.name,
-            planTitle: `Plan #${id}`,
-            status: 'Ready to review',
-          },
-          body: 'Deanna has shared your holiday proposal. Review the details in your portal and send a message if you would like anything adjusted.',
-          buttonLabel: 'Review your proposal',
-          buttonUrl: `${process.env.APP_URL || 'http://localhost:3000'}/customer/plans/${id}`,
-        });
-      } catch (err) {
-        console.error('[agent proposal email]', err);
-      }
+      sendNotificationAsync('status_update', {
+        to: plan.customer.email,
+        values: {
+          customerName: plan.customer.name,
+          planTitle: `Plan #${id}`,
+          status: 'Ready to review',
+        },
+        body: 'Deanna has shared your holiday proposal. Review the details in your portal and send a message if you would like anything adjusted.',
+        buttonLabel: 'Review your proposal',
+        buttonUrl: `${process.env.APP_URL || 'http://localhost:3000'}/customer/plans/${id}`,
+      });
     }
     res.redirect(`/agent/plans/${id}?tab=overview&saved=1`);
   } catch (err) {
@@ -309,40 +301,20 @@ router.post('/plans/:id/messages', async (req, res, next) => {
       return res.redirect(`/agent/plans/${planId}?${params.toString()}`);
     }
 
-    try {
-      const result = await sendNotification('new_message', {
-        to: customerEmail,
-        values: {
-          senderName: req.user.name,
-          customerName: plan.customer.name || '',
-          planTitle: `Plan #${planId}`,
-        },
-        body: content,
-        buttonLabel: 'Reply in your portal',
-        buttonUrl: `${process.env.APP_URL || 'http://localhost:3000'}/customer/plans/${planId}/messages`,
-      });
+    // Don't block the browser on slow SMTP — send in the background.
+    sendNotificationAsync('new_message', {
+      to: customerEmail,
+      values: {
+        senderName: req.user.name,
+        customerName: plan.customer.name || '',
+        planTitle: `Plan #${planId}`,
+      },
+      body: content,
+      buttonLabel: 'Reply in your portal',
+      buttonUrl: `${process.env.APP_URL || 'http://localhost:3000'}/customer/plans/${planId}/messages`,
+    });
 
-      if (result && result.skipped) {
-        params.set('email_warn', '1');
-        params.set(
-          'email_detail',
-          result.reason || 'Message saved in the portal, but the notification email was not sent (SMTP not configured).'
-        );
-      } else {
-        params.set('emailed', '1');
-        if (plan.customer.emailNotify === false) {
-          params.set('email_detail', 'Email sent. Note: this customer previously turned off email notifications in their profile.');
-        }
-      }
-    } catch (err) {
-      console.error('[agent message email]', err);
-      params.set('email_warn', '1');
-      params.set(
-        'email_detail',
-        `Message saved in the portal, but email failed: ${err.message || 'unknown error'}`
-      );
-    }
-
+    params.set('emailed', '1');
     return res.redirect(`/agent/plans/${planId}?${params.toString()}`);
   } catch (err) {
     next(err);

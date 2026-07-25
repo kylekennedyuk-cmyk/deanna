@@ -99,9 +99,12 @@ async function createTransport() {
       user: settings.user,
       pass: settings.pass,
     },
-    connectionTimeout: 20000,
-    greetingTimeout: 20000,
-    socketTimeout: 30000,
+    pool: true,
+    maxConnections: 2,
+    maxMessages: 25,
+    connectionTimeout: 8000,
+    greetingTimeout: 8000,
+    socketTimeout: 15000,
     tls: {
       servername: settings.host,
       minVersion: 'TLSv1.2',
@@ -214,6 +217,21 @@ async function sendNotification(type, { to, values = {}, body = '', buttonLabel,
   return sendMail({ to, subject, text, html });
 }
 
+/** Fire-and-forget so portal pages redirect immediately while SMTP runs in the background. */
+function sendNotificationAsync(type, payload) {
+  setImmediate(() => {
+    sendNotification(type, payload)
+      .then((result) => {
+        if (result && result.skipped) {
+          console.warn(`[email async skipped] ${type} → ${payload.to}: ${result.reason || 'not configured'}`);
+        }
+      })
+      .catch((err) => {
+        console.error(`[email async failed] ${type} → ${payload.to}:`, err.message || err);
+      });
+  });
+}
+
 module.exports = {
   brandedLayout,
   createTransport,
@@ -221,5 +239,6 @@ module.exports = {
   resolveEmailSettings,
   sendMail,
   sendNotification,
+  sendNotificationAsync,
   transportBlockReason,
 };

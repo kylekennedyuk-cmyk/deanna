@@ -1,6 +1,6 @@
 const express = require('express');
 const { prisma } = require('../../config/database');
-const { sendNotification } = require('../../config/email');
+const { sendNotificationAsync } = require('../../config/email');
 const { getSettings } = require('../../config/settings');
 const { requireRole } = require('../../middleware/auth');
 
@@ -80,23 +80,16 @@ router.post('/plans/:id/messages', async (req, res, next) => {
         process.env.SMTP_FROM_EMAIL ||
         process.env.SMTP_USER;
       if (recipient) {
-        try {
-          const result = await sendNotification('new_message', {
-            to: recipient,
-            values: {
-              senderName: req.user.name,
-              planTitle: `Plan #${plan.id}`,
-            },
-            body: content,
-            buttonLabel: 'Reply in the agent workspace',
-            buttonUrl: `${process.env.APP_URL || 'http://localhost:3000'}/agent/plans/${plan.id}?tab=messages`,
-          });
-          if (result && result.skipped) {
-            console.warn('[customer message email skipped]', result.reason);
-          }
-        } catch (err) {
-          console.error('[customer message email]', err);
-        }
+        sendNotificationAsync('new_message', {
+          to: recipient,
+          values: {
+            senderName: req.user.name,
+            planTitle: `Plan #${plan.id}`,
+          },
+          body: content,
+          buttonLabel: 'Reply in the agent workspace',
+          buttonUrl: `${process.env.APP_URL || 'http://localhost:3000'}/agent/plans/${plan.id}?tab=messages`,
+        });
       } else {
         console.warn('[customer message email] no agent/support recipient configured');
       }
