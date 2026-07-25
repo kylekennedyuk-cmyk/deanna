@@ -160,20 +160,34 @@ router.post('/pages/:id', async (req, res, next) => {
   }
 });
 
+async function renderUsersPage(res, extras = {}) {
+  const users = await prisma.user.findMany({ orderBy: { createdAt: 'desc' } });
+  return res.render('admin/users', {
+    title: 'Users',
+    users,
+    saved: false,
+    passwordSaved: false,
+    emailSaved: false,
+    error: null,
+    ...extras,
+  });
+}
+
 router.get('/users', async (req, res, next) => {
   try {
-    const users = await prisma.user.findMany({ orderBy: { createdAt: 'desc' } });
-    res.render('admin/users', {
-      title: 'Users',
-      users,
+    await renderUsersPage(res, {
       saved: req.query.saved === '1',
       passwordSaved: req.query.password === '1',
-      error: null,
+      emailSaved: req.query.email === '1',
     });
   } catch (err) {
     next(err);
   }
 });
+
+function isValidEmail(email) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
 
 router.post('/users', async (req, res, next) => {
   try {
@@ -182,14 +196,9 @@ router.post('/users', async (req, res, next) => {
       ? String(req.body.username).trim().toLowerCase()
       : email;
     const password = String(req.body.password || '');
-    if (!email || !password || password.length < 8) {
-      const users = await prisma.user.findMany({ orderBy: { createdAt: 'desc' } });
-      return res.status(400).render('admin/users', {
-        title: 'Users',
-        users,
-        saved: false,
-        passwordSaved: false,
-        error: 'Email and password (min 8 characters) are required.',
+    if (!email || !isValidEmail(email) || !password || password.length < 8) {
+      return renderUsersPage(res.status(400), {
+        error: 'Valid email and password (min 8 characters) are required.',
       });
     }
 
@@ -205,6 +214,59 @@ router.post('/users', async (req, res, next) => {
     });
     res.redirect('/admin/users?saved=1');
   } catch (err) {
+    if (err.code === 'P2002') {
+      return renderUsersPage(res.status(400), {
+        error: 'That email or username is already in use.',
+      });
+    }
+    next(err);
+  }
+});
+
+router.post('/users/:id/email', async (req, res, next) => {
+  try {
+    const userId = Number(req.params.id);
+    const email = String(req.body.email || '').trim().toLowerCase();
+    if (!userId || !email || !isValidEmail(email)) {
+      return renderUsersPage(res.status(400), {
+        error: 'A valid email address is required.',
+      });
+    }
+
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) {
+      return renderUsersPage(res.status(404), {
+        error: 'User not found.',
+      });
+    }
+
+    if (user.email === email) {
+      return res.redirect('/admin/users?email=1');
+    }
+
+    const data = { email };
+    // Keep login working: username often defaults to email on create/setup.
+    const oldUsername = (user.username || '').trim().toLowerCase();
+    if (!oldUsername || oldUsername === user.email.toLowerCase()) {
+      const usernameTaken = await prisma.user.findFirst({
+        where: { username: email, NOT: { id: userId } },
+      });
+      if (!usernameTaken) {
+        data.username = email;
+      }
+    }
+
+    await prisma.user.update({
+      where: { id: userId },
+      data,
+    });
+    res.redirect('/admin/users?email=1');
+  } catch (err) {
+    if (err.code === 'P2002') {
+      return renderUsersPage(res.status(400), {
+        error: 'That email is already in use by another account.',
+      });
+    }
     next(err);
   }
 });
@@ -214,12 +276,7 @@ router.post('/users/:id/password', async (req, res, next) => {
     const userId = Number(req.params.id);
     const password = String(req.body.password || '');
     if (!userId || password.length < 8) {
-      const users = await prisma.user.findMany({ orderBy: { createdAt: 'desc' } });
-      return res.status(400).render('admin/users', {
-        title: 'Users',
-        users,
-        saved: false,
-        passwordSaved: false,
+      return renderUsersPage(res.status(400), {
         error: 'Password must be at least 8 characters.',
       });
     }

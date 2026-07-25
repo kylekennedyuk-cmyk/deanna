@@ -1,4 +1,5 @@
 const express = require('express');
+const bcrypt = require('bcryptjs');
 const { prisma } = require('../../config/database');
 const { sendNotification, sendNotificationAsync } = require('../../config/email');
 const {
@@ -826,6 +827,59 @@ router.post('/mailbox/send', async (req, res) => {
       activeFolder: folder,
       form,
     });
+  }
+});
+
+router.get('/password', (req, res) => {
+  res.render('agent/password', {
+    title: 'Change password',
+    saved: req.query.saved === '1',
+    error: null,
+  });
+});
+
+router.post('/password', async (req, res, next) => {
+  try {
+    const currentPassword = String(req.body.currentPassword || '');
+    const newPassword = String(req.body.newPassword || '');
+    const confirmPassword = String(req.body.confirmPassword || '');
+
+    const renderError = (message, status = 400) =>
+      res.status(status).render('agent/password', {
+        title: 'Change password',
+        saved: false,
+        error: message,
+      });
+
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      return renderError('All password fields are required.');
+    }
+    if (newPassword.length < 8) {
+      return renderError('New password must be at least 8 characters.');
+    }
+    if (newPassword !== confirmPassword) {
+      return renderError('New password and confirmation do not match.');
+    }
+
+    const user = await prisma.user.findUnique({ where: { id: req.user.id } });
+    if (!user) {
+      return renderError('Account not found.', 404);
+    }
+
+    const currentOk = await bcrypt.compare(currentPassword, user.passwordHash);
+    if (!currentOk) {
+      return renderError('Current password is incorrect.');
+    }
+
+    const passwordHash = await bcrypt.hash(newPassword, 12);
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { passwordHash },
+    });
+
+    return res.redirect('/agent/password?saved=1');
+  } catch (err) {
+    return next(err);
   }
 });
 

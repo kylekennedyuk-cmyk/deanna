@@ -30,6 +30,7 @@
       Mailbox
       <%- include('count-badge', { count: counts.mailbox, label: counts.mailbox + ' unread emails' }) %>
     </a>
+    <a href="/agent/password" class="btn-ghost btn-sm">Password</a>
   <% } else if (role === 'agent') { %>
     <a href="/agent/plans?filter=active" class="btn-ghost btn-sm">
       Plans
@@ -43,6 +44,7 @@
       Mailbox
       <%- include('count-badge', { count: counts.mailbox, label: counts.mailbox + ' unread emails' }) %>
     </a>
+    <a href="/agent/password" class="btn-ghost btn-sm">Password</a>
   <% } %>
   <a href="/" class="btn-ghost btn-sm ml-auto">View website</a>
 </nav>
