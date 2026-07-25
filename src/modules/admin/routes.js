@@ -2,43 +2,22 @@ const express = require('express');
 const bcrypt = require('bcryptjs');
 const path = require('path');
 const fs = require('fs');
-const multer = require('multer');
 const { prisma } = require('../../config/database');
 const { createTransport, closeCachedTransport, sendMail, normalizeSmtpHost } = require('../../config/email');
 const { encryptSecret, decryptSecret, getSettings, setSettings } = require('../../config/settings');
 const { requireRole } = require('../../middleware/auth');
 const { resolveHomeSections } = require('../../content/homeDefaults');
 const { CHANGE_REQUEST_STATUSES } = require('../../utils/format');
+const {
+  uploadDirectory,
+  mediaUpload,
+  createMediaFromUpload,
+  jsonUploadHandler,
+  listMediaJson,
+} = require('../../utils/mediaUpload');
 
 const router = express.Router();
 router.use(requireRole(['admin']));
-
-const uploadDirectory = path.join(__dirname, '..', '..', '..', 'public', 'uploads');
-fs.mkdirSync(uploadDirectory, { recursive: true });
-
-const mediaUpload = multer({
-  storage: multer.diskStorage({
-    destination: uploadDirectory,
-    filename: (req, file, callback) => {
-      const extension = path.extname(file.originalname).toLowerCase();
-      const base = path
-        .basename(file.originalname, extension)
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, '-')
-        .replace(/^-|-$/g, '')
-        .slice(0, 60);
-      callback(null, `${Date.now()}-${base || 'image'}${extension}`);
-    },
-  }),
-  limits: { fileSize: 5 * 1024 * 1024 },
-  fileFilter: (req, file, callback) => {
-    const allowed = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/svg+xml']);
-    if (!allowed.has(file.mimetype)) {
-      return callback(new Error('Only JPG, PNG, WebP, GIF and SVG images are accepted.'));
-    }
-    return callback(null, true);
-  },
-});
 
 router.get('/', async (req, res, next) => {
   try {
@@ -91,6 +70,15 @@ router.get('/pages/:id', async (req, res, next) => {
       sections,
       media,
       error: null,
+      saved: req.query.saved === '1',
+      editorPaths: {
+        list: '/admin/pages',
+        listLabel: 'All pages',
+        save: `/admin/pages/${page.id}`,
+        preview: `/admin/pages/${page.id}/preview`,
+        mediaUpload: '/admin/media/upload',
+        mediaJson: '/admin/media/json',
+      },
     });
   } catch (err) {
     next(err);
@@ -144,6 +132,15 @@ router.post('/pages/:id', async (req, res, next) => {
         sections: [],
         media,
         error: 'The page sections could not be saved. Please review the section fields.',
+        saved: false,
+        editorPaths: {
+          list: '/admin/pages',
+          listLabel: 'All pages',
+          save: `/admin/pages/${id}`,
+          preview: `/admin/pages/${id}/preview`,
+          mediaUpload: '/admin/media/upload',
+          mediaJson: '/admin/media/json',
+        },
       });
     }
     await prisma.page.update({
@@ -156,7 +153,7 @@ router.post('/pages/:id', async (req, res, next) => {
         published: req.body.published === 'on',
       },
     });
-    res.redirect('/admin/pages?saved=1');
+    res.redirect(`/admin/pages/${id}?saved=1`);
   } catch (err) {
     next(err);
   }
@@ -481,6 +478,9 @@ router.post('/navigation/:id/delete', async (req, res, next) => {
   }
 });
 
+router.get('/media/json', listMediaJson);
+router.post('/media/upload', jsonUploadHandler);
+
 router.get('/media', async (req, res, next) => {
   try {
     const media = await prisma.media.findMany({
@@ -513,27 +513,19 @@ router.post('/media', (req, res, next) => {
       }
     }
 
-    if (!req.file) {
-      const media = await prisma.media.findMany({ orderBy: { uploadedAt: 'desc' } });
-      return res.status(400).render('admin/media', {
-        title: 'Media library',
-        media,
-        saved: false,
-        error: 'Choose an image to upload.',
-      });
-    }
-
     try {
-      await prisma.media.create({
-        data: {
-          url: `/uploads/${req.file.filename}`,
-          alt: req.body.alt ? String(req.body.alt).trim() : null,
-          caption: req.body.caption ? String(req.body.caption).trim() : null,
-          folder: req.body.folder ? String(req.body.folder).trim() : 'General',
-        },
-      });
+      await createMediaFromUpload(req);
       return res.redirect('/admin/media?saved=1');
     } catch (err) {
+      if (err.status === 400) {
+        const media = await prisma.media.findMany({ orderBy: { uploadedAt: 'desc' } });
+        return res.status(400).render('admin/media', {
+          title: 'Media library',
+          media,
+          saved: false,
+          error: err.message,
+        });
+      }
       return next(err);
     }
   });

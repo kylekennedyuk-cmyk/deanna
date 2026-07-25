@@ -416,6 +416,71 @@
       radial-gradient(circle at 20% 20%, color-mix(in srgb, var(--brand-secondary, #d1a24a) 45%, transparent), transparent 40%),
       linear-gradient(145deg, var(--brand-primary, #1a2b40) 0%, color-mix(in srgb, var(--brand-primary, #1a2b40) 70%, #5aa8a1) 100%);
   }
+
+  .image-picker {
+    @apply rounded-2xl border border-primary-100 bg-white p-4;
+  }
+
+  .image-picker-frame {
+    @apply relative mb-3 flex aspect-[16/10] items-center justify-center overflow-hidden rounded-xl bg-primary-50;
+  }
+
+  .image-picker-thumb {
+    @apply h-full w-full object-cover;
+  }
+
+  .image-picker-empty {
+    @apply px-4 text-center text-sm text-primary-500;
+  }
+
+  .image-picker-meta {
+    @apply mb-3 break-all text-xs text-primary-600;
+  }
+
+  .image-picker-actions {
+    @apply flex flex-wrap gap-2;
+  }
+
+  .image-picker-advanced {
+    @apply mt-3 rounded-xl bg-primary-50/70 px-3 py-2 text-sm text-primary-700;
+  }
+
+  .image-picker-advanced summary {
+    @apply cursor-pointer font-medium text-primary-800;
+  }
+
+  .image-picker-modal {
+    @apply m-auto w-[min(40rem,calc(100vw-2rem))] rounded-[1.5rem] border border-primary-100 bg-white p-0 shadow-lift;
+    max-height: min(90vh, 40rem);
+  }
+
+  .image-picker-modal::backdrop {
+    background: rgba(15, 26, 40, 0.45);
+  }
+
+  .image-picker-modal-panel {
+    @apply max-h-[min(90vh,40rem)] overflow-y-auto p-6;
+  }
+
+  .image-picker-tab.is-active {
+    @apply shadow-soft;
+  }
+
+  .image-picker-library {
+    @apply grid max-h-[22rem] grid-cols-2 gap-3 overflow-y-auto sm:grid-cols-3;
+  }
+
+  .image-picker-library-item {
+    @apply overflow-hidden rounded-xl border border-primary-100 bg-primary-50 text-left transition hover:-translate-y-0.5 hover:border-secondary-300 hover:shadow-soft;
+  }
+
+  .image-picker-library-item img {
+    @apply aspect-[4/3] w-full object-cover;
+  }
+
+  .image-picker-library-item span {
+    @apply block truncate px-2 py-2 text-xs text-primary-700;
+  }
 }
 
 /* Force brand colours through compiled Tailwind utilities used across the site */

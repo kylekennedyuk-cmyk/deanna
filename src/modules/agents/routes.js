@@ -23,9 +23,50 @@ const {
 const { markPlanMessagesRead, refreshBadgeCounts } = require('../../utils/notifications');
 const { streamPlanPdf } = require('../../utils/brandedPdf');
 const { requireRole } = require('../../middleware/auth');
+const { resolveHomeSections } = require('../../content/homeDefaults');
+const { jsonUploadHandler, listMediaJson } = require('../../utils/mediaUpload');
 
 const router = express.Router();
 router.use(requireRole(['agent', 'admin']));
+
+/** Public content pages agents may edit without full admin access. */
+const AGENT_EDITABLE_SLUGS = [
+  'home',
+  'about',
+  'hotels',
+  'dining',
+  'planning-advice',
+  'contact',
+  'disneyland-paris',
+];
+
+function isAgentEditablePage(page) {
+  return page && AGENT_EDITABLE_SLUGS.includes(page.slug);
+}
+
+function agentEditorPaths(pageId) {
+  return {
+    list: '/agent/site',
+    listLabel: 'Site content',
+    save: `/agent/site/pages/${pageId}`,
+    preview: `/agent/site/pages/${pageId}/preview`,
+    mediaUpload: '/agent/site/media/upload',
+    mediaJson: '/agent/site/media/json',
+  };
+}
+
+async function loadPageSections(page) {
+  let sections = [];
+  try {
+    sections = JSON.parse(page.sections || '[]');
+  } catch {
+    sections = [];
+  }
+  if (page.slug === 'home') {
+    sections = resolveHomeSections(sections);
+  }
+  return sections;
+}
 
 const RECENT_MESSAGE_PREVIEW = 5;
 const RECENT_MESSAGE_FETCH = 20;
@@ -935,6 +976,124 @@ router.post('/change-requests', async (req, res, next) => {
       },
     });
     res.redirect('/agent/change-requests?saved=1');
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.get('/site', async (req, res, next) => {
+  try {
+    const pages = await prisma.page.findMany({
+      where: { slug: { in: AGENT_EDITABLE_SLUGS } },
+      orderBy: { slug: 'asc' },
+    });
+    res.render('agent/site', {
+      title: 'Site content',
+      pages,
+      saved: req.query.saved === '1',
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.get('/site/media/json', listMediaJson);
+router.post('/site/media/upload', jsonUploadHandler);
+
+router.get('/site/pages/:id', async (req, res, next) => {
+  try {
+    const id = Number(req.params.id);
+    const [page, media] = await Promise.all([
+      prisma.page.findUnique({ where: { id } }),
+      prisma.media.findMany({ orderBy: { uploadedAt: 'desc' } }),
+    ]);
+    if (!page || !isAgentEditablePage(page)) {
+      return res.status(404).render('pages/error', {
+        title: 'Not found',
+        message: 'That page is not available for agent editing. Use a site change request instead.',
+        status: 404,
+      });
+    }
+    const sections = await loadPageSections(page);
+    res.render('admin/page-edit', {
+      title: `Edit ${page.title}`,
+      page,
+      sections,
+      media,
+      error: null,
+      saved: req.query.saved === '1',
+      editorPaths: agentEditorPaths(page.id),
+      agentScoped: true,
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.get('/site/pages/:id/preview', async (req, res, next) => {
+  try {
+    const page = await prisma.page.findUnique({ where: { id: Number(req.params.id) } });
+    if (!page || !isAgentEditablePage(page)) {
+      return res.status(404).render('pages/error', {
+        title: 'Not found',
+        message: 'Page not found.',
+        status: 404,
+      });
+    }
+    const sections = await loadPageSections(page);
+    return res.render(page.slug === 'home' ? 'pages/home' : 'pages/rich', {
+      title: `${page.title} preview`,
+      seoDesc: page.seoDesc,
+      sections,
+    });
+  } catch (err) {
+    return next(err);
+  }
+});
+
+router.post('/site/pages/:id', async (req, res, next) => {
+  try {
+    const id = Number(req.params.id);
+    const existing = await prisma.page.findUnique({ where: { id } });
+    if (!existing || !isAgentEditablePage(existing)) {
+      return res.status(404).render('pages/error', {
+        title: 'Not found',
+        message: 'That page is not available for agent editing.',
+        status: 404,
+      });
+    }
+
+    let sections;
+    try {
+      sections = JSON.parse(String(req.body.sections || '[]'));
+      if (!Array.isArray(sections)) throw new Error('Sections must be an array');
+    } catch {
+      const media = await prisma.media.findMany({ orderBy: { uploadedAt: 'desc' } });
+      return res.status(400).render('admin/page-edit', {
+        title: `Edit ${existing.title}`,
+        page: existing,
+        sections: [],
+        media,
+        error: 'The page sections could not be saved. Please review the section fields.',
+        saved: false,
+        editorPaths: agentEditorPaths(id),
+        agentScoped: true,
+      });
+    }
+
+    // Agents may edit content/images but not publish or rename SEO freely beyond content fields.
+    // Allow title/seo updates for allowlisted pages so image + copy edits stay coherent.
+    await prisma.page.update({
+      where: { id },
+      data: {
+        title: String(req.body.title || '').trim() || existing.title,
+        seoTitle: req.body.seoTitle ? String(req.body.seoTitle).trim() : null,
+        seoDesc: req.body.seoDesc ? String(req.body.seoDesc).trim() : null,
+        sections: JSON.stringify(sections),
+        published: existing.published,
+      },
+    });
+    res.redirect(`/agent/site/pages/${id}?saved=1`);
   } catch (err) {
     next(err);
   }

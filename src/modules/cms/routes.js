@@ -17,6 +17,11 @@ const RICH_SECTION_TYPES = new Set([
   'faq',
   'cta',
   'intro',
+  'featureCards',
+  'highlights',
+  'testimonials',
+  'why',
+  'process',
 ]);
 
 function parseSections(page) {

@@ -14,6 +14,7 @@
   <% } %>
   <% if (role === 'admin') { %>
     <a href="/admin/pages" class="btn-ghost btn-sm">Pages</a>
+    <a href="/agent/site" class="btn-ghost btn-sm">Site content</a>
     <a href="/admin/users" class="btn-ghost btn-sm">Users</a>
     <a href="/admin/settings" class="btn-ghost btn-sm">Settings</a>
     <a href="/admin/notifications" class="btn-ghost btn-sm">Email</a>
@@ -36,6 +37,7 @@
     </a>
     <a href="/agent/password" class="btn-ghost btn-sm">Password</a>
   <% } else if (role === 'agent') { %>
+    <a href="/agent/site" class="btn-ghost btn-sm">Edit site</a>
     <a href="/agent/plans?filter=active" class="btn-ghost btn-sm">
       Plans
       <%- include('count-badge', { count: counts.plans, label: counts.plans + ' plans needing action' }) %>

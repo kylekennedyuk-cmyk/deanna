@@ -1,23 +1,50 @@
+<%
+  const paths = typeof editorPaths !== 'undefined' && editorPaths ? editorPaths : {
+    list: '/admin/pages',
+    listLabel: 'All pages',
+    save: '/admin/pages/' + page.id,
+    preview: '/admin/pages/' + page.id + '/preview',
+    mediaUpload: '/admin/media/upload',
+    mediaJson: '/admin/media/json',
+  };
+  const scopedAgent = typeof agentScoped !== 'undefined' && agentScoped;
+  const pageSaved = typeof saved !== 'undefined' && saved;
+%>
 <%- include('../partials/shell-start', { bodyClass: 'portal-shell' }) %>
 <section class="section-sm">
-  <%- include('../partials/portal-nav', { backHref: '/admin/pages', backLabel: 'All pages' }) %>
+  <%- include('../partials/portal-nav', { backHref: paths.list, backLabel: paths.listLabel || 'Back' }) %>
   <div class="mb-8 flex flex-wrap items-end justify-between gap-4">
     <div>
-      <p class="badge bg-secondary-100 text-secondary-800">Visual page editor</p>
+      <p class="badge bg-secondary-100 text-secondary-800"><%= scopedAgent ? 'Site content editor' : 'Visual page editor' %></p>
       <h1 class="mt-3 text-display-md">Edit <%= page.title %></h1>
-      <p class="mt-2 text-primary-700">Build the page with structured sections. No JSON editing required.</p>
+      <p class="mt-2 text-primary-700">
+        <%= scopedAgent
+          ? 'Update section copy and images for this public page.'
+          : 'Build the page with structured sections. No JSON editing required.' %>
+      </p>
     </div>
     <div class="flex flex-wrap gap-2">
-      <a href="/admin/pages" class="btn-ghost">All pages</a>
-      <a href="/admin/pages/<%= page.id %>/preview" target="_blank" rel="noopener" class="btn-secondary">Preview saved page</a>
+      <a href="<%= paths.list %>" class="btn-ghost"><%= paths.listLabel || 'Back' %></a>
+      <a href="<%= paths.preview %>" target="_blank" rel="noopener" class="btn-secondary">Preview saved page</a>
     </div>
   </div>
 
+  <% if (pageSaved) { %>
+    <div class="mb-6 rounded-card border border-success-100 bg-success-50 px-4 py-3 text-success-700">Page saved. Previews below show the latest images.</div>
+  <% } %>
   <% if (error) { %>
     <div class="mb-6 rounded-card border border-danger-100 bg-danger-50 px-4 py-3 text-danger-700" role="alert"><%= error %></div>
   <% } %>
 
-  <form method="post" action="/admin/pages/<%= page.id %>" id="page-editor" class="space-y-6">
+  <form
+    method="post"
+    action="<%= paths.save %>"
+    id="page-editor"
+    class="space-y-6"
+    data-media-upload="<%= paths.mediaUpload %>"
+    data-media-json="<%= paths.mediaJson %>"
+    data-csrf="<%= csrfToken %>"
+  >
     <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
     <input type="hidden" id="sections-json" name="sections" value="" />
 
@@ -37,39 +64,48 @@
           <textarea class="field min-h-[90px]" id="seoDesc" name="seoDesc"><%= page.seoDesc || '' %></textarea>
           <p class="help">Aim for a useful summary of around 150–160 characters.</p>
         </div>
-        <label class="flex items-center gap-3 rounded-2xl bg-primary-50 px-4 py-3 text-sm">
-          <input type="checkbox" name="published" <%= page.published ? 'checked' : '' %> />
-          <span><strong>Published</strong><span class="ml-1 text-primary-600">— visible on the public site</span></span>
-        </label>
+        <% if (!scopedAgent) { %>
+          <label class="flex items-center gap-3 rounded-2xl bg-primary-50 px-4 py-3 text-sm">
+            <input type="checkbox" name="published" <%= page.published ? 'checked' : '' %> />
+            <span><strong>Published</strong><span class="ml-1 text-primary-600">— visible on the public site</span></span>
+          </label>
+        <% } else { %>
+          <p class="md:col-span-2 rounded-2xl bg-primary-50 px-4 py-3 text-sm text-primary-700">
+            Published status is managed by admins. This page is currently
+            <strong><%= page.published ? 'published' : 'a draft' %></strong>.
+          </p>
+        <% } %>
       </div>
     </section>
 
     <div class="flex flex-wrap items-center justify-between gap-3">
       <div>
         <h2 class="text-2xl">Page sections</h2>
-        <p class="text-sm text-primary-600">Drag-free ordering keeps editing reliable: use the arrow buttons to move sections.</p>
+        <p class="text-sm text-primary-600">Use the arrow buttons to reorder. Image cards use per-card images — not the section image field.</p>
       </div>
-      <select id="new-section-type" class="field w-auto">
-        <option value="hero">Hero banner</option>
-        <option value="why">Why cards (home)</option>
-        <option value="process">How it works steps (home)</option>
-        <option value="featureCards">Image card grid (hotels etc.)</option>
-        <option value="highlights">Dark highlights grid (home)</option>
-        <option value="split">Text + image split</option>
-        <option value="testimonials">Testimonials</option>
-        <option value="cards">Simple card grid</option>
-        <option value="hotelGrid">Hotel comparison grid</option>
-        <option value="tips">Tips checklist</option>
-        <option value="timeline">Timeline</option>
-        <option value="faq">FAQs</option>
-        <option value="cta">Call to action</option>
-      </select>
-      <button type="button" id="add-section" class="btn-primary">Add section</button>
-      <p id="new-section-help" class="w-full text-sm text-primary-600"></p>
+      <% if (!scopedAgent) { %>
+        <select id="new-section-type" class="field w-auto">
+          <option value="hero">Hero banner</option>
+          <option value="why">Why cards (home)</option>
+          <option value="process">How it works steps (home)</option>
+          <option value="featureCards">Image card grid (hotels etc.)</option>
+          <option value="highlights">Dark highlights grid (home)</option>
+          <option value="split">Text + image split</option>
+          <option value="testimonials">Testimonials</option>
+          <option value="cards">Simple card grid</option>
+          <option value="hotelGrid">Hotel comparison grid</option>
+          <option value="tips">Tips checklist</option>
+          <option value="timeline">Timeline</option>
+          <option value="faq">FAQs</option>
+          <option value="cta">Call to action</option>
+        </select>
+        <button type="button" id="add-section" class="btn-primary">Add section</button>
+        <p id="new-section-help" class="w-full text-sm text-primary-600"></p>
+      <% } %>
     </div>
 
     <div id="section-list" class="space-y-4">
-      <% (sections || []).forEach(function(section, sectionIndex) { %>
+      <% (sections || []).forEach(function(section) { %>
         <%
           const rows = section.cards || section.items || section.steps || section.hotels || [];
           const rowsText = rows.map(function(item) {
@@ -89,6 +125,7 @@
           if (section.type === 'split' && (section.panelTitle || section.panelText)) {
             pointsText = [section.panelTitle || '', section.panelText || ''].concat(section.points || []).filter(Boolean).join('\n');
           }
+          const imageCards = (section.type === 'featureCards' || section.type === 'highlights') ? (section.cards || []) : [];
         %>
         <article class="card section-editor" data-section-type="<%= section.type %>">
           <div class="flex flex-wrap items-center justify-between gap-3">
@@ -99,50 +136,76 @@
             <div class="flex gap-1">
               <button type="button" class="btn-ghost btn-sm move-up" aria-label="Move section up">↑</button>
               <button type="button" class="btn-ghost btn-sm move-down" aria-label="Move section down">↓</button>
-              <button type="button" class="btn-ghost btn-sm duplicate-section">Duplicate</button>
-              <button type="button" class="btn-destructive btn-sm remove-section">Remove</button>
+              <% if (!scopedAgent) { %>
+                <button type="button" class="btn-ghost btn-sm duplicate-section">Duplicate</button>
+                <button type="button" class="btn-destructive btn-sm remove-section">Remove</button>
+              <% } %>
             </div>
           </div>
 
           <div class="mt-5 grid gap-4 md:grid-cols-2">
-            <div>
+            <div data-field-group="type">
               <label class="label">Section type</label>
-              <select class="field" data-field="type">
-                <option value="hero" <%= section.type === 'hero' ? 'selected' : '' %>>Hero banner</option>
-                <option value="why" <%= section.type === 'why' ? 'selected' : '' %>>Why cards (home)</option>
-                <option value="process" <%= section.type === 'process' ? 'selected' : '' %>>How it works steps (home)</option>
-                <option value="featureCards" <%= section.type === 'featureCards' ? 'selected' : '' %>>Image card grid</option>
-                <option value="highlights" <%= section.type === 'highlights' ? 'selected' : '' %>>Dark highlights grid (home)</option>
-                <option value="split" <%= section.type === 'split' ? 'selected' : '' %>>Text + image split</option>
-                <option value="testimonials" <%= section.type === 'testimonials' ? 'selected' : '' %>>Testimonials</option>
-                <option value="cards" <%= section.type === 'cards' ? 'selected' : '' %>>Simple card grid</option>
-                <option value="hotelGrid" <%= section.type === 'hotelGrid' ? 'selected' : '' %>>Hotel comparison grid</option>
-                <option value="tips" <%= section.type === 'tips' ? 'selected' : '' %>>Tips checklist</option>
-                <option value="timeline" <%= section.type === 'timeline' ? 'selected' : '' %>>Timeline</option>
-                <option value="faq" <%= section.type === 'faq' ? 'selected' : '' %>>FAQs</option>
-                <option value="cta" <%= section.type === 'cta' ? 'selected' : '' %>>Call to action</option>
-              </select>
+              <% if (scopedAgent) { %>
+                <input class="field" value="<%= section.type %>" disabled />
+                <input type="hidden" data-field="type" value="<%= section.type %>" />
+              <% } else { %>
+                <select class="field" data-field="type">
+                  <option value="hero" <%= section.type === 'hero' ? 'selected' : '' %>>Hero banner</option>
+                  <option value="why" <%= section.type === 'why' ? 'selected' : '' %>>Why cards (home)</option>
+                  <option value="process" <%= section.type === 'process' ? 'selected' : '' %>>How it works steps (home)</option>
+                  <option value="featureCards" <%= section.type === 'featureCards' ? 'selected' : '' %>>Image card grid</option>
+                  <option value="highlights" <%= section.type === 'highlights' ? 'selected' : '' %>>Dark highlights grid (home)</option>
+                  <option value="split" <%= section.type === 'split' ? 'selected' : '' %>>Text + image split</option>
+                  <option value="testimonials" <%= section.type === 'testimonials' ? 'selected' : '' %>>Testimonials</option>
+                  <option value="cards" <%= section.type === 'cards' ? 'selected' : '' %>>Simple card grid</option>
+                  <option value="hotelGrid" <%= section.type === 'hotelGrid' ? 'selected' : '' %>>Hotel comparison grid</option>
+                  <option value="tips" <%= section.type === 'tips' ? 'selected' : '' %>>Tips checklist</option>
+                  <option value="timeline" <%= section.type === 'timeline' ? 'selected' : '' %>>Timeline</option>
+                  <option value="faq" <%= section.type === 'faq' ? 'selected' : '' %>>FAQs</option>
+                  <option value="cta" <%= section.type === 'cta' ? 'selected' : '' %>>Call to action</option>
+                </select>
+              <% } %>
             </div>
-            <div>
+            <div data-field-group="eyebrow">
               <label class="label">Small label</label>
               <input class="field" data-field="eyebrow" value="<%= section.eyebrow || '' %>" placeholder="e.g. First-time advice" />
             </div>
-            <div>
+            <div data-field-group="heading">
               <label class="label">Heading</label>
               <input class="field section-heading" data-field="heading" value="<%= section.heading || section.title || section.headline || '' %>" />
             </div>
-            <div class="md:col-span-2">
+            <div class="md:col-span-2" data-field-group="text">
               <label class="label">Main text</label>
               <textarea class="field min-h-[110px]" data-field="text"><%= section.text || section.subheadline || '' %></textarea>
             </div>
-            <div>
-              <label class="label">Image URL</label>
-              <input class="field" data-field="image" value="<%= section.image || '' %>" list="media-urls" placeholder="/uploads/image.jpg or https://…" />
+
+            <div class="md:col-span-2" data-field-group="section-image" data-section-image>
+              <label class="label">Section image</label>
+              <div class="image-picker" data-image-picker>
+                <input type="hidden" data-field="image" class="image-picker-value" value="<%= section.image || '' %>" />
+                <div class="image-picker-frame">
+                  <img class="image-picker-thumb" src="<%= section.image || '' %>" alt="" <%= section.image ? '' : 'hidden' %> />
+                  <div class="image-picker-empty" <%= section.image ? 'hidden' : '' %>>No image selected</div>
+                </div>
+                <div class="image-picker-meta">
+                  <span class="image-picker-path"><%= section.image || 'No file chosen' %></span>
+                </div>
+                <div class="image-picker-actions">
+                  <button type="button" class="btn-secondary btn-sm" data-image-change>Change image</button>
+                  <button type="button" class="btn-ghost btn-sm" data-image-remove>Remove</button>
+                </div>
+                <details class="image-picker-advanced">
+                  <summary>Advanced / paste URL</summary>
+                  <input class="field mt-2 image-picker-url-input" value="<%= section.image || '' %>" list="media-urls" placeholder="/uploads/image.jpg or https://…" />
+                </details>
+              </div>
             </div>
-            <div>
+            <div data-field-group="imageAlt">
               <label class="label">Image description</label>
               <input class="field" data-field="imageAlt" value="<%= section.imageAlt || '' %>" placeholder="Describe the image for screen readers" />
             </div>
+
             <div class="hero-overlay-fields md:col-span-2 grid gap-4 md:grid-cols-2" data-hero-fields <%= section.type === 'hero' ? '' : 'hidden' %>>
               <div>
                 <label class="label">Hero image overlay darkness (%)</label>
@@ -155,28 +218,89 @@
                 <p class="help">Glass panel behind the headline. Lower = more see-through.</p>
               </div>
             </div>
-            <div>
+
+            <div data-field-group="primaryLabel">
               <label class="label">Primary button label</label>
               <input class="field" data-field="primaryLabel" value="<%= section.primaryLabel || (section.primaryCta && section.primaryCta.label) || '' %>" />
             </div>
-            <div>
+            <div data-field-group="primaryHref">
               <label class="label">Primary button link</label>
               <input class="field" data-field="primaryHref" value="<%= section.primaryHref || (section.primaryCta && section.primaryCta.href) || '' %>" placeholder="/planner" />
             </div>
-            <div>
+            <div data-field-group="secondaryLabel">
               <label class="label">Secondary button label</label>
               <input class="field" data-field="secondaryLabel" value="<%= section.secondaryLabel || (section.secondaryCta && section.secondaryCta.label) || '' %>" />
             </div>
-            <div>
+            <div data-field-group="secondaryHref">
               <label class="label">Secondary button link</label>
               <input class="field" data-field="secondaryHref" value="<%= section.secondaryHref || (section.secondaryCta && section.secondaryCta.href) || '' %>" />
             </div>
-            <div class="md:col-span-2">
+
+            <div class="md:col-span-2" data-field-group="points">
               <label class="label">Bullet points / split panel lines <span class="font-normal text-primary-500">(one per line)</span></label>
               <textarea class="field min-h-[100px]" data-field="pointsText"><%= pointsText %></textarea>
               <p class="help section-points-help">Hero: benefit bullets. Split: line 1 = panel title, line 2 = panel text.</p>
             </div>
-            <div class="md:col-span-2">
+
+            <div class="md:col-span-2" data-field-group="image-cards" data-image-cards <%= (section.type === 'featureCards' || section.type === 'highlights') ? '' : 'hidden' %>>
+              <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <label class="label mb-0">Image cards</label>
+                  <p class="help mt-1">Each card has its own image — this is what appears on the site.</p>
+                </div>
+                <button type="button" class="btn-secondary btn-sm add-image-card">Add card</button>
+              </div>
+              <div class="image-card-list space-y-3">
+                <% imageCards.forEach(function(card) { %>
+                  <div class="image-card-row rounded-2xl border border-primary-100 bg-primary-50/40 p-4">
+                    <div class="grid gap-3 md:grid-cols-2">
+                      <div>
+                        <label class="label">Title</label>
+                        <input class="field" data-card-field="title" value="<%= card.title || '' %>" />
+                      </div>
+                      <div>
+                        <label class="label">Link (optional)</label>
+                        <input class="field" data-card-field="href" value="<%= card.href || '' %>" placeholder="/disneyland-paris/hotels" />
+                      </div>
+                      <div class="md:col-span-2">
+                        <label class="label">Text</label>
+                        <textarea class="field min-h-[80px]" data-card-field="text"><%= card.text || '' %></textarea>
+                      </div>
+                      <div>
+                        <label class="label">Link label (optional)</label>
+                        <input class="field" data-card-field="label" value="<%= card.label || '' %>" />
+                      </div>
+                      <div class="md:col-span-2">
+                        <label class="label">Card image</label>
+                        <div class="image-picker" data-image-picker>
+                          <input type="hidden" data-card-field="image" class="image-picker-value" value="<%= card.image || '' %>" />
+                          <div class="image-picker-frame">
+                            <img class="image-picker-thumb" src="<%= card.image || '' %>" alt="" <%= card.image ? '' : 'hidden' %> />
+                            <div class="image-picker-empty" <%= card.image ? 'hidden' : '' %>>No image selected</div>
+                          </div>
+                          <div class="image-picker-meta">
+                            <span class="image-picker-path"><%= card.image || 'No file chosen' %></span>
+                          </div>
+                          <div class="image-picker-actions">
+                            <button type="button" class="btn-secondary btn-sm" data-image-change>Change image</button>
+                            <button type="button" class="btn-ghost btn-sm" data-image-remove>Remove</button>
+                          </div>
+                          <details class="image-picker-advanced">
+                            <summary>Advanced / paste URL</summary>
+                            <input class="field mt-2 image-picker-url-input" value="<%= card.image || '' %>" list="media-urls" placeholder="/uploads/image.jpg or https://…" />
+                          </details>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="mt-3 flex justify-end">
+                      <button type="button" class="btn-destructive btn-sm remove-image-card">Remove card</button>
+                    </div>
+                  </div>
+                <% }) %>
+              </div>
+            </div>
+
+            <div class="md:col-span-2" data-field-group="rows">
               <label class="label">Cards, highlights, testimonials or FAQs <span class="font-normal text-primary-500">(one per line; separate fields with |)</span></label>
               <textarea class="field min-h-[140px]" data-field="rowsText"><%= rowsText %></textarea>
               <p class="help section-row-help">Feature/highlight cards: Title | text | image URL. Testimonials: Quote | name | detail.</p>
@@ -193,7 +317,7 @@
     </datalist>
 
     <div class="sticky bottom-4 z-30 flex flex-wrap items-center justify-between gap-3 rounded-card border border-primary-100 bg-white/95 p-4 shadow-lift backdrop-blur">
-      <p class="text-sm text-primary-600">Save before opening the public preview.</p>
+      <p class="text-sm text-primary-600">Save to update the live page (when published).</p>
       <button class="btn-primary" type="submit">Save page</button>
     </div>
   </form>
@@ -211,7 +335,7 @@
       </div>
     </div>
     <div class="mt-5 grid gap-4 md:grid-cols-2">
-      <div>
+      <div data-field-group="type">
         <label class="label">Section type</label>
         <select class="field" data-field="type">
           <option value="hero">Hero banner</option>
@@ -229,11 +353,29 @@
           <option value="cta">Call to action</option>
         </select>
       </div>
-      <div><label class="label">Small label</label><input class="field" data-field="eyebrow" /></div>
-      <div><label class="label">Heading</label><input class="field section-heading" data-field="heading" /></div>
-      <div class="md:col-span-2"><label class="label">Main text</label><textarea class="field min-h-[110px]" data-field="text"></textarea></div>
-      <div><label class="label">Image URL</label><input class="field" data-field="image" list="media-urls" /></div>
-      <div><label class="label">Image description</label><input class="field" data-field="imageAlt" /></div>
+      <div data-field-group="eyebrow"><label class="label">Small label</label><input class="field" data-field="eyebrow" /></div>
+      <div data-field-group="heading"><label class="label">Heading</label><input class="field section-heading" data-field="heading" /></div>
+      <div class="md:col-span-2" data-field-group="text"><label class="label">Main text</label><textarea class="field min-h-[110px]" data-field="text"></textarea></div>
+      <div class="md:col-span-2" data-field-group="section-image" data-section-image>
+        <label class="label">Section image</label>
+        <div class="image-picker" data-image-picker>
+          <input type="hidden" data-field="image" class="image-picker-value" value="" />
+          <div class="image-picker-frame">
+            <img class="image-picker-thumb" src="" alt="" hidden />
+            <div class="image-picker-empty">No image selected</div>
+          </div>
+          <div class="image-picker-meta"><span class="image-picker-path">No file chosen</span></div>
+          <div class="image-picker-actions">
+            <button type="button" class="btn-secondary btn-sm" data-image-change>Change image</button>
+            <button type="button" class="btn-ghost btn-sm" data-image-remove>Remove</button>
+          </div>
+          <details class="image-picker-advanced">
+            <summary>Advanced / paste URL</summary>
+            <input class="field mt-2 image-picker-url-input" value="" list="media-urls" placeholder="/uploads/image.jpg or https://…" />
+          </details>
+        </div>
+      </div>
+      <div data-field-group="imageAlt"><label class="label">Image description</label><input class="field" data-field="imageAlt" /></div>
       <div class="hero-overlay-fields md:col-span-2 grid gap-4 md:grid-cols-2" data-hero-fields hidden>
         <div>
           <label class="label">Hero image overlay darkness (%)</label>
@@ -246,14 +388,72 @@
           <p class="help">Glass panel behind the headline. Lower = more see-through.</p>
         </div>
       </div>
-      <div><label class="label">Primary button label</label><input class="field" data-field="primaryLabel" /></div>
-      <div><label class="label">Primary button link</label><input class="field" data-field="primaryHref" /></div>
-      <div><label class="label">Secondary button label</label><input class="field" data-field="secondaryLabel" /></div>
-      <div><label class="label">Secondary button link</label><input class="field" data-field="secondaryHref" /></div>
-      <div class="md:col-span-2"><label class="label">Bullet points (one per line)</label><textarea class="field min-h-[100px]" data-field="pointsText"></textarea><p class="help section-points-help"></p></div>
-      <div class="md:col-span-2"><label class="label">Cards, timeline entries or FAQs</label><textarea class="field min-h-[140px]" data-field="rowsText"></textarea><p class="help section-row-help"></p></div>
+      <div data-field-group="primaryLabel"><label class="label">Primary button label</label><input class="field" data-field="primaryLabel" /></div>
+      <div data-field-group="primaryHref"><label class="label">Primary button link</label><input class="field" data-field="primaryHref" /></div>
+      <div data-field-group="secondaryLabel"><label class="label">Secondary button label</label><input class="field" data-field="secondaryLabel" /></div>
+      <div data-field-group="secondaryHref"><label class="label">Secondary button link</label><input class="field" data-field="secondaryHref" /></div>
+      <div class="md:col-span-2" data-field-group="points"><label class="label">Bullet points (one per line)</label><textarea class="field min-h-[100px]" data-field="pointsText"></textarea><p class="help section-points-help"></p></div>
+      <div class="md:col-span-2" data-field-group="image-cards" data-image-cards hidden>
+        <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <label class="label mb-0">Image cards</label>
+            <p class="help mt-1">Each card has its own image — this is what appears on the site.</p>
+          </div>
+          <button type="button" class="btn-secondary btn-sm add-image-card">Add card</button>
+        </div>
+        <div class="image-card-list space-y-3"></div>
+      </div>
+      <div class="md:col-span-2" data-field-group="rows"><label class="label">Cards, timeline entries or FAQs</label><textarea class="field min-h-[140px]" data-field="rowsText"></textarea><p class="help section-row-help"></p></div>
     </div>
   </article>
 </template>
+
+<template id="image-card-template">
+  <div class="image-card-row rounded-2xl border border-primary-100 bg-primary-50/40 p-4">
+    <div class="grid gap-3 md:grid-cols-2">
+      <div>
+        <label class="label">Title</label>
+        <input class="field" data-card-field="title" value="" />
+      </div>
+      <div>
+        <label class="label">Link (optional)</label>
+        <input class="field" data-card-field="href" value="" placeholder="/disneyland-paris/hotels" />
+      </div>
+      <div class="md:col-span-2">
+        <label class="label">Text</label>
+        <textarea class="field min-h-[80px]" data-card-field="text"></textarea>
+      </div>
+      <div>
+        <label class="label">Link label (optional)</label>
+        <input class="field" data-card-field="label" value="" />
+      </div>
+      <div class="md:col-span-2">
+        <label class="label">Card image</label>
+        <div class="image-picker" data-image-picker>
+          <input type="hidden" data-card-field="image" class="image-picker-value" value="" />
+          <div class="image-picker-frame">
+            <img class="image-picker-thumb" src="" alt="" hidden />
+            <div class="image-picker-empty">No image selected</div>
+          </div>
+          <div class="image-picker-meta"><span class="image-picker-path">No file chosen</span></div>
+          <div class="image-picker-actions">
+            <button type="button" class="btn-secondary btn-sm" data-image-change>Change image</button>
+            <button type="button" class="btn-ghost btn-sm" data-image-remove>Remove</button>
+          </div>
+          <details class="image-picker-advanced">
+            <summary>Advanced / paste URL</summary>
+            <input class="field mt-2 image-picker-url-input" value="" list="media-urls" placeholder="/uploads/image.jpg or https://…" />
+          </details>
+        </div>
+      </div>
+    </div>
+    <div class="mt-3 flex justify-end">
+      <button type="button" class="btn-destructive btn-sm remove-image-card">Remove card</button>
+    </div>
+  </div>
+</template>
+
+<%- include('../partials/image-picker-modal') %>
+<script src="/js/image-picker.js" defer></script>
 <script src="/js/admin-page-editor.js" defer></script>
 <%- include('../partials/shell-end') %>

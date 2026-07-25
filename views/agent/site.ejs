@@ -1,0 +1,33 @@
+<%- include('../partials/shell-start', { bodyClass: 'portal-shell' }) %>
+<section class="section-sm">
+  <%- include('../partials/portal-nav', { backHref: '/agent', backLabel: 'Agent dashboard' }) %>
+  <div class="mb-8">
+    <p class="badge bg-secondary-100 text-secondary-800">Site content</p>
+    <h1 class="mt-3 text-display-md">Edit site pages</h1>
+    <p class="mt-2 text-primary-700">Update images and copy on key public pages. For anything else, send a site change request.</p>
+  </div>
+  <% if (saved) { %>
+    <div class="mb-5 rounded-card border border-success-100 bg-success-50 px-4 py-3 text-success-700">Page saved.</div>
+  <% } %>
+  <div class="space-y-3">
+    <% if (!pages.length) { %>
+      <div class="card"><p class="text-primary-600">No editable pages are available yet.</p></div>
+    <% } %>
+    <% pages.forEach(function(page) { %>
+      <a href="/agent/site/pages/<%= page.id %>" class="card flex items-center justify-between transition hover:shadow-soft">
+        <div>
+          <div class="font-semibold text-primary-950"><%= page.title %></div>
+          <div class="text-sm text-primary-600">/<%= page.slug === 'home' ? '' : page.slug %></div>
+        </div>
+        <span class="badge <%= page.published ? 'bg-success-100 text-success-700' : 'bg-amber-100 text-amber-800' %>">
+          <%= page.published ? 'Published' : 'Draft' %>
+        </span>
+      </a>
+    <% }) %>
+  </div>
+  <p class="mt-8 text-sm text-primary-600">
+    Need navigation, deals, branding or a page outside this list?
+    <a href="/agent/change-requests" class="font-semibold text-secondary-700 hover:underline">Request a site change</a>.
+  </p>
+</section>
+<%- include('../partials/shell-end') %>
