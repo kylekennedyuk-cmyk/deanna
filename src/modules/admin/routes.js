@@ -346,6 +346,8 @@ router.post('/settings', async (req, res, next) => {
       'logo_height_mobile',
       'logo_max_width_mobile',
       'footer_intro',
+      'abta_number',
+      'atol_number',
       'primary_colour',
       'secondary_colour',
       'background_colour',

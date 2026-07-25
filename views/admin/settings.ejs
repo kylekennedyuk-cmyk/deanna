@@ -107,6 +107,16 @@
       <div class="mt-5 space-y-4">
         <div><label class="label" for="footer_intro">Footer introduction</label><textarea class="field min-h-[90px]" id="footer_intro" name="footer_intro"><%= settings.footer_intro || '' %></textarea></div>
         <div class="grid gap-4 md:grid-cols-2">
+          <div>
+            <label class="label" for="abta_number">ABTA membership number</label>
+            <input class="field" id="abta_number" name="abta_number" value="<%= settings.abta_number || '' %>" placeholder="Optional" />
+          </div>
+          <div>
+            <label class="label" for="atol_number">ATOL licence number</label>
+            <input class="field" id="atol_number" name="atol_number" value="<%= settings.atol_number || '' %>" placeholder="Optional" />
+          </div>
+        </div>
+        <div class="grid gap-4 md:grid-cols-2">
           <div><label class="label" for="planner_enabled">Planner</label><select class="field" id="planner_enabled" name="planner_enabled"><option value="true" <%= settings.planner_enabled === 'true' ? 'selected' : '' %>>Enabled</option><option value="false" <%= settings.planner_enabled === 'false' ? 'selected' : '' %>>Disabled</option></select></div>
           <div><label class="label" for="maintenance_mode">Maintenance mode</label><select class="field" id="maintenance_mode" name="maintenance_mode"><option value="false" <%= settings.maintenance_mode !== 'true' ? 'selected' : '' %>>Off</option><option value="true" <%= settings.maintenance_mode === 'true' ? 'selected' : '' %>>On</option></select></div>
         </div>

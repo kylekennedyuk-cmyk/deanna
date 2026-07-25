@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="220" height="88" viewBox="0 0 220 88" role="img" aria-labelledby="title">
+  <title id="title">ABTA Protected</title>
+  <rect width="220" height="88" rx="8" fill="#fff"/>
+  <path d="M24 17h40l-20 38z" fill="#d71920"/>
+  <path d="M44 30l9 19H35z" fill="#fff"/>
+  <text x="76" y="48" fill="#172b4d" font-family="Arial, Helvetica, sans-serif" font-size="32" font-weight="700" letter-spacing=".5">ABTA</text>
+  <rect x="22" y="64" width="176" height="2" fill="#d71920"/>
+  <text x="110" y="79" fill="#172b4d" font-family="Arial, Helvetica, sans-serif" font-size="11" font-weight="700" letter-spacing="2" text-anchor="middle">PROTECTED</text>
+</svg>
