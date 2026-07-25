@@ -85,12 +85,33 @@ function transportBlockReason(settings) {
   return null;
 }
 
-async function createTransport() {
-  const settings = await resolveEmailSettings();
-  const reason = transportBlockReason(settings);
-  if (reason) return { transport: null, settings, reason };
+function transportCacheKey(settings) {
+  return [
+    settings.host,
+    settings.port,
+    settings.secure ? '1' : '0',
+    settings.requireTLS ? '1' : '0',
+    settings.user,
+    settings.pass,
+  ].join('\u0000');
+}
 
-  const transport = nodemailer.createTransport({
+let cachedTransport = null;
+let cachedKey = '';
+
+function closeCachedTransport() {
+  if (!cachedTransport) return;
+  try {
+    cachedTransport.close();
+  } catch {
+    /* ignore */
+  }
+  cachedTransport = null;
+  cachedKey = '';
+}
+
+function buildTransport(settings) {
+  return nodemailer.createTransport({
     host: settings.host,
     port: settings.port,
     secure: settings.secure,
@@ -99,35 +120,152 @@ async function createTransport() {
       user: settings.user,
       pass: settings.pass,
     },
+    // Keep one warm connection instead of reconnecting on every email.
     pool: true,
-    maxConnections: 2,
-    maxMessages: 25,
-    connectionTimeout: 8000,
-    greetingTimeout: 8000,
-    socketTimeout: 15000,
+    maxConnections: 1,
+    maxMessages: 100,
+    rateDelta: 1000,
+    rateLimit: 5,
+    connectionTimeout: 6000,
+    greetingTimeout: 6000,
+    socketTimeout: 12000,
+    // Avoid slow IPv6 → IPv4 fallback delays on some hosts.
+    family: 4,
     tls: {
       servername: settings.host,
       minVersion: 'TLSv1.2',
+      rejectUnauthorized: true,
     },
   });
-  return { transport, settings, reason: null };
 }
 
-async function sendMail({ to, subject, text, html }) {
-  const { transport, settings, reason } = await createTransport();
-  if (!transport) {
-    console.log(`[email skipped] To: ${to} | ${subject} | ${reason || 'not configured'}`);
+/** Alternate configs to try when the primary SMTP endpoint is flaky. */
+function alternateSettings(settings) {
+  const alts = [];
+  if (settings.port === 465) {
+    alts.push({
+      ...settings,
+      port: 587,
+      secure: false,
+      requireTLS: true,
+    });
+  } else if (settings.port === 587) {
+    alts.push({
+      ...settings,
+      port: 465,
+      secure: true,
+      requireTLS: false,
+    });
+  }
+  return alts;
+}
+
+async function createTransport(settingsOverride = null) {
+  const settings = settingsOverride || (await resolveEmailSettings());
+  const reason = transportBlockReason(settings);
+  if (reason) return { transport: null, settings, reason };
+
+  const key = transportCacheKey(settings);
+  if (cachedTransport && cachedKey === key) {
+    return { transport: cachedTransport, settings, reason: null };
+  }
+
+  closeCachedTransport();
+  cachedTransport = buildTransport(settings);
+  cachedKey = key;
+  return { transport: cachedTransport, settings, reason: null };
+}
+
+function isTransientSmtpError(err) {
+  if (!err) return false;
+  const code = String(err.code || '');
+  const message = String(err.message || '').toLowerCase();
+  const responseCode = Number(err.responseCode || 0);
+  if (
+    [
+      'ETIMEDOUT',
+      'ESOCKETTIMEDOUT',
+      'ECONNRESET',
+      'ECONNREFUSED',
+      'EHOSTUNREACH',
+      'ENOTFOUND',
+      'ESOCKET',
+      'ECONNECTION',
+      'EPIPE',
+    ].includes(code)
+  ) {
+    return true;
+  }
+  if (message.includes('timeout') || message.includes('socket') || message.includes('connection')) {
+    return true;
+  }
+  if (responseCode === 421 || responseCode === 450 || responseCode === 451 || responseCode === 452) {
+    return true;
+  }
+  return false;
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function sendMailOnce(transport, settings, payload) {
+  return transport.sendMail({
+    from: `"${settings.fromName}" <${settings.fromEmail}>`,
+    replyTo: payload.replyTo || settings.replyTo || undefined,
+    to: payload.to,
+    cc: payload.cc || undefined,
+    subject: payload.subject,
+    text: payload.text,
+    html: payload.html,
+    inReplyTo: payload.inReplyTo || undefined,
+    references: payload.references || undefined,
+  });
+}
+
+async function sendMail(payload) {
+  const primary = await resolveEmailSettings();
+  const reason = transportBlockReason(primary);
+  if (reason) {
+    console.log(`[email skipped] To: ${payload.to} | ${payload.subject} | ${reason}`);
     return { skipped: true, reason };
   }
 
-  return transport.sendMail({
-    from: `"${settings.fromName}" <${settings.fromEmail}>`,
-    replyTo: settings.replyTo || undefined,
-    to,
-    subject,
-    text,
-    html,
-  });
+  const configs = [primary, ...alternateSettings(primary)];
+  let lastError = null;
+
+  for (let configIndex = 0; configIndex < configs.length; configIndex += 1) {
+    const settings = configs[configIndex];
+    if (configIndex > 0) closeCachedTransport();
+
+    for (let attempt = 1; attempt <= 2; attempt += 1) {
+      const { transport } = await createTransport(settings);
+      if (!transport) continue;
+
+      try {
+        const info = await sendMailOnce(transport, settings, payload);
+        if (configIndex > 0) {
+          console.warn(
+            `[email] sent via fallback ${settings.host}:${settings.port} (secure=${settings.secure})`
+          );
+        }
+        return info;
+      } catch (err) {
+        lastError = err;
+        console.warn(
+          `[email] ${settings.host}:${settings.port} attempt ${attempt} failed: ${err.message || err}`
+        );
+        closeCachedTransport();
+        if (attempt < 2 && isTransientSmtpError(err)) {
+          await sleep(350 * attempt);
+          continue;
+        }
+        break;
+      }
+    }
+  }
+
+  throw lastError || new Error('Email send failed.');
 }
 
 function brandedLayout(settings, { heading, intro, bodyHtml, buttonLabel, buttonUrl }) {
@@ -217,23 +355,37 @@ async function sendNotification(type, { to, values = {}, body = '', buttonLabel,
   return sendMail({ to, subject, text, html });
 }
 
-/** Fire-and-forget so portal pages redirect immediately while SMTP runs in the background. */
+/** Serial background queue so SMTP isn't hammered by parallel reconnects. */
+const outboundQueue = [];
+let queueRunning = false;
+
+async function runOutboundQueue() {
+  if (queueRunning) return;
+  queueRunning = true;
+  while (outboundQueue.length) {
+    const job = outboundQueue.shift();
+    try {
+      await job();
+    } catch (err) {
+      console.error('[email queue]', err.message || err);
+    }
+  }
+  queueRunning = false;
+}
+
 function sendNotificationAsync(type, payload) {
-  setImmediate(() => {
-    sendNotification(type, payload)
-      .then((result) => {
-        if (result && result.skipped) {
-          console.warn(`[email async skipped] ${type} → ${payload.to}: ${result.reason || 'not configured'}`);
-        }
-      })
-      .catch((err) => {
-        console.error(`[email async failed] ${type} → ${payload.to}:`, err.message || err);
-      });
+  outboundQueue.push(async () => {
+    const result = await sendNotification(type, payload);
+    if (result && result.skipped) {
+      console.warn(`[email async skipped] ${type} → ${payload.to}: ${result.reason || 'not configured'}`);
+    }
   });
+  setImmediate(runOutboundQueue);
 }
 
 module.exports = {
   brandedLayout,
+  closeCachedTransport,
   createTransport,
   escapeHtml,
   resolveEmailSettings,

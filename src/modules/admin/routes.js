@@ -4,7 +4,7 @@ const path = require('path');
 const fs = require('fs');
 const multer = require('multer');
 const { prisma } = require('../../config/database');
-const { createTransport } = require('../../config/email');
+const { createTransport, closeCachedTransport, sendMail } = require('../../config/email');
 const { encryptSecret, decryptSecret, getSettings, setSettings } = require('../../config/settings');
 const { requireRole } = require('../../middleware/auth');
 
@@ -507,6 +507,7 @@ router.post('/notifications', async (req, res, next) => {
       values.smtp_pass = encryptSecret(req.body.smtp_pass);
     }
     await setSettings(values);
+    closeCachedTransport();
     return res.redirect('/admin/notifications?saved=1');
   } catch (err) {
     return next(err);
@@ -523,10 +524,7 @@ router.post('/notifications/test', async (req, res, next) => {
       );
     }
 
-    await transport.verify();
-    await transport.sendMail({
-      from: `"${settings.fromName}" <${settings.fromEmail}>`,
-      replyTo: settings.replyTo || undefined,
+    await sendMail({
       to: destination,
       subject: 'Destinations With Deanna email test',
       html: `<div style="font-family:Arial,sans-serif;padding:32px"><h1 style="color:#1a2b40">Email is working</h1><p>Your website can now send planning and portal notifications via ${settings.host}:${settings.port}.</p></div>`,

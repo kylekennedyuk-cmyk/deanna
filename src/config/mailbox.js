@@ -1,7 +1,7 @@
 const { ImapFlow } = require('imapflow');
 const { simpleParser } = require('mailparser');
 const { decryptSecret, getSettings } = require('./settings');
-const { brandedLayout, createTransport, escapeHtml, resolveEmailSettings } = require('./email');
+const { brandedLayout, escapeHtml, resolveEmailSettings, sendMail } = require('./email');
 
 function addressList(value) {
   if (!value) return '';
@@ -457,15 +457,11 @@ function replySubject(subject) {
 }
 
 async function sendMailboxMail({ to, cc, subject, text, inReplyTo, references }) {
-  const { transport, settings, reason } = await createTransport();
-  if (!transport) return { skipped: true, reason };
-
+  const settings = await resolveEmailSettings();
   const html = brandedOutgoingHtml(settings, { subject, bodyText: text });
   const from = `"${settings.fromName}" <${settings.fromEmail}>`;
 
-  await transport.sendMail({
-    from,
-    replyTo: settings.replyTo || undefined,
+  const result = await sendMail({
     to,
     cc: cc || undefined,
     subject,
@@ -474,6 +470,7 @@ async function sendMailboxMail({ to, cc, subject, text, inReplyTo, references })
     inReplyTo: inReplyTo || undefined,
     references: references || undefined,
   });
+  if (result && result.skipped) return { skipped: true, reason: result.reason };
 
   try {
     const raw = buildMime({
