@@ -1,0 +1,53 @@
+<%- include('../partials/shell-start', { bodyClass: 'portal-shell' }) %>
+<section class="section-sm max-w-4xl">
+  <%- include('../partials/portal-nav', { backHref: '/agent/mailbox', backLabel: 'Mailbox' }) %>
+
+  <% if (error && !message) { %>
+    <div class="mb-5 rounded-card border border-danger-100 bg-danger-50 px-4 py-3 text-danger-700" role="alert"><%= error %></div>
+    <a href="/agent/mailbox" class="btn-secondary">Back to mailbox</a>
+  <% } else if (message) { %>
+    <div class="mb-8 flex flex-wrap items-end justify-between gap-4">
+      <div>
+        <p class="badge bg-white text-secondary-800 shadow-soft">Inbox message</p>
+        <h1 class="mt-3 text-display-md"><%= message.subject %></h1>
+        <p class="mt-2 text-primary-700">From <%= message.from %><% if (message.date) { %> · <%= formatDateTime(message.date) %><% } %></p>
+      </div>
+      <div class="flex flex-wrap gap-2">
+        <a href="/agent/mailbox" class="btn-secondary">Back</a>
+        <a href="/agent/mailbox/<%= message.uid %>/reply" class="btn-primary">Reply</a>
+      </div>
+    </div>
+
+    <article class="card space-y-4">
+      <dl class="grid gap-3 text-sm sm:grid-cols-[7rem_1fr]">
+        <dt class="font-semibold text-primary-500">From</dt>
+        <dd class="text-primary-900"><%= message.from %></dd>
+        <dt class="font-semibold text-primary-500">To</dt>
+        <dd class="text-primary-900"><%= message.to || '—' %></dd>
+        <% if (message.cc) { %>
+          <dt class="font-semibold text-primary-500">Cc</dt>
+          <dd class="text-primary-900"><%= message.cc %></dd>
+        <% } %>
+        <dt class="font-semibold text-primary-500">Subject</dt>
+        <dd class="text-primary-900"><%= message.subject %></dd>
+      </dl>
+
+      <div class="border-t border-primary-100 pt-5">
+        <pre class="whitespace-pre-wrap font-sans text-base leading-relaxed text-primary-900"><%= message.text || '(No text content)' %></pre>
+      </div>
+
+      <% if (message.attachments && message.attachments.length) { %>
+        <div class="border-t border-primary-100 pt-5">
+          <h2 class="text-lg font-semibold text-primary-950">Attachments</h2>
+          <ul class="mt-2 space-y-1 text-sm text-primary-700">
+            <% message.attachments.forEach(function(file) { %>
+              <li><%= file.filename %><% if (file.size) { %> · <%= Math.round(file.size / 1024) %> KB<% } %></li>
+            <% }) %>
+          </ul>
+          <p class="mt-2 text-xs text-primary-500">Attachment download is not enabled in this view — filenames are listed for reference.</p>
+        </div>
+      <% } %>
+    </article>
+  <% } %>
+</section>
+<%- include('../partials/shell-end') %>

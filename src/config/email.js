@@ -41,10 +41,14 @@ async function resolveEmailSettings() {
     user: String(stored.smtp_user || process.env.SMTP_USER || '').trim(),
     pass: decryptedPass || process.env.SMTP_PASS || '',
     passBroken,
-    fromName: stored.smtp_from_name || 'Destinations With Deanna',
+    fromName:
+      stored.smtp_from_name ||
+      process.env.SMTP_FROM_NAME ||
+      'Destinations With Deanna',
     fromEmail: String(
       stored.smtp_from_email ||
         process.env.SMTP_FROM_EMAIL ||
+        (process.env.SMTP_FROM || '').replace(/^.*<([^>]+)>.*$/, '$1').trim() ||
         process.env.SUPPORT_EMAIL ||
         ''
     ).trim(),

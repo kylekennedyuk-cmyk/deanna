@@ -1,6 +1,7 @@
 const express = require('express');
 const { prisma } = require('../../config/database');
 const { sendNotification } = require('../../config/email');
+const { getMessage, listInbox, replySubject, sendMailboxMail } = require('../../config/mailbox');
 const { statusLabel } = require('../../utils/format');
 const { requireRole } = require('../../middleware/auth');
 
@@ -297,6 +298,131 @@ router.get('/inbox', async (req, res, next) => {
     res.render('agent/inbox', { title: 'Inbox', messages, q });
   } catch (err) {
     next(err);
+  }
+});
+
+router.get('/mailbox', async (req, res) => {
+  let messages = [];
+  let total = 0;
+  let error = req.query.error ? String(req.query.error) : null;
+  const sent = req.query.sent === '1';
+  try {
+    const inbox = await listInbox({ limit: 50 });
+    messages = inbox.messages || [];
+    total = inbox.total || messages.length;
+  } catch (err) {
+    error = err.message || 'Could not load mailbox.';
+  }
+  return res.render('agent/mailbox', {
+    title: 'Email mailbox',
+    messages,
+    total,
+    error,
+    sent,
+    account: process.env.SMTP_FROM_EMAIL || process.env.SMTP_USER || process.env.IMAP_USER || '',
+  });
+});
+
+router.get('/mailbox/compose', async (req, res) => {
+  return res.render('agent/mailbox-compose', {
+    title: 'Compose email',
+    mode: 'compose',
+    error: req.query.error || null,
+    form: {
+      to: '',
+      cc: '',
+      subject: '',
+      body: '',
+      inReplyTo: '',
+      references: '',
+    },
+  });
+});
+
+router.get('/mailbox/:uid/reply', async (req, res) => {
+  try {
+    const message = await getMessage(req.params.uid);
+    const quoted = String(message.text || '')
+      .split('\n')
+      .map((line) => `> ${line}`)
+      .join('\n');
+    return res.render('agent/mailbox-compose', {
+      title: 'Reply',
+      mode: 'reply',
+      error: null,
+      form: {
+        to: message.fromAddress || message.from || '',
+        cc: '',
+        subject: replySubject(message.subject),
+        body: `\n\nOn ${message.date ? new Date(message.date).toUTCString() : 'the original message'}, ${message.from} wrote:\n${quoted}`,
+        inReplyTo: message.messageId || '',
+        references: [message.references, message.messageId].filter(Boolean).join(' ').trim(),
+      },
+    });
+  } catch (err) {
+    return res.redirect(
+      `/agent/mailbox?error=${encodeURIComponent(err.message || 'Could not open message for reply.')}`
+    );
+  }
+});
+
+router.get('/mailbox/:uid', async (req, res) => {
+  try {
+    const message = await getMessage(req.params.uid);
+    return res.render('agent/mailbox-message', {
+      title: message.subject,
+      message,
+      error: null,
+    });
+  } catch (err) {
+    return res.status(404).render('agent/mailbox-message', {
+      title: 'Message',
+      message: null,
+      error: err.message || 'Could not open message.',
+    });
+  }
+});
+
+router.post('/mailbox/send', async (req, res) => {
+  const to = String(req.body.to || '').trim();
+  const cc = String(req.body.cc || '').trim();
+  const subject = String(req.body.subject || '').trim();
+  const body = String(req.body.body || '').trim();
+  const inReplyTo = String(req.body.inReplyTo || '').trim();
+  const references = String(req.body.references || '').trim();
+  const mode = String(req.body.mode || 'compose');
+
+  const form = { to, cc, subject, body, inReplyTo, references };
+
+  if (!to || !subject || !body) {
+    return res.render('agent/mailbox-compose', {
+      title: mode === 'reply' ? 'Reply' : 'Compose email',
+      mode,
+      error: 'To, subject and message are required.',
+      form,
+    });
+  }
+
+  try {
+    const result = await sendMailboxMail({
+      to,
+      cc: cc || undefined,
+      subject,
+      text: body,
+      inReplyTo: inReplyTo || undefined,
+      references: references || undefined,
+    });
+    if (result && result.skipped) {
+      throw new Error(result.reason || 'SMTP is not configured.');
+    }
+    return res.redirect('/agent/mailbox?sent=1');
+  } catch (err) {
+    return res.render('agent/mailbox-compose', {
+      title: mode === 'reply' ? 'Reply' : 'Compose email',
+      mode,
+      error: err.message || 'Send failed.',
+      form,
+    });
   }
 });
 
