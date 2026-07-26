@@ -110,7 +110,7 @@ SUPPORT_EMAIL=hello@destinationswithdeanna.com
 Notes:
 
 - `DATABASE_URL` **must** start with `file:`
-- Do **not** set `PORT` — Passenger chooses the port
+- Do **not** put `PORT` in `.env` yourself — Plesk/Passenger injects `PORT` at runtime, and `server.js` listens on it. A hardcoded `PORT` in `.env` can conflict with Passenger.
 - Keep the same values in the Node.js panel if you like, but `.env` is required for `deploy`
 - A template is also in the repo as `.env.plesk`
 
@@ -246,7 +246,7 @@ Force sync is destructive for the affected page content and should never be part
 | **Guide pages only show a CTA / missing hotels & dining** | Review and edit the page in Admin → Pages. Safe `content:sync` only creates missing pages or fills empty stubs; force sync is a destructive manual reset, not a routine fix |
 | `npm error Missing script: "npx"` | Plesk's Run script box takes a script **name** only. Use `deploy` or `update` |
 | `DATABASE_URL is missing` when running a script | Create `httpdocs/.env` with `DATABASE_URL=file:../data/deanna.db` — panel env vars are often ignored by Run script |
-| `EADDRINUSE :::3000` | Do not run script `start`. Passenger already runs the app. Use `deploy`, then **Restart App**. Remove any `PORT` variable |
+| `EADDRINUSE :::3000` | Do not run script `start`. Passenger already runs the app. Use `deploy`, then **Restart App**. Remove any manual `PORT` from `.env` / the Node.js panel (let Passenger inject it) |
 | **Internal Server Error** | Almost always means the database was never created. Pull latest code, create `.env`, run script `deploy`, then **Restart App**. Also confirm `DATABASE_URL=file:../data/deanna.db` and `data/` is writable |
 | App won’t start / Passenger error | Use Node **20 or 22 LTS** (not 25). Check logs. Create `.env`, run `deploy`, Restart App |
 | Blank / unstyled pages | Run `npm run build` so `public/css/app.css` exists |
@@ -292,7 +292,7 @@ Also check app stdout lines that start with `[boot]` (node version, cwd, PORT, w
 1. **Pending schema changes not applied** — new models such as `MessageRead`, `ChangeRequest`, or booking fields on `HolidayPlan` need `prisma db push`. Run script **`update`** (or `deploy` on a fresh install), then **Restart App**. Startup now logs a clear “schema appears out of date” warning if tables/columns are missing.
 2. **Missing `.env` / `DATABASE_URL`** — create `httpdocs/.env` as in step 4 above.
 3. **Unhandled background failures** — outbound email / IMAP used to be able to kill the Node 20 process via unhandled promise rejections. Current builds log these and keep the process alive (uncaught exceptions still exit so Passenger can respawn cleanly).
-4. **Wrong listen / `EADDRINUSE`** — do not set `PORT` in the panel and do not Run script `start`. Passenger owns the socket; `server.js` listens on `'passenger'` when PhusionPassenger is present.
+4. **Wrong listen / `EADDRINUSE`** — do not hardcode `PORT` in `.env` and do not Run script `start`. Passenger injects `PORT`; `server.js` listens on `process.env.PORT` (with a `'passenger'` fallback only if PORT is unset under Passenger).
 
 **Quick recovery (Passenger “could not be started”)**
 

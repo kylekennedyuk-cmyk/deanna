@@ -140,10 +140,11 @@ async function ensureReady() {
 }
 
 function listenTarget() {
-  // Plesk / Phusion Passenger: prefer the Passenger socket name when present.
-  // Otherwise use PORT if Passenger/Plesk injected it, else local-dev 3000.
+  // Plesk Node + Passenger injects PORT (often a Unix socket path or port string).
+  // Always prefer it. Only fall back to the classic 'passenger' socket name when
+  // under Passenger with no PORT; local dev uses 3000.
+  if (process.env.PORT) return process.env.PORT;
   if (underPassenger) return 'passenger';
-  if (process.env.PORT) return Number(process.env.PORT) || process.env.PORT;
   return 3000;
 }
 
