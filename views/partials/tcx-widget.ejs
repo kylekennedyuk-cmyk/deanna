@@ -88,7 +88,7 @@
   </div>
 
   <% if (tcxCfg.hasChat) { %>
-    <%# 3CX embed: minimized bubble hidden via JS/CSS; Live chat / Call open shadow-DOM controls %>
+    <%# 3CX embed: full-viewport host; JS hides only #wplc-chat-button and force-positions the open plate %>
     <div class="tcx-embed-host" data-tcx-embed aria-hidden="true">
       <%- tcxEmbedHtml %>
     </div>

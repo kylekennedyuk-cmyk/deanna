@@ -722,15 +722,15 @@
   background: color-mix(in srgb, var(--brand-secondary, #d1a24a) 16%, white);
 }
 
-/* 3CX host: do not clip — expanded chat/call plates are position:fixed in shadow DOM.
-   Only the minimized launcher bubble is hidden via JS; never hide the open plate. */
+/* 3CX host: full-viewport fixed layer (not a 0×0 bottom-right box).
+   A zero-size host parked at bottom-right made absolute-positioned 3CX plates
+   open downward/rightward off-screen. Expanded plate is force-positioned in JS. */
 .tcx-embed-host {
   position: fixed;
-  right: 1rem;
-  bottom: 1rem;
-  width: 0;
-  height: 0;
-  z-index: 39;
+  inset: 0;
+  width: auto;
+  height: auto;
+  z-index: 99990;
   overflow: visible;
   pointer-events: none;
 }
@@ -741,23 +741,51 @@
   pointer-events: auto;
 }
 
-/* Stray 3CX launchers outside our host (minimized only). When fallback unhides
-   the native bubble for the session, allow on-page visibility again. */
-html:not(.tcx-native-bubble-visible) body:not(.portal-shell) > call-us-selector,
-html:not(.tcx-native-bubble-visible) body:not(.portal-shell) > call-us,
-html:not(.tcx-native-bubble-visible) body:not(.portal-shell) > call-us-phone {
-  /* Keep mounted for JS clicks, but park minimized chrome off-viewport */
-  position: fixed !important;
-  right: -9999px !important;
-  bottom: -9999px !important;
+/* While 3CX chat/call UI is open, keep our branded FAB from covering it */
+html.tcx-chat-open .tcx-widget {
+  z-index: 30;
 }
 
+html.tcx-chat-open .tcx-fab {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+html.tcx-chat-open .tcx-embed-host {
+  z-index: 100000;
+  pointer-events: none;
+}
+
+/* Stray 3CX hosts outside our embed (body children). Never park at -9999 —
+   that also hid the expanded plate when 3CX reparented. Stay on-screen; JS
+   hides only #wplc-chat-button when minimized. */
+html:not(.tcx-native-bubble-visible):not(.tcx-chat-open) body:not(.portal-shell) > call-us-selector,
+html:not(.tcx-native-bubble-visible):not(.tcx-chat-open) body:not(.portal-shell) > call-us,
+html:not(.tcx-native-bubble-visible):not(.tcx-chat-open) body:not(.portal-shell) > call-us-phone {
+  position: fixed !important;
+  right: 1rem !important;
+  bottom: 1rem !important;
+  left: auto !important;
+  top: auto !important;
+  /* Minimized stray hosts: invisible but still in-viewport for expand */
+  opacity: 0 !important;
+  pointer-events: none !important;
+  z-index: 99990 !important;
+}
+
+html.tcx-chat-open body:not(.portal-shell) > call-us-selector,
+html.tcx-chat-open body:not(.portal-shell) > call-us,
+html.tcx-chat-open body:not(.portal-shell) > call-us-phone,
 html.tcx-native-bubble-visible body:not(.portal-shell) > call-us-selector,
 html.tcx-native-bubble-visible body:not(.portal-shell) > call-us,
 html.tcx-native-bubble-visible body:not(.portal-shell) > call-us-phone {
   position: fixed !important;
   right: 1rem !important;
   bottom: 1rem !important;
+  left: auto !important;
+  top: auto !important;
+  transform: none !important;
   opacity: 1 !important;
   pointer-events: auto !important;
   z-index: 100000 !important;

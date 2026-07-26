@@ -34,8 +34,12 @@
   let opening = false;
   let nativeBubbleVisible = false;
   let brandApplied = false;
+  let chatOpenPoll = null;
 
   const BRAND_STYLE_ID = 'tcx-brand-shadow-style';
+  const POSITION_STYLE_ID = 'tcx-position-shadow-style';
+  const SAFE_RIGHT = 'max(0.75rem, env(safe-area-inset-right, 0px))';
+  const SAFE_BOTTOM = 'max(0.75rem, env(safe-area-inset-bottom, 0px))';
 
   function focusableIn(el) {
     return [...el.querySelectorAll('a[href], button:not([disabled]), iframe, [tabindex]:not([tabindex="-1"])')].filter(
@@ -136,8 +140,30 @@
     if (!host?.callUs?.shadowRoot) return null;
     return (
       host.callUs.shadowRoot.getElementById('wp-live-chat-by-3CX') ||
-      host.callUs.shadowRoot.querySelector('#wp-live-chat-by-3CX, #callus-container, #callus-phone-container')
+      host.callUs.shadowRoot.querySelector(
+        '#wp-live-chat-by-3CX, #callus-container, #callus-phone-container'
+      ) ||
+      queryInShadows(host.callUs, '#wp-live-chat-by-3CX') ||
+      queryInShadows(host.callUs, '#callus-container') ||
+      queryInShadows(host.callUs, '#callus-phone-container')
     );
+  }
+
+  function findAllExpandedPlates() {
+    const host = getCallUsHost();
+    if (!host?.callUs) return [];
+    const sels = ['#wp-live-chat-by-3CX', '#callus-container', '#callus-phone-container'];
+    const found = [];
+    const seen = new Set();
+    for (const sel of sels) {
+      const el =
+        host.callUs.shadowRoot?.querySelector(sel) || queryInShadows(host.callUs, sel);
+      if (el && !seen.has(el)) {
+        seen.add(el);
+        found.push(el);
+      }
+    }
+    return found;
   }
 
   function isChatExpanded() {
@@ -147,10 +173,8 @@
     const rect = plate.getBoundingClientRect();
     // Expanded plate is much larger than the minimized bubble
     return (
-      style.visibility !== 'hidden' &&
       style.display !== 'none' &&
-      style.opacity !== '0' &&
-      (rect.width > 120 || rect.height > 120)
+      (rect.width > 120 || rect.height > 120 || plate.offsetWidth > 120 || plate.offsetHeight > 120)
     );
   }
 
@@ -161,9 +185,150 @@
     }
   }
 
+  function expandedPositionCss() {
+    return `
+      #wp-live-chat-by-3CX,
+      #callus-container,
+      #callus-phone-container {
+        position: fixed !important;
+        right: ${SAFE_RIGHT} !important;
+        bottom: ${SAFE_BOTTOM} !important;
+        left: auto !important;
+        top: auto !important;
+        transform: none !important;
+        translate: none !important;
+        max-height: min(640px, calc(100dvh - 1.5rem)) !important;
+        max-height: min(640px, calc(100vh - 1.5rem)) !important;
+        max-width: min(420px, calc(100vw - 1.5rem)) !important;
+        width: auto !important;
+        height: auto !important;
+        z-index: 100000 !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        pointer-events: auto !important;
+        overflow: visible !important;
+      }
+      /* Calling / video windows that nest beside the chat plate */
+      .calling-window,
+      [class*="calling-window"],
+      [class*="CallingWindow"] {
+        position: fixed !important;
+        right: ${SAFE_RIGHT} !important;
+        bottom: ${SAFE_BOTTOM} !important;
+        left: auto !important;
+        top: auto !important;
+        transform: none !important;
+        z-index: 100001 !important;
+        max-height: min(640px, calc(100dvh - 1.5rem)) !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        pointer-events: auto !important;
+      }
+    `;
+  }
+
+  function injectStyleIntoShadow(shadowRoot, id, cssText) {
+    if (!shadowRoot) return;
+    let style = shadowRoot.getElementById(id);
+    if (!style) {
+      style = document.createElement('style');
+      style.id = id;
+      shadowRoot.appendChild(style);
+    }
+    style.textContent = cssText;
+  }
+
+  function applyInlineOnScreen(el) {
+    if (!el?.style) return;
+    el.style.setProperty('position', 'fixed', 'important');
+    el.style.setProperty('right', SAFE_RIGHT, 'important');
+    el.style.setProperty('bottom', SAFE_BOTTOM, 'important');
+    el.style.setProperty('left', 'auto', 'important');
+    el.style.setProperty('top', 'auto', 'important');
+    el.style.setProperty('transform', 'none', 'important');
+    el.style.setProperty('z-index', '100000', 'important');
+    el.style.setProperty('visibility', 'visible', 'important');
+    el.style.setProperty('opacity', '1', 'important');
+    el.style.setProperty('pointer-events', 'auto', 'important');
+    el.style.setProperty('max-height', 'min(640px, calc(100dvh - 1.5rem))', 'important');
+    el.style.setProperty('max-width', 'min(420px, calc(100vw - 1.5rem))', 'important');
+    el.style.setProperty('overflow', 'visible', 'important');
+    el.style.removeProperty('translate');
+    // Undo any off-screen parking / zero-size from prior hide attempts
+    clearImportant(el, ['width', 'height', 'margin', 'clip', 'clip-path']);
+  }
+
+  function forceExpandedOnScreen() {
+    const host = getCallUsHost();
+    if (!host?.callUs) return;
+
+    const css = expandedPositionCss();
+    if (host.selector?.shadowRoot) injectStyleIntoShadow(host.selector.shadowRoot, POSITION_STYLE_ID, css);
+    if (host.callUs.shadowRoot) {
+      injectStyleIntoShadow(host.callUs.shadowRoot, POSITION_STYLE_ID, css);
+      host.callUs.shadowRoot.querySelectorAll('*').forEach((el) => {
+        if (el.shadowRoot) injectStyleIntoShadow(el.shadowRoot, POSITION_STYLE_ID, css);
+      });
+    }
+
+    for (const el of [host.selector, host.callUs].filter(Boolean)) {
+      applyInlineOnScreen(el);
+    }
+    for (const plate of findAllExpandedPlates()) {
+      applyInlineOnScreen(plate);
+    }
+
+    document.documentElement.classList.add('tcx-chat-open');
+  }
+
+  function setChatOpenUi(open) {
+    if (open) {
+      forceExpandedOnScreen();
+      applyBrandTheme();
+      // Keep forcing position briefly while 3CX finishes layout / animations
+      if (chatOpenPoll) window.clearInterval(chatOpenPoll);
+      let ticks = 0;
+      chatOpenPoll = window.setInterval(() => {
+        ticks += 1;
+        if (isChatExpanded()) {
+          forceExpandedOnScreen();
+          // Re-hide only the minimized bubble chrome, never the plate
+          const btn = findChatButton();
+          if (btn && !nativeBubbleVisible) applyHideToMinimizedBubble(btn);
+        } else if (ticks > 4) {
+          document.documentElement.classList.remove('tcx-chat-open');
+          window.clearInterval(chatOpenPoll);
+          chatOpenPoll = null;
+        }
+        if (ticks >= 40) {
+          window.clearInterval(chatOpenPoll);
+          chatOpenPoll = null;
+        }
+      }, 250);
+    } else {
+      document.documentElement.classList.remove('tcx-chat-open');
+      if (chatOpenPoll) {
+        window.clearInterval(chatOpenPoll);
+        chatOpenPoll = null;
+      }
+    }
+  }
+
   function applyHideToMinimizedBubble(btn) {
     if (!btn || nativeBubbleVisible) return;
-    if (isChatExpanded()) return;
+    // Only the launcher bubble — never shrink/hide expanded plate nodes
+    if (btn.id && btn.id !== 'wplc-chat-button') return;
+
+    if (isChatExpanded()) {
+      // Dim bubble chrome only; do not zero width/height while plate is open
+      btn.style.setProperty('opacity', '0', 'important');
+      btn.style.setProperty('visibility', 'hidden', 'important');
+      btn.style.setProperty('pointer-events', 'none', 'important');
+      btn.setAttribute('aria-hidden', 'true');
+      btn.setAttribute('data-tcx-hidden', '1');
+      return;
+    }
+
     btn.style.setProperty('opacity', '0', 'important');
     btn.style.setProperty('visibility', 'hidden', 'important');
     btn.style.setProperty('pointer-events', 'none', 'important');
@@ -210,17 +375,15 @@
       btn.removeAttribute('aria-hidden');
       btn.removeAttribute('data-tcx-hidden');
     }
-    const plate = findExpandedPlate();
-    if (plate) {
-      clearImportant(plate, ['opacity', 'visibility', 'pointer-events', 'z-index']);
-      plate.style.setProperty('z-index', '100000', 'important');
-    }
+    forceExpandedOnScreen();
   }
 
   function hideDefaultBubble() {
-    if (nativeBubbleVisible || isChatExpanded()) return;
+    if (nativeBubbleVisible) return;
     const btn = findChatButton();
     if (btn) applyHideToMinimizedBubble(btn);
+    // If 3CX already expanded (or mid-open), keep the plate on-screen
+    if (isChatExpanded()) forceExpandedOnScreen();
   }
 
   function brandStyleCss() {
@@ -257,6 +420,14 @@
       }
       #wp-live-chat-by-3CX, #callus-container, #callus-phone-container {
         font-family: Outfit, "Segoe UI", sans-serif !important;
+        position: fixed !important;
+        right: ${SAFE_RIGHT} !important;
+        bottom: ${SAFE_BOTTOM} !important;
+        left: auto !important;
+        top: auto !important;
+        transform: none !important;
+        max-height: min(640px, calc(100dvh - 1.5rem)) !important;
+        max-width: min(420px, calc(100vw - 1.5rem)) !important;
       }
       button, .button, [class*="submit"], [class*="main-button"], .call-us, .cw-panel-button {
         font-family: Outfit, "Segoe UI", sans-serif !important;
@@ -386,27 +557,25 @@
     revealBubbleForClick(btn);
     applyBrandTheme();
 
-    // Clear hide on plate so expanded UI can show
+    // Clear hide on plate so expanded UI can show, and pre-position on-screen
     const plate = findExpandedPlate();
     if (plate) {
-      clearImportant(plate, ['opacity', 'visibility', 'pointer-events', 'width', 'height']);
-      plate.style.setProperty('z-index', '100000', 'important');
+      clearImportant(plate, ['opacity', 'visibility', 'pointer-events', 'width', 'height', 'transform']);
+      applyInlineOnScreen(plate);
     }
 
     if (!clickEnabled(btn)) return { ok: false, reason: 'click-failed', btn };
 
     const opened = await waitFor(() => isChatExpanded(), { timeoutMs: 500, intervalMs: 50 });
     if (opened) {
-      applyBrandTheme();
-      // Re-hide only the minimized bubble chrome if it still exists separately
-      // Do NOT re-hide the expanded chat plate
+      setChatOpenUi(true);
       return { ok: true };
     }
 
     // Sometimes expand takes slightly longer
-    const openedSlow = await waitFor(() => isChatExpanded(), { timeoutMs: 800, intervalMs: 100 });
+    const openedSlow = await waitFor(() => isChatExpanded(), { timeoutMs: 1200, intervalMs: 100 });
     if (openedSlow) {
-      applyBrandTheme();
+      setChatOpenUi(true);
       return { ok: true };
     }
 
@@ -428,7 +597,7 @@
     }, { timeoutMs: 2500, intervalMs: 150 });
 
     if (callBtn && clickEnabled(callBtn)) {
-      applyBrandTheme();
+      setChatOpenUi(true);
       const calling = await waitFor(() => {
         const host = getCallUsHost();
         if (!host?.callUs?.shadowRoot) return false;
@@ -438,11 +607,13 @@
             host.callUs.shadowRoot.querySelector('.calling-window, [class*="calling"]')
         );
       }, { timeoutMs: 1500, intervalMs: 100 });
+      forceExpandedOnScreen();
       if (calling || isChatExpanded()) return { ok: true };
     }
 
     // Chat opened but call control missing — leave chat visible for manual call
     if (chat.ok || isChatExpanded()) {
+      setChatOpenUi(true);
       return { ok: true, partial: true };
     }
 
@@ -462,6 +633,7 @@
       { phonesystemUrl, party }
     );
     unhideNativeBubblePermanently();
+    setChatOpenUi(true);
     applyBrandTheme();
     // Retry click once with fully visible bubble
     const btn = findChatButton();
@@ -501,7 +673,7 @@
       if (result.ok) {
         setStatus('');
         setOpen(false);
-        applyBrandTheme();
+        setChatOpenUi(true);
         return;
       }
       fallbackAfterFailure('chat');
@@ -528,7 +700,7 @@
               : ''
           );
           setOpen(false);
-          applyBrandTheme();
+          setChatOpenUi(true);
           return;
         }
         fallbackAfterFailure('call');
@@ -602,8 +774,26 @@
     const observer = new MutationObserver(() => {
       hideDefaultBubble();
       if (!brandApplied || getCallUsHost()?.callUs) applyBrandTheme();
+      if (isChatExpanded()) {
+        forceExpandedOnScreen();
+      } else if (!nativeBubbleVisible && document.documentElement.classList.contains('tcx-chat-open')) {
+        // User closed the 3CX window — restore our FAB
+        setChatOpenUi(false);
+      }
     });
     observer.observe(document.documentElement, { childList: true, subtree: true });
     window.setTimeout(() => observer.disconnect(), 25000);
+
+    // Keep FAB / plate state in sync after the boot observer ends
+    window.setInterval(() => {
+      if (opening) return;
+      if (isChatExpanded()) {
+        forceExpandedOnScreen();
+        const btn = findChatButton();
+        if (btn && !nativeBubbleVisible) applyHideToMinimizedBubble(btn);
+      } else if (!nativeBubbleVisible && document.documentElement.classList.contains('tcx-chat-open')) {
+        setChatOpenUi(false);
+      }
+    }, 2000);
   }
 })();
