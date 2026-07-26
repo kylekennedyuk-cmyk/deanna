@@ -414,9 +414,6 @@ router.post('/settings', async (req, res, next) => {
       'tcx_phonesystem_url',
       'tcx_party',
       'tcx_embed_snippet',
-      'tcx_talk_url',
-      'tcx_call_number',
-      'tcx_greeting',
     ];
     for (const key of keys) {
       if (req.body[key] === undefined) continue;

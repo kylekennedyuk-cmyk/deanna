@@ -26,7 +26,7 @@ function applySafeLocals(res) {
   res.locals.siteName = res.locals.siteName || 'Destinations With Deanna';
   res.locals.siteTagline = res.locals.siteTagline || '';
   res.locals.settings = res.locals.settings || {};
-  res.locals.tcx = res.locals.tcx || { show: false, enabled: false, hasChat: false, hasCall: false };
+  res.locals.tcx = res.locals.tcx || { show: false, enabled: false, hasChat: false };
   res.locals.tcxEmbedHtml = res.locals.tcxEmbedHtml || '';
   res.locals.navHeader = res.locals.navHeader || [];
   res.locals.navFooter = res.locals.navFooter || [];
