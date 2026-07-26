@@ -848,17 +848,22 @@ router.post('/mailbox/send', async (req, res) => {
 
   try {
     // Send in the background so compose doesn't hang on slow SMTP.
+    // Explicit .catch so a rejected promise can never become an unhandledRejection.
     setImmediate(() => {
-      sendMailboxMail({
-        to,
-        cc: cc || undefined,
-        subject,
-        text: body,
-        inReplyTo: inReplyTo || undefined,
-        references: references || undefined,
-      }).catch((err) => {
-        console.error('[mailbox send]', err.message || err);
-      });
+      Promise.resolve()
+        .then(() =>
+          sendMailboxMail({
+            to,
+            cc: cc || undefined,
+            subject,
+            text: body,
+            inReplyTo: inReplyTo || undefined,
+            references: references || undefined,
+          })
+        )
+        .catch((err) => {
+          console.error('[mailbox send]', err && err.message ? err.message : err);
+        });
     });
     return res.redirect('/agent/mailbox?folder=Sent&sent=1');
   } catch (err) {

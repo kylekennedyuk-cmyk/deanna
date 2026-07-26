@@ -382,15 +382,29 @@ let queueRunning = false;
 async function runOutboundQueue() {
   if (queueRunning) return;
   queueRunning = true;
-  while (outboundQueue.length) {
-    const job = outboundQueue.shift();
-    try {
-      await job();
-    } catch (err) {
-      console.error('[email queue]', err.message || err);
+  try {
+    while (outboundQueue.length) {
+      const job = outboundQueue.shift();
+      try {
+        await job();
+      } catch (err) {
+        console.error('[email queue]', err && err.message ? err.message : err);
+      }
     }
+  } finally {
+    // Always clear the flag so a thrown error cannot stall the queue forever.
+    queueRunning = false;
   }
-  queueRunning = false;
+}
+
+function kickOutboundQueue() {
+  // setImmediate + async fn returns a floating promise — always .catch it.
+  setImmediate(() => {
+    runOutboundQueue().catch((err) => {
+      console.error('[email queue fatal]', err && err.message ? err.message : err);
+      queueRunning = false;
+    });
+  });
 }
 
 function sendNotificationAsync(type, payload) {
@@ -400,7 +414,7 @@ function sendNotificationAsync(type, payload) {
       console.warn(`[email async skipped] ${type} → ${payload.to}: ${result.reason || 'not configured'}`);
     }
   });
-  setImmediate(runOutboundQueue);
+  kickOutboundQueue();
 }
 
 module.exports = {

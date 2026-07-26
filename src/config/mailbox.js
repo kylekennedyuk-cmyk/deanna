@@ -74,6 +74,14 @@ function imapBlockReason(settings) {
   return null;
 }
 
+const IMAP_OP_TIMEOUT_MS = 45000;
+
+/**
+ * ImapFlow emits 'error' asynchronously. Without a listener, Node treats that
+ * as an uncaughtException and kills the process — a strong match for
+ * intermittent Passenger downtime every few hours when staff hit the mailbox
+ * or badge middleware probes INBOX STATUS.
+ */
 async function withImap(fn) {
   const settings = await resolveImapSettings();
   const reason = imapBlockReason(settings);
@@ -101,10 +109,29 @@ async function withImap(fn) {
     },
   });
 
+  client.on('error', (err) => {
+    console.warn('[imap] client error:', err && err.message ? err.message : err);
+  });
+
+  let timer;
   try {
-    await client.connect();
-    return await fn(client, settings);
+    const work = (async () => {
+      await client.connect();
+      return fn(client, settings);
+    })();
+
+    const timeout = new Promise((_, reject) => {
+      timer = setTimeout(() => {
+        const err = new Error(`IMAP operation timed out after ${IMAP_OP_TIMEOUT_MS}ms`);
+        err.code = 'IMAP_TIMEOUT';
+        reject(err);
+      }, IMAP_OP_TIMEOUT_MS);
+      if (typeof timer.unref === 'function') timer.unref();
+    });
+
+    return await Promise.race([work, timeout]);
   } finally {
+    if (timer) clearTimeout(timer);
     try {
       await client.logout();
     } catch {
@@ -197,6 +224,7 @@ async function listFolders() {
 }
 
 const UNSEEN_CACHE_TTL_MS = 45 * 1000;
+/** Soft bound: only one cached value + one inflight promise (no unbounded growth). */
 let unseenCache = { value: null, expiresAt: 0, inflight: null };
 
 function invalidateInboxUnseenCache() {
@@ -206,6 +234,7 @@ function invalidateInboxUnseenCache() {
 /**
  * Efficient INBOX unseen count via IMAP STATUS (not a full message list).
  * Short in-process cache; misconfiguration / IMAP errors return 0 (cached briefly).
+ * The returned promise never rejects — callers must not need .catch().
  */
 async function getInboxUnseenCount({ force = false } = {}) {
   const now = Date.now();
@@ -230,7 +259,7 @@ async function getInboxUnseenCount({ force = false } = {}) {
       return count;
     } catch (err) {
       // Fail-soft: never break pages; cache zero briefly to avoid reconnect storms.
-      console.warn('[mailbox] unseen count failed:', err.message || err);
+      console.warn('[mailbox] unseen count failed:', err && err.message ? err.message : err);
       unseenCache = {
         value: 0,
         expiresAt: Date.now() + UNSEEN_CACHE_TTL_MS,
@@ -240,8 +269,17 @@ async function getInboxUnseenCount({ force = false } = {}) {
     }
   })();
 
-  unseenCache.inflight = fetchPromise;
-  return fetchPromise;
+  // Extra belt: if the async IIFE ever rejects despite the try/catch, swallow it.
+  unseenCache.inflight = fetchPromise.catch((err) => {
+    console.warn('[mailbox] unseen inflight rejected:', err && err.message ? err.message : err);
+    unseenCache = {
+      value: 0,
+      expiresAt: Date.now() + UNSEEN_CACHE_TTL_MS,
+      inflight: null,
+    };
+    return 0;
+  });
+  return unseenCache.inflight;
 }
 
 async function resolveFolderMap() {

@@ -1,4 +1,4 @@
-const { prisma } = require('../config/database');
+const { prisma, withSqliteRetry } = require('../config/database');
 
 const EMPTY_COUNTS = Object.freeze({
   messages: 0,
@@ -14,6 +14,22 @@ function emptyBadgeCounts() {
 
 function isStaff(user) {
   return user && (user.role === 'agent' || user.role === 'admin');
+}
+
+/** Throttle noisy badge warnings so schema drift doesn't flood Passenger logs. */
+let lastBadgeWarnAt = 0;
+const BADGE_WARN_EVERY_MS = 60 * 1000;
+
+function warnBadge(err) {
+  const now = Date.now();
+  if (now - lastBadgeWarnAt < BADGE_WARN_EVERY_MS) return;
+  lastBadgeWarnAt = now;
+  const code = err && err.code ? ` [${err.code}]` : '';
+  console.warn(
+    `[notifications] badge counts failed${code}:`,
+    err && err.message ? err.message : err,
+    '| If this mentions a missing table/column, run npm run update (prisma db push) on the server.'
+  );
 }
 
 /**
@@ -42,9 +58,11 @@ async function createMessageReads(userId, messageIds) {
 
   const readAt = new Date();
   try {
-    await prisma.messageRead.createMany({
-      data: fresh.map((messageId) => ({ messageId, userId, readAt })),
-    });
+    await withSqliteRetry(() =>
+      prisma.messageRead.createMany({
+        data: fresh.map((messageId) => ({ messageId, userId, readAt })),
+      })
+    );
   } catch (err) {
     if (err.code !== 'P2002') throw err;
   }
@@ -163,7 +181,7 @@ async function countMailboxUnseen(user) {
     const { getInboxUnseenCount } = require('../config/mailbox');
     return await getInboxUnseenCount();
   } catch (err) {
-    console.warn('[notifications] mailbox unseen failed:', err.message || err);
+    console.warn('[notifications] mailbox unseen failed:', err && err.message ? err.message : err);
     return 0;
   }
 }
@@ -176,19 +194,30 @@ async function countOpenChangeRequests(user) {
   });
 }
 
+async function softCount(label, fn) {
+  try {
+    return await fn();
+  } catch (err) {
+    warnBadge(err);
+    return 0;
+  }
+}
+
 /**
  * Role-scoped badge counts for nav / header.
- * Fail-soft: never throws to the request pipeline.
+ * Fail-soft: never throws to the request pipeline — including Prisma schema drift
+ * (missing MessageRead / ChangeRequest / booking columns). A nav badge must never
+ * break page rendering or crash the app.
  */
 async function getBadgeCounts(user) {
   if (!user) return emptyBadgeCounts();
 
   try {
     const [messages, plans, mailbox, changeRequests] = await Promise.all([
-      countUnreadPlanMessages(user),
-      countActionPlans(user),
-      countMailboxUnseen(user),
-      countOpenChangeRequests(user),
+      softCount('messages', () => countUnreadPlanMessages(user)),
+      softCount('plans', () => countActionPlans(user)),
+      softCount('mailbox', () => countMailboxUnseen(user)),
+      softCount('changeRequests', () => countOpenChangeRequests(user)),
     ]);
 
     const total =
@@ -202,7 +231,7 @@ async function getBadgeCounts(user) {
       total: total || 0,
     };
   } catch (err) {
-    console.warn('[notifications] badge counts failed:', err.message || err);
+    warnBadge(err);
     return emptyBadgeCounts();
   }
 }
@@ -211,9 +240,16 @@ async function getBadgeCounts(user) {
  * Refresh res.locals.badgeCounts after mark-read / mailbox open.
  */
 async function refreshBadgeCounts(res, user) {
-  const counts = await getBadgeCounts(user);
-  if (res && res.locals) res.locals.badgeCounts = counts;
-  return counts;
+  try {
+    const counts = await getBadgeCounts(user);
+    if (res && res.locals) res.locals.badgeCounts = counts;
+    return counts;
+  } catch (err) {
+    warnBadge(err);
+    const counts = emptyBadgeCounts();
+    if (res && res.locals) res.locals.badgeCounts = counts;
+    return counts;
+  }
 }
 
 module.exports = {

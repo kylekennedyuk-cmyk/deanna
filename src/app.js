@@ -114,7 +114,13 @@ function createApp() {
       res.locals.currentUser = req.user || null;
       res.locals.csrfToken = req.csrfToken ? req.csrfToken() : generateToken(req);
       res.locals.appUrl = process.env.APP_URL || '';
-      res.locals.badgeCounts = req.user ? await getBadgeCounts(req.user) : emptyBadgeCounts();
+      // Badge counts must never break page rendering (schema drift / IMAP / SQLITE_BUSY).
+      try {
+        res.locals.badgeCounts = req.user ? await getBadgeCounts(req.user) : emptyBadgeCounts();
+      } catch (badgeErr) {
+        console.warn('[app] badge middleware failed:', badgeErr && badgeErr.message ? badgeErr.message : badgeErr);
+        res.locals.badgeCounts = emptyBadgeCounts();
+      }
       applySafeLocals(res);
       next();
     } catch (err) {
