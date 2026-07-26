@@ -116,72 +116,100 @@ function parseTcxSnippet(snippet) {
 }
 
 function resolveTcxConfig(settings) {
-  const enabled = settings.tcx_enabled === 'true';
-  const snippet = String(settings.tcx_embed_snippet || '').trim();
-  const parsed = parseTcxSnippet(snippet);
+  // Null-safe: middleware / tests may pass undefined before settings load.
+  const s = settings && typeof settings === 'object' ? settings : {};
+  try {
+    const enabled = s.tcx_enabled === 'true';
+    const snippet = String(s.tcx_embed_snippet || '').trim();
+    const parsed = parseTcxSnippet(snippet);
 
-  let phonesystemUrl = normalisePhonesystemUrl(settings.tcx_phonesystem_url);
-  let party = String(settings.tcx_party || '').trim();
+    let phonesystemUrl = normalisePhonesystemUrl(s.tcx_phonesystem_url);
+    let party = String(s.tcx_party || '').trim();
 
-  // If phonesystem field is a full party URL, extract party
-  if (!party) {
-    party = extractPartyFromUrl(settings.tcx_phonesystem_url);
+    // If phonesystem field is a full party URL, extract party
+    if (!party) {
+      party = extractPartyFromUrl(s.tcx_phonesystem_url);
+    }
+
+    // Prefer structured fields; fall back to snippet-extracted values
+    if (!phonesystemUrl && parsed.phonesystemUrl) phonesystemUrl = parsed.phonesystemUrl;
+    if (!party && parsed.party) party = parsed.party;
+
+    const rawTalkUrl = String(s.tcx_talk_url || '').trim();
+    const talkIsMeetings = isMeetingsUrl(rawTalkUrl);
+    // Only keep Talk URL when it is not a Meetings/Meet join link
+    const talkUrl = talkIsMeetings ? '' : rawTalkUrl;
+
+    const callNumber = String(s.tcx_call_number || s.phone || '').trim();
+    const greeting =
+      String(s.tcx_greeting || '').trim() || 'Chat or call Destinations With Deanna';
+
+    const hasChat = Boolean(phonesystemUrl && party);
+    // Browser VoIP comes from the Live Chat & Talk widget when chat is configured
+    const hasBrowserCall = hasChat || Boolean(talkUrl);
+    const hasCall = Boolean(hasBrowserCall || callNumber);
+    const show = enabled && (hasChat || hasCall || Boolean(snippet && parsed.rawSafe));
+
+    return {
+      enabled,
+      show,
+      hasChat,
+      hasCall,
+      hasBrowserCall,
+      phonesystemUrl,
+      party,
+      talkUrl,
+      talkIsMeetings,
+      callNumber,
+      greeting,
+      callusScriptUrl: `https://downloads-global.3cx.com${CALLUS_SCRIPT_PATH}`,
+      brandPrimary: String(s.primary_colour || '#1a2b40').trim() || '#1a2b40',
+      brandSecondary: String(s.secondary_colour || '#d1a24a').trim() || '#d1a24a',
+      brandBg: String(s.background_colour || '#fbf8f3').trim() || '#fbf8f3',
+      logoUrl: String(s.logo_url || '').trim(),
+    };
+  } catch {
+    return {
+      enabled: false,
+      show: false,
+      hasChat: false,
+      hasCall: false,
+      hasBrowserCall: false,
+      phonesystemUrl: '',
+      party: '',
+      talkUrl: '',
+      talkIsMeetings: false,
+      callNumber: '',
+      greeting: 'Chat or call Destinations With Deanna',
+      callusScriptUrl: `https://downloads-global.3cx.com${CALLUS_SCRIPT_PATH}`,
+      brandPrimary: '#1a2b40',
+      brandSecondary: '#d1a24a',
+      brandBg: '#fbf8f3',
+      logoUrl: '',
+    };
   }
-
-  // Prefer structured fields; fall back to snippet-extracted values
-  if (!phonesystemUrl && parsed.phonesystemUrl) phonesystemUrl = parsed.phonesystemUrl;
-  if (!party && parsed.party) party = parsed.party;
-
-  const rawTalkUrl = String(settings.tcx_talk_url || '').trim();
-  const talkIsMeetings = isMeetingsUrl(rawTalkUrl);
-  // Only keep Talk URL when it is not a Meetings/Meet join link
-  const talkUrl = talkIsMeetings ? '' : rawTalkUrl;
-
-  const callNumber = String(settings.tcx_call_number || settings.phone || '').trim();
-  const greeting =
-    String(settings.tcx_greeting || '').trim() || 'Chat or call Destinations With Deanna';
-
-  const hasChat = Boolean(phonesystemUrl && party);
-  // Browser VoIP comes from the Live Chat & Talk widget when chat is configured
-  const hasBrowserCall = hasChat || Boolean(talkUrl);
-  const hasCall = Boolean(hasBrowserCall || callNumber);
-  const show = enabled && (hasChat || hasCall || Boolean(snippet && parsed.rawSafe));
-
-  return {
-    enabled,
-    show,
-    hasChat,
-    hasCall,
-    hasBrowserCall,
-    phonesystemUrl,
-    party,
-    talkUrl,
-    talkIsMeetings,
-    callNumber,
-    greeting,
-    callusScriptUrl: `https://downloads-global.3cx.com${CALLUS_SCRIPT_PATH}`,
-    brandPrimary: String(settings.primary_colour || '#1a2b40').trim() || '#1a2b40',
-    brandSecondary: String(settings.secondary_colour || '#d1a24a').trim() || '#d1a24a',
-    brandBg: String(settings.background_colour || '#fbf8f3').trim() || '#fbf8f3',
-    logoUrl: String(settings.logo_url || '').trim(),
-  };
 }
 
 /** Safe HTML for the 3CX embed (never echoes raw admin HTML). */
 function renderTcxEmbedHtml(config) {
-  if (!config.hasChat) return '';
-  const url = String(config.phonesystemUrl).replace(/"/g, '');
-  const party = String(config.party).replace(/"/g, '');
-  const primary = String(config.brandPrimary || '#1a2b40').replace(/"/g, '');
-  const secondary = String(config.brandSecondary || '#d1a24a').replace(/"/g, '');
-  const bg = String(config.brandBg || '#fbf8f3').replace(/"/g, '');
-  // Style attributes hint brand colours; JS also injects shadow CSS after mount.
-  return (
-    `<call-us-selector phonesystem-url="${url}" party="${party}" ` +
-    `style="--call-us-main-accent-color:${secondary};--call-us-main-background-color:${bg};` +
-    `--call-us-plate-background-color:${primary};--call-us-plate-font-color:#ffffff;` +
-    `--call-us-main-font-color:${primary};"></call-us-selector>`
-  );
+  if (!config || typeof config !== 'object' || !config.hasChat) return '';
+  try {
+    const url = String(config.phonesystemUrl || '').replace(/"/g, '');
+    const party = String(config.party || '').replace(/"/g, '');
+    if (!url || !party) return '';
+    const primary = String(config.brandPrimary || '#1a2b40').replace(/"/g, '');
+    const secondary = String(config.brandSecondary || '#d1a24a').replace(/"/g, '');
+    const bg = String(config.brandBg || '#fbf8f3').replace(/"/g, '');
+    // Style attributes hint brand colours; JS also injects shadow CSS after mount.
+    return (
+      `<call-us-selector phonesystem-url="${url}" party="${party}" ` +
+      `style="--call-us-main-accent-color:${secondary};--call-us-main-background-color:${bg};` +
+      `--call-us-plate-background-color:${primary};--call-us-plate-font-color:#ffffff;` +
+      `--call-us-main-font-color:${primary};"></call-us-selector>`
+    );
+  } catch {
+    return '';
+  }
 }
 
 module.exports = {

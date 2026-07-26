@@ -56,9 +56,17 @@ function applySafeLocals(res) {
 function createApp() {
   const app = express();
 
-  fs.mkdirSync(path.join(__dirname, '..', 'data'), { recursive: true });
-  fs.mkdirSync(path.join(__dirname, '..', 'public', 'uploads'), { recursive: true });
-  fs.mkdirSync(path.join(__dirname, '..', 'data', 'sessions'), { recursive: true });
+  for (const dir of [
+    path.join(__dirname, '..', 'data'),
+    path.join(__dirname, '..', 'public', 'uploads'),
+    path.join(__dirname, '..', 'data', 'sessions'),
+  ]) {
+    try {
+      fs.mkdirSync(dir, { recursive: true });
+    } catch (err) {
+      console.warn('[app] mkdir failed (continuing):', dir, err && err.message ? err.message : err);
+    }
+  }
 
   configurePassport();
 
@@ -80,7 +88,12 @@ function createApp() {
 
   // Health check before session/CSRF/DB so Plesk can probe the process.
   app.get('/health', (req, res) => {
-    res.json({ ok: true });
+    res.status(200).json({
+      ok: true,
+      uptime: Math.round(process.uptime()),
+      node: process.version,
+      passenger: typeof PhusionPassenger !== 'undefined',
+    });
   });
 
   app.use(createSessionMiddleware());
@@ -107,8 +120,14 @@ function createApp() {
       res.locals.siteName = settings.site_name || 'Destinations With Deanna';
       res.locals.siteTagline = settings.site_tagline || '';
       res.locals.settings = settings;
-      res.locals.tcx = resolveTcxConfig(settings);
-      res.locals.tcxEmbedHtml = renderTcxEmbedHtml(res.locals.tcx);
+      try {
+        res.locals.tcx = resolveTcxConfig(settings);
+        res.locals.tcxEmbedHtml = renderTcxEmbedHtml(res.locals.tcx);
+      } catch (tcxErr) {
+        console.warn('[app] 3CX config failed:', tcxErr && tcxErr.message ? tcxErr.message : tcxErr);
+        res.locals.tcx = resolveTcxConfig(undefined);
+        res.locals.tcxEmbedHtml = '';
+      }
       res.locals.navHeader = nav.filter((n) => n.location === 'header');
       res.locals.navFooter = nav.filter((n) => n.location === 'footer');
       res.locals.currentUser = req.user || null;

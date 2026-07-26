@@ -6,6 +6,18 @@ const { createApp } = require('./src/app');
 const { prisma, applySqlitePragmas } = require('./src/config/database');
 const { safeLog } = require('./src/utils/safeLog');
 
+const underPassenger = typeof PhusionPassenger !== 'undefined';
+
+if (underPassenger) {
+  // Recommended for Passenger-managed Node apps (Plesk): disable autoInstall
+  // so we control listen() ourselves.
+  try {
+    PhusionPassenger.configure({ autoInstall: false });
+  } catch (err) {
+    safeLog('warn', 'PhusionPassenger.configure failed (continuing)', err);
+  }
+}
+
 /**
  * Unhandled rejections are the most likely cause of intermittent Passenger
  * downtime: Node 20 terminates the process by default. Log and keep serving —
@@ -27,6 +39,16 @@ process.on('uncaughtException', (err) => {
   safeLog('fatal', 'Uncaught exception — exiting so Passenger can respawn', err);
   setTimeout(() => process.exit(1), 250).unref?.();
 });
+
+function safeMkdir(dir) {
+  try {
+    fs.mkdirSync(dir, { recursive: true });
+    return true;
+  } catch (err) {
+    safeLog('warn', `Could not create directory ${dir} (continuing boot)`, err);
+    return false;
+  }
+}
 
 async function checkSchemaSanity() {
   const checks = [
@@ -70,17 +92,20 @@ async function checkSchemaSanity() {
         'In Plesk Node.js → Run script, type: update  (runs prisma generate && prisma db push). ' +
         'Then Restart App. Until then badge/booking features may error.'
     );
+    return { ok: false, missing };
   }
+
+  return { ok: true, missing: [] };
 }
 
 async function ensureReady() {
   const dataDir = path.join(__dirname, 'data');
   const uploadsDir = path.join(__dirname, 'public', 'uploads');
   const logsDir = path.join(dataDir, 'logs');
-  fs.mkdirSync(dataDir, { recursive: true });
-  fs.mkdirSync(uploadsDir, { recursive: true });
-  fs.mkdirSync(path.join(dataDir, 'sessions'), { recursive: true });
-  fs.mkdirSync(logsDir, { recursive: true });
+  safeMkdir(dataDir);
+  safeMkdir(uploadsDir);
+  safeMkdir(path.join(dataDir, 'sessions'));
+  safeMkdir(logsDir);
 
   if (!process.env.DATABASE_URL) {
     throw new Error(
@@ -97,20 +122,41 @@ async function ensureReady() {
     );
   }
 
-  await checkSchemaSanity();
+  const schema = await checkSchemaSanity();
 
-  const userCount = await prisma.user.count();
-  if (userCount === 0) {
-    safeLog(
-      'warn',
-      'Warning: database has no users. Run the "deploy" script (or npm run db:seed) to create the admin login.'
-    );
+  try {
+    const userCount = await prisma.user.count();
+    if (userCount === 0) {
+      safeLog(
+        'warn',
+        'Warning: database has no users. Run the "deploy" script (or npm run db:seed) to create the admin login.'
+      );
+    }
+  } catch (err) {
+    safeLog('warn', 'Could not count users during startup (continuing)', err);
   }
+
+  return schema;
+}
+
+function listenTarget() {
+  // Plesk / Phusion Passenger: prefer the Passenger socket name when present.
+  // Otherwise use PORT if Passenger/Plesk injected it, else local-dev 3000.
+  if (underPassenger) return 'passenger';
+  if (process.env.PORT) return Number(process.env.PORT) || process.env.PORT;
+  return 3000;
 }
 
 async function start() {
+  console.log(
+    `[boot] node=${process.version} cwd=${process.cwd()} ` +
+      `passenger=${underPassenger} PORT=${process.env.PORT || '(unset)'} ` +
+      `DATABASE_URL=${process.env.DATABASE_URL ? 'set' : 'missing'}`
+  );
+
+  let schemaResult = { ok: false, missing: ['not-checked'] };
   try {
-    await ensureReady();
+    schemaResult = await ensureReady();
   } catch (err) {
     safeLog(
       'error',
@@ -120,9 +166,13 @@ async function start() {
     );
   }
 
-  // Passenger/Plesk injects PORT. Do not hardcode 3000 when PORT is unset under
-  // a managed process — but keep 3000 as a local-dev fallback only.
-  const port = Number(process.env.PORT || 3000);
+  console.log(
+    `[boot] schemaSanity=${schemaResult.ok ? 'ok' : 'fail'}` +
+      (schemaResult.missing && schemaResult.missing.length
+        ? ` missing=${schemaResult.missing.join(',')}`
+        : '')
+  );
+
   let app;
   try {
     app = createApp();
@@ -132,16 +182,22 @@ async function start() {
     return;
   }
 
-  const server = app.listen(port, () => {
-    console.log(`Destinations With Deanna listening on port ${port}`);
-    console.log('Admin login: username admin / password password');
+  const target = listenTarget();
+  const server = app.listen(target, () => {
+    console.log(
+      `[boot] Destinations With Deanna listening on ${target} ` +
+        `(passenger=${underPassenger})`
+    );
+    if (!underPassenger) {
+      console.log('Admin login: username admin / password password');
+    }
   });
 
   server.on('error', (err) => {
     if (err && err.code === 'EADDRINUSE') {
       safeLog(
         'error',
-        `Port ${port} is already in use. Do not run "start" in Plesk while Passenger is managing the app. Use Run script "deploy", then click Restart App.`
+        `Listen target ${target} is already in use. Do not run "start" in Plesk while Passenger is managing the app. Use Run script "deploy", then click Restart App.`
       );
       process.exit(0);
     }

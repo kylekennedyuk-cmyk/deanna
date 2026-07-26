@@ -273,17 +273,34 @@ This Phusion Passenger page means the Node process **failed to start** or **died
    - Passenger often also prints Node `stdout`/`stderr` into the same error log
 3. App file log (after this deploy): `httpdocs/data/logs/app.log` (rotates at ~2 MB)
 
-**Reading the Passenger error ID**
+**Reading the Passenger error ID (e.g. `46a68c0a`)**
 
-The sorry page shows an error ID. Search the error log for that ID — the lines immediately above/below usually include the real Node stack (missing module, Prisma schema mismatch, unhandled exception, port conflict).
+The sorry page shows an error ID. Search the domain **error_log** for that ID — the lines immediately above/below usually include the real Node stack (missing module, Prisma schema mismatch, unhandled exception, port conflict).
+
+In Plesk: Domains → your domain → **Logs** → open the error log → search for `46a68c0a` (or whatever ID is on the page). Over SSH:
+
+```bash
+grep -n "46a68c0a" /var/www/vhosts/YOUR-DOMAIN/logs/error_log
+# or:
+grep -n "46a68c0a" /var/www/vhosts/SYSTEM_USER/logs/error_log
+```
+
+Also check app stdout lines that start with `[boot]` (node version, cwd, PORT, whether DATABASE_URL is set, schema sanity) and `data/logs/app.log`.
 
 **Typical causes after a code pull**
 
 1. **Pending schema changes not applied** — new models such as `MessageRead`, `ChangeRequest`, or booking fields on `HolidayPlan` need `prisma db push`. Run script **`update`** (or `deploy` on a fresh install), then **Restart App**. Startup now logs a clear “schema appears out of date” warning if tables/columns are missing.
 2. **Missing `.env` / `DATABASE_URL`** — create `httpdocs/.env` as in step 4 above.
 3. **Unhandled background failures** — outbound email / IMAP used to be able to kill the Node 20 process via unhandled promise rejections. Current builds log these and keep the process alive (uncaught exceptions still exit so Passenger can respawn cleanly).
+4. **Wrong listen / `EADDRINUSE`** — do not set `PORT` in the panel and do not Run script `start`. Passenger owns the socket; `server.js` listens on `'passenger'` when PhusionPassenger is present.
 
-**Quick recovery**
+**Quick recovery (Passenger “could not be started”)**
+
+1. Plesk **Git** → Pull `main` (or SSH `git pull origin main`)
+2. Node.js → **NPM install**
+3. Run script: `update` (not `start`)
+4. Node.js → **Restart App**
+5. Open `https://your-domain/health` — expect JSON like `{"ok":true,...}`
 
 ```bash
 cd /path/to/httpdocs   # folder with package.json
