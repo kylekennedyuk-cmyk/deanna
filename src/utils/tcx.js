@@ -1,10 +1,9 @@
 /**
  * 3CX Live Chat helpers — sanitise embed snippets and normalise config.
  *
- * Opening the chat: 3CX has no public JS API. The reliable approach is to
- * click #wplc-chat-button inside nested shadow roots:
- *   call-us-selector → shadow → call-us → shadow → #wplc-chat-button
- * See public/js/tcx-widget.js for retries + fallback slide-over.
+ * Opening chat/call: 3CX has no public JS API. Click controls inside nested
+ * shadow roots (call-us-selector → call-us → #wplc-chat-button / #callUsCallBtn).
+ * See public/js/tcx-widget.js.
  */
 
 const ALLOWED_SCRIPT_HOSTS = new Set([
@@ -46,6 +45,24 @@ function extractPartyFromUrl(raw) {
     return (hashParams.get('party') || '').trim();
   } catch {
     return '';
+  }
+}
+
+/** True for 3CX Meetings / Meet join links (not Live Chat & Talk VoIP). */
+function isMeetingsUrl(raw) {
+  const value = String(raw || '').trim().toLowerCase();
+  if (!value) return false;
+  try {
+    const url = new URL(value.includes('://') ? value : `https://${value}`);
+    const path = `${url.hostname}${url.pathname}`;
+    return (
+      /\/meet(\/|$)/i.test(url.pathname) ||
+      /\/join\//i.test(url.pathname) ||
+      /meetings?\.3cx/i.test(path) ||
+      /\/webmeeting/i.test(url.pathname)
+    );
+  } catch {
+    return /meet|\/join\//i.test(value);
   }
 }
 
@@ -115,13 +132,19 @@ function resolveTcxConfig(settings) {
   if (!phonesystemUrl && parsed.phonesystemUrl) phonesystemUrl = parsed.phonesystemUrl;
   if (!party && parsed.party) party = parsed.party;
 
-  const talkUrl = String(settings.tcx_talk_url || '').trim();
+  const rawTalkUrl = String(settings.tcx_talk_url || '').trim();
+  const talkIsMeetings = isMeetingsUrl(rawTalkUrl);
+  // Only keep Talk URL when it is not a Meetings/Meet join link
+  const talkUrl = talkIsMeetings ? '' : rawTalkUrl;
+
   const callNumber = String(settings.tcx_call_number || settings.phone || '').trim();
   const greeting =
     String(settings.tcx_greeting || '').trim() || 'Chat or call Destinations With Deanna';
 
   const hasChat = Boolean(phonesystemUrl && party);
-  const hasCall = Boolean(talkUrl || callNumber);
+  // Browser VoIP comes from the Live Chat & Talk widget when chat is configured
+  const hasBrowserCall = hasChat || Boolean(talkUrl);
+  const hasCall = Boolean(hasBrowserCall || callNumber);
   const show = enabled && (hasChat || hasCall || Boolean(snippet && parsed.rawSafe));
 
   return {
@@ -129,27 +152,43 @@ function resolveTcxConfig(settings) {
     show,
     hasChat,
     hasCall,
+    hasBrowserCall,
     phonesystemUrl,
     party,
     talkUrl,
+    talkIsMeetings,
     callNumber,
     greeting,
     callusScriptUrl: `https://downloads-global.3cx.com${CALLUS_SCRIPT_PATH}`,
+    brandPrimary: String(settings.primary_colour || '#1a2b40').trim() || '#1a2b40',
+    brandSecondary: String(settings.secondary_colour || '#d1a24a').trim() || '#d1a24a',
+    brandBg: String(settings.background_colour || '#fbf8f3').trim() || '#fbf8f3',
+    logoUrl: String(settings.logo_url || '').trim(),
   };
 }
 
-/** Safe HTML for the hidden 3CX embed (never echoes raw admin HTML). */
+/** Safe HTML for the 3CX embed (never echoes raw admin HTML). */
 function renderTcxEmbedHtml(config) {
   if (!config.hasChat) return '';
   const url = String(config.phonesystemUrl).replace(/"/g, '');
   const party = String(config.party).replace(/"/g, '');
-  return `<call-us-selector phonesystem-url="${url}" party="${party}"></call-us-selector>`;
+  const primary = String(config.brandPrimary || '#1a2b40').replace(/"/g, '');
+  const secondary = String(config.brandSecondary || '#d1a24a').replace(/"/g, '');
+  const bg = String(config.brandBg || '#fbf8f3').replace(/"/g, '');
+  // Style attributes hint brand colours; JS also injects shadow CSS after mount.
+  return (
+    `<call-us-selector phonesystem-url="${url}" party="${party}" ` +
+    `style="--call-us-main-accent-color:${secondary};--call-us-main-background-color:${bg};` +
+    `--call-us-plate-background-color:${primary};--call-us-plate-font-color:#ffffff;` +
+    `--call-us-main-font-color:${primary};"></call-us-selector>`
+  );
 }
 
 module.exports = {
   ALLOWED_SCRIPT_HOSTS,
   CALLUS_SCRIPT_PATH,
   extractPartyFromUrl,
+  isMeetingsUrl,
   normalisePhonesystemUrl,
   parseTcxSnippet,
   renderTcxEmbedHtml,

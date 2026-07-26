@@ -607,17 +607,9 @@
   box-shadow: 0 14px 32px rgba(15, 26, 40, 0.34);
 }
 
-.tcx-fab-logo {
-  width: 2.25rem;
-  height: 2.25rem;
-  object-fit: contain;
-  border-radius: 9999px;
-  background: #fff;
-}
-
 .tcx-fab-icon {
-  width: 1.5rem;
-  height: 1.5rem;
+  width: 1.55rem;
+  height: 1.55rem;
 }
 
 .tcx-panel {
@@ -674,11 +666,24 @@
   color: color-mix(in srgb, var(--brand-primary, #1a2b40) 78%, #333);
 }
 
+.tcx-panel-status {
+  margin: 0.65rem 0 0;
+  font-size: 0.82rem;
+  line-height: 1.4;
+  color: color-mix(in srgb, var(--brand-primary, #1a2b40) 72%, #444);
+}
+
 .tcx-panel-actions {
   display: flex;
   flex-direction: column;
   gap: 0.55rem;
   margin-top: 1rem;
+}
+
+.tcx-action:disabled {
+  opacity: 0.72;
+  cursor: wait;
+  transform: none;
 }
 
 .tcx-action {
@@ -717,8 +722,8 @@
   background: color-mix(in srgb, var(--brand-secondary, #d1a24a) 16%, white);
 }
 
-/* 3CX host stays in-flow for the open chat plate; only the default bubble is hidden via JS.
-   Do not clip/overflow-hide this host — that would trap the expanded chat UI. */
+/* 3CX host: do not clip — expanded chat/call plates are position:fixed in shadow DOM.
+   Only the minimized launcher bubble is hidden via JS; never hide the open plate. */
 .tcx-embed-host {
   position: fixed;
   right: 1rem;
@@ -731,83 +736,29 @@
 }
 
 .tcx-embed-host call-us-selector,
-.tcx-embed-host call-us {
+.tcx-embed-host call-us,
+.tcx-embed-host call-us-phone {
   pointer-events: auto;
 }
 
-/* If 3CX injects a second launcher outside our host, park it off-screen */
-body:not(.portal-shell) > call-us-selector,
-body:not(.portal-shell) > call-us {
+/* Stray 3CX launchers outside our host (minimized only). When fallback unhides
+   the native bubble for the session, allow on-page visibility again. */
+html:not(.tcx-native-bubble-visible) body:not(.portal-shell) > call-us-selector,
+html:not(.tcx-native-bubble-visible) body:not(.portal-shell) > call-us,
+html:not(.tcx-native-bubble-visible) body:not(.portal-shell) > call-us-phone {
+  /* Keep mounted for JS clicks, but park minimized chrome off-viewport */
   position: fixed !important;
   right: -9999px !important;
   bottom: -9999px !important;
-  opacity: 0 !important;
-  pointer-events: none !important;
-  z-index: -1 !important;
 }
 
-.tcx-fallback {
-  position: fixed;
-  inset: 0;
-  z-index: 45;
-}
-
-.tcx-fallback-backdrop {
-  position: absolute;
-  inset: 0;
-  background: rgba(15, 26, 40, 0.45);
-}
-
-.tcx-fallback-sheet {
-  position: absolute;
-  right: 0;
-  top: 0;
-  bottom: 0;
-  width: min(26rem, 100vw);
-  display: flex;
-  flex-direction: column;
-  background: #fff;
-  box-shadow: -12px 0 40px rgba(15, 26, 40, 0.25);
-}
-
-.tcx-fallback-toolbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
-  padding: 0.85rem 1rem;
-  border-bottom: 1px solid color-mix(in srgb, var(--brand-primary, #1a2b40) 10%, transparent);
-  background: var(--brand-primary, #1a2b40);
-  color: #fff;
-}
-
-.tcx-fallback-title {
-  margin: 0;
-  font-weight: 600;
-}
-
-.tcx-fallback-toolbar .tcx-panel-close {
-  background: rgba(255, 255, 255, 0.15);
-  color: #fff;
-}
-
-.tcx-fallback-frame {
-  flex: 1;
-  width: 100%;
-  border: 0;
-  background: #f5f5f5;
-}
-
-.tcx-fallback-hint {
-  margin: 0;
-  padding: 0.65rem 1rem;
-  font-size: 0.8rem;
-  color: color-mix(in srgb, var(--brand-primary, #1a2b40) 70%, #444);
-  border-top: 1px solid color-mix(in srgb, var(--brand-primary, #1a2b40) 10%, transparent);
-}
-
-.tcx-fallback-hint a {
-  font-weight: 600;
-  color: var(--brand-primary, #1a2b40);
-  text-decoration: underline;
+html.tcx-native-bubble-visible body:not(.portal-shell) > call-us-selector,
+html.tcx-native-bubble-visible body:not(.portal-shell) > call-us,
+html.tcx-native-bubble-visible body:not(.portal-shell) > call-us-phone {
+  position: fixed !important;
+  right: 1rem !important;
+  bottom: 1rem !important;
+  opacity: 1 !important;
+  pointer-events: auto !important;
+  z-index: 100000 !important;
 }

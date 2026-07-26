@@ -125,7 +125,7 @@
 
     <section class="card">
       <h2 class="text-2xl">Live chat &amp; calls (3CX)</h2>
-      <p class="mt-2 text-sm text-primary-700">Shows a branded floating button on the public site (not admin/agent/customer portals). Visitors can open live chat or call you. The default 3CX bubble is hidden — your logo and brand colours are the primary UI.</p>
+      <p class="mt-2 text-sm text-primary-700">Shows a branded floating chat button on the public site (not admin/agent/customer portals). Visitors can open live chat or start an in-browser voice call. The default 3CX bubble stays hidden — your site brand colours, fonts, and logo style the chat/call windows (from Branding settings above; no need to use 3CX’s own theme picker for the primary look).</p>
       <div class="mt-5 space-y-4">
         <div class="grid gap-4 md:grid-cols-2">
           <div>
@@ -159,9 +159,9 @@
         </div>
         <div class="grid gap-4 md:grid-cols-2">
           <div>
-            <label class="label" for="tcx_talk_url">3CX Talk / Meet link (optional)</label>
-            <input class="field" id="tcx_talk_url" name="tcx_talk_url" value="<%= settings.tcx_talk_url || '' %>" placeholder="https://…3cx…/join/…" autocomplete="off" />
-            <p class="help">Browser click-to-call without dialling. Opens in a new tab as “Call in browser”.</p>
+            <label class="label" for="tcx_talk_url">3CX Talk link (optional, advanced)</label>
+            <input class="field" id="tcx_talk_url" name="tcx_talk_url" value="<%= settings.tcx_talk_url || '' %>" placeholder="Only if you have a Talk/VoIP link — not Meetings" autocomplete="off" />
+            <p class="help">Usually leave blank. “Call in browser” starts a WebRTC voice call through Live Chat &amp; Talk when phone system URL + party are set. Do <strong>not</strong> paste a 3CX Meetings / Meet /join link here — those open video meetings, not a phone call.</p>
           </div>
           <div>
             <label class="label" for="tcx_call_number">Click-to-call number (optional)</label>
