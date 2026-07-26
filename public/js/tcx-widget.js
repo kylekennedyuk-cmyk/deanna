@@ -114,6 +114,31 @@
     );
   }
 
+  function findActionOptions() {
+    const host = getCallUsHost();
+    if (!host?.callUs) return [];
+    const root = host.callUs.shadowRoot;
+    const direct = root ? [...root.querySelectorAll('.action_option')] : [];
+    const nested = [];
+    if (root) {
+      root.querySelectorAll('*').forEach((el) => {
+        if (!el.shadowRoot) return;
+        nested.push(...el.shadowRoot.querySelectorAll('.action_option'));
+      });
+    }
+    return [...direct, ...nested];
+  }
+
+  function findActionOption(kind) {
+    const re = kind === 'call' ? /^\s*call(\s+us)?\s*$/i : /chat/i;
+    return (
+      findActionOptions().find((el) => {
+        if (el.classList?.contains('disabled') || el.getAttribute('disabled') != null) return false;
+        return re.test((el.textContent || '').replace(/\s+/g, ' ').trim());
+      }) || null
+    );
+  }
+
   function findCallButtons() {
     const host = getCallUsHost();
     if (!host?.callUs) return [];
@@ -126,13 +151,46 @@
       if (el) found.push(el);
     }
     // Intro "Call" action option (div with makeCall)
-    const makeCallOption =
-      host.callUs.shadowRoot?.querySelector('[ref="makeCallOption"], .action_option:not(.disabled\\:)') ||
-      queryInShadows(host.callUs, '.action_option');
-    if (makeCallOption && /call/i.test(makeCallOption.textContent || '')) {
-      found.push(makeCallOption);
-    }
+    const makeCallOption = findActionOption('call');
+    if (makeCallOption) found.push(makeCallOption);
     return found;
+  }
+
+  function setHostPointerEvents(enabled) {
+    const host = getCallUsHost();
+    for (const el of [host?.selector, host?.callUs].filter(Boolean)) {
+      if (enabled) el.style.setProperty('pointer-events', 'auto', 'important');
+      else if (!document.documentElement.classList.contains('tcx-chat-open')) {
+        el.style.setProperty('pointer-events', 'none', 'important');
+      } else {
+        el.style.removeProperty('pointer-events');
+      }
+    }
+  }
+
+  async function chooseIntroAction(kind) {
+    const opt = await waitFor(() => findActionOption(kind), { timeoutMs: 1800, intervalMs: 80 });
+    if (!opt) return false;
+    setHostPointerEvents(true);
+    if (!clickEnabled(opt)) return false;
+    forceExpandedOnScreen();
+    await waitFor(() => {
+      const host = getCallUsHost();
+      const root = host?.callUs?.shadowRoot;
+      if (!root) return false;
+      if (kind === 'chat') {
+        return Boolean(
+          root.querySelector('.small-form, #submitBtn, input[placeholder], textarea') ||
+            queryInShadows(host.callUs, '.small-form, #submitBtn')
+        );
+      }
+      return (
+        findCallButtons().some((b) => b.id === 'callUsCallBtn' || b.id === 'callBtn') ||
+        Boolean(root.querySelector('.calling-window, [class*="calling"]'))
+      );
+    }, { timeoutMs: 2200, intervalMs: 100 });
+    forceExpandedOnScreen();
+    return true;
   }
 
   function findExpandedPlate() {
@@ -554,6 +612,8 @@
       return { ok: false, reason: 'disabled-button', btn };
     }
 
+    // Temporarily allow 3CX host hits (CSS keeps it non-interactive over the FAB)
+    setHostPointerEvents(true);
     revealBubbleForClick(btn);
     applyBrandTheme();
 
@@ -564,7 +624,10 @@
       applyInlineOnScreen(plate);
     }
 
-    if (!clickEnabled(btn)) return { ok: false, reason: 'click-failed', btn };
+    if (!clickEnabled(btn)) {
+      setHostPointerEvents(false);
+      return { ok: false, reason: 'click-failed', btn };
+    }
 
     const opened = await waitFor(() => isChatExpanded(), { timeoutMs: 500, intervalMs: 50 });
     if (opened) {
@@ -579,6 +642,7 @@
       return { ok: true };
     }
 
+    setHostPointerEvents(false);
     return { ok: false, reason: 'no-expand', btn };
   }
 
@@ -588,12 +652,20 @@
       unhideNativeBubblePermanently();
     }
 
+    // PhoneAndChat parties show an intro chooser first — pick Call Us
+    if (chat.ok || isChatExpanded()) {
+      await chooseIntroAction('call');
+    }
+
     const callBtn = await waitFor(() => {
       applyBrandTheme();
       const buttons = findCallButtons().filter(
-        (b) => !b.disabled && b.getAttribute('disabled') == null
+        (b) =>
+          !b.disabled &&
+          b.getAttribute('disabled') == null
       );
-      return buttons[0] || null;
+      const real = buttons.filter((b) => b.id === 'callUsCallBtn' || b.id === 'callBtn');
+      return real[0] || buttons[0] || null;
     }, { timeoutMs: 2500, intervalMs: 150 });
 
     if (callBtn && clickEnabled(callBtn)) {
@@ -671,9 +743,12 @@
     try {
       const result = await openChatViaBubble();
       if (result.ok) {
+        // PhoneAndChat parties open a chooser plate — advance into the chat form
+        await chooseIntroAction('chat');
         setStatus('');
         setOpen(false);
         setChatOpenUi(true);
+        forceExpandedOnScreen();
         return;
       }
       fallbackAfterFailure('chat');

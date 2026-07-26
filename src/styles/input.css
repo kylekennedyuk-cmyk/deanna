@@ -735,10 +735,21 @@
   pointer-events: none;
 }
 
-.tcx-embed-host call-us-selector,
-.tcx-embed-host call-us,
-.tcx-embed-host call-us-phone {
-  pointer-events: auto;
+/* Minimized 3CX must not steal clicks from the branded FAB (host can be 0×0
+   while shadow content still hit-tests over the button). */
+html:not(.tcx-chat-open):not(.tcx-native-bubble-visible) .tcx-embed-host call-us-selector,
+html:not(.tcx-chat-open):not(.tcx-native-bubble-visible) .tcx-embed-host call-us,
+html:not(.tcx-chat-open):not(.tcx-native-bubble-visible) .tcx-embed-host call-us-phone {
+  pointer-events: none !important;
+}
+
+html.tcx-chat-open .tcx-embed-host call-us-selector,
+html.tcx-chat-open .tcx-embed-host call-us,
+html.tcx-chat-open .tcx-embed-host call-us-phone,
+html.tcx-native-bubble-visible .tcx-embed-host call-us-selector,
+html.tcx-native-bubble-visible .tcx-embed-host call-us,
+html.tcx-native-bubble-visible .tcx-embed-host call-us-phone {
+  pointer-events: auto !important;
 }
 
 /* While 3CX chat/call UI is open, keep our branded FAB from covering it */
