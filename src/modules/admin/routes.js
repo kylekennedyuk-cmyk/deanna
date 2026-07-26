@@ -414,6 +414,9 @@ router.post('/settings', async (req, res, next) => {
       'tcx_phonesystem_url',
       'tcx_party',
       'tcx_embed_snippet',
+      'whatsapp_enabled',
+      'whatsapp_number',
+      'whatsapp_message',
     ];
     for (const key of keys) {
       if (req.body[key] === undefined) continue;

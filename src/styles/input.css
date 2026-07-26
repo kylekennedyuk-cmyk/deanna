@@ -321,6 +321,46 @@
     background-color: color-mix(in srgb, var(--brand-bg, #fbf8f3) 92%, white);
   }
 
+  .whatsapp-fab {
+    @apply fixed z-40 inline-flex h-14 w-14 items-center justify-center rounded-full text-white shadow-lift transition duration-250 ease-out;
+    right: max(1rem, env(safe-area-inset-right, 0px));
+    bottom: max(1.25rem, env(safe-area-inset-bottom, 0px));
+    background: linear-gradient(
+      145deg,
+      color-mix(in srgb, var(--brand-secondary, #d1a24a) 88%, #25d366),
+      var(--brand-primary, #1a2b40)
+    );
+  }
+
+  .whatsapp-fab:hover {
+    @apply -translate-y-0.5 shadow-lift;
+    filter: brightness(1.06);
+  }
+
+  .whatsapp-fab:active {
+    @apply translate-y-0;
+  }
+
+  .whatsapp-fab:focus-visible {
+    outline: 2px solid var(--brand-secondary, #d1a24a);
+    outline-offset: 3px;
+  }
+
+  .whatsapp-fab__icon {
+    @apply h-7 w-7;
+  }
+
+  @media (max-width: 640px) {
+    .whatsapp-fab {
+      @apply h-12 w-12;
+      bottom: max(1rem, env(safe-area-inset-bottom, 0px));
+    }
+
+    .whatsapp-fab__icon {
+      @apply h-6 w-6;
+    }
+  }
+
   .site-header {
     /* Soft white glass — readable logo, slight see-through */
     position: sticky;

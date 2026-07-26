@@ -124,15 +124,39 @@
     </section>
 
     <section class="card">
+      <h2 class="text-2xl">WhatsApp</h2>
+      <p class="mt-2 text-sm text-primary-700">Floating chat button on the public site (not admin/agent/customer portals). Opens WhatsApp with an optional prefilled message.</p>
+      <div class="mt-5 space-y-4">
+        <div>
+          <label class="label" for="whatsapp_enabled">WhatsApp button</label>
+          <select class="field" id="whatsapp_enabled" name="whatsapp_enabled">
+            <option value="true" <%= settings.whatsapp_enabled !== 'false' ? 'selected' : '' %>>Enabled</option>
+            <option value="false" <%= settings.whatsapp_enabled === 'false' ? 'selected' : '' %>>Disabled</option>
+          </select>
+          <p class="help">The button only appears when enabled and a phone number is set.</p>
+        </div>
+        <div>
+          <label class="label" for="whatsapp_number">WhatsApp number</label>
+          <input class="field" id="whatsapp_number" name="whatsapp_number" value="<%= settings.whatsapp_number || '' %>" placeholder="+447700900123" autocomplete="tel" inputmode="tel" />
+          <p class="help">International format with country code (with or without +). Spaces and punctuation are stripped for the link.</p>
+        </div>
+        <div>
+          <label class="label" for="whatsapp_message">Prefill message (optional)</label>
+          <textarea class="field min-h-[80px]" id="whatsapp_message" name="whatsapp_message" placeholder="Hi Deanna, I'd like help planning a Disneyland Paris holiday."><%= settings.whatsapp_message || '' %></textarea>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
       <h2 class="text-2xl">Live chat &amp; calls (3CX)</h2>
-      <p class="mt-2 text-sm text-primary-700">Uses the official 3CX chat bubble on the public site (not admin/agent/customer portals). Style colours and icons in <strong>3CX Admin → Voice &amp; chat → Live Chat → Styling</strong>.</p>
+      <p class="mt-2 rounded-xl border border-secondary-200 bg-secondary-50 px-4 py-3 text-sm text-primary-800"><strong>Disabled — site uses WhatsApp button instead.</strong> The 3CX bubble is not shown on the public site even if fields below are filled. Kept for possible future use.</p>
       <div class="mt-5 space-y-4">
         <div>
           <label class="label" for="tcx_enabled">3CX widget</label>
-          <select class="field" id="tcx_enabled" name="tcx_enabled">
-            <option value="false" <%= settings.tcx_enabled !== 'true' ? 'selected' : '' %>>Disabled</option>
-            <option value="true" <%= settings.tcx_enabled === 'true' ? 'selected' : '' %>>Enabled</option>
+          <select class="field" id="tcx_enabled" name="tcx_enabled" disabled>
+            <option value="false" selected>Disabled (unused)</option>
           </select>
+          <input type="hidden" name="tcx_enabled" value="false" />
         </div>
         <div class="grid gap-4 md:grid-cols-2">
           <div>
@@ -149,7 +173,7 @@
         <div>
           <label class="label" for="tcx_embed_snippet">Embed snippet (optional, advanced)</label>
           <textarea class="field min-h-[100px] font-mono text-sm" id="tcx_embed_snippet" name="tcx_embed_snippet" placeholder='&lt;call-us-selector phonesystem-url="https://…" party="LiveChat…"&gt;&lt;/call-us-selector&gt;'><%= settings.tcx_embed_snippet || '' %></textarea>
-          <p class="help">Paste the full 3CX HTML if preferred. We only use the phonesystem URL and party from it (script tags from non-3CX domains are ignored). Prefer the fields above when possible.</p>
+          <p class="help">Paste the full 3CX HTML if preferred. Currently unused while WhatsApp is the public chat CTA.</p>
         </div>
       </div>
     </section>

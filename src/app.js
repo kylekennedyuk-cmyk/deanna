@@ -14,6 +14,7 @@ const { createSessionMiddleware } = require('./config/session');
 const format = require('./utils/format');
 const { emptyBadgeCounts, getBadgeCounts } = require('./utils/notifications');
 const { resolveTcxConfig, renderTcxEmbedHtml } = require('./utils/tcx');
+const { resolveWhatsappConfig } = require('./utils/whatsapp');
 
 const authRoutes = require('./modules/auth/routes');
 const cmsRoutes = require('./modules/cms/routes');
@@ -28,6 +29,7 @@ function applySafeLocals(res) {
   res.locals.settings = res.locals.settings || {};
   res.locals.tcx = res.locals.tcx || { show: false, enabled: false, hasChat: false };
   res.locals.tcxEmbedHtml = res.locals.tcxEmbedHtml || '';
+  res.locals.whatsapp = res.locals.whatsapp || { show: false, enabled: false, href: '' };
   res.locals.navHeader = res.locals.navHeader || [];
   res.locals.navFooter = res.locals.navFooter || [];
   res.locals.currentUser = res.locals.currentUser || null;
@@ -127,6 +129,12 @@ function createApp() {
         console.warn('[app] 3CX config failed:', tcxErr && tcxErr.message ? tcxErr.message : tcxErr);
         res.locals.tcx = resolveTcxConfig(undefined);
         res.locals.tcxEmbedHtml = '';
+      }
+      try {
+        res.locals.whatsapp = resolveWhatsappConfig(settings);
+      } catch (waErr) {
+        console.warn('[app] WhatsApp config failed:', waErr && waErr.message ? waErr.message : waErr);
+        res.locals.whatsapp = resolveWhatsappConfig(undefined);
       }
       res.locals.navHeader = nav.filter((n) => n.location === 'header');
       res.locals.navFooter = nav.filter((n) => n.location === 'footer');

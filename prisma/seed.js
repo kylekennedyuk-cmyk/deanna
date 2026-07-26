@@ -61,6 +61,12 @@ async function main() {
     ['tcx_phonesystem_url', ''],
     ['tcx_party', ''],
     ['tcx_embed_snippet', ''],
+    ['whatsapp_enabled', 'true'],
+    ['whatsapp_number', ''],
+    [
+      'whatsapp_message',
+      "Hi Deanna, I'd like help planning a Disneyland Paris holiday.",
+    ],
   ];
 
   for (const [key, value] of defaults) {

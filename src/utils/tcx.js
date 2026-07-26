@@ -94,8 +94,9 @@ function parseTcxSnippet(snippet) {
 
 function resolveTcxConfig(settings) {
   const s = settings && typeof settings === 'object' ? settings : {};
+  // 3CX is force-disabled on the public site — WhatsApp FAB is the preferred chat CTA.
+  // Settings fields remain for possible future re-enable; show is always false.
   try {
-    const enabled = s.tcx_enabled === 'true';
     const snippet = String(s.tcx_embed_snippet || '').trim();
     const parsed = parseTcxSnippet(snippet);
 
@@ -111,11 +112,10 @@ function resolveTcxConfig(settings) {
 
     const callNumber = String(s.tcx_call_number || s.phone || '').trim();
     const hasChat = Boolean(phonesystemUrl && party);
-    const show = enabled && (hasChat || Boolean(snippet && parsed.rawSafe));
 
     return {
-      enabled,
-      show: show && hasChat,
+      enabled: false,
+      show: false,
       hasChat,
       phonesystemUrl,
       party,
