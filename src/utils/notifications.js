@@ -175,11 +175,18 @@ async function countActionPlans(user) {
   });
 }
 
-async function countMailboxUnseen(user) {
+/**
+ * Mailbox badge for staff.
+ * Default: peek the in-process cache only (never opens IMAP). Cold cache → 0.
+ * Pass refresh:true only from /agent/mailbox routes so browsing the dashboard
+ * cannot reconnect-storm the mail server and destabilise Passenger.
+ */
+async function countMailboxUnseen(user, { refresh = false } = {}) {
   if (!isStaff(user)) return 0;
   try {
-    const { getInboxUnseenCount } = require('../config/mailbox');
-    return await getInboxUnseenCount();
+    const { getInboxUnseenCount, peekInboxUnseenCount } = require('../config/mailbox');
+    if (!refresh) return peekInboxUnseenCount();
+    return await getInboxUnseenCount({ force: true });
   } catch (err) {
     console.warn('[notifications] mailbox unseen failed:', err && err.message ? err.message : err);
     return 0;
@@ -208,15 +215,21 @@ async function softCount(label, fn) {
  * Fail-soft: never throws to the request pipeline — including Prisma schema drift
  * (missing MessageRead / ChangeRequest / booking columns). A nav badge must never
  * break page rendering or crash the app.
+ *
+ * @param {object} user
+ * @param {{ refreshMailbox?: boolean }} [options]
+ *   refreshMailbox — open IMAP STATUS (only for /agent/mailbox). Default false.
  */
-async function getBadgeCounts(user) {
+async function getBadgeCounts(user, options = {}) {
   if (!user) return emptyBadgeCounts();
+
+  const refreshMailbox = Boolean(options.refreshMailbox);
 
   try {
     const [messages, plans, mailbox, changeRequests] = await Promise.all([
       softCount('messages', () => countUnreadPlanMessages(user)),
       softCount('plans', () => countActionPlans(user)),
-      softCount('mailbox', () => countMailboxUnseen(user)),
+      softCount('mailbox', () => countMailboxUnseen(user, { refresh: refreshMailbox })),
       softCount('changeRequests', () => countOpenChangeRequests(user)),
     ]);
 
@@ -238,10 +251,11 @@ async function getBadgeCounts(user) {
 
 /**
  * Refresh res.locals.badgeCounts after mark-read / mailbox open.
+ * Pass { refreshMailbox: true } on mailbox routes so the badge updates from IMAP.
  */
-async function refreshBadgeCounts(res, user) {
+async function refreshBadgeCounts(res, user, options = {}) {
   try {
-    const counts = await getBadgeCounts(user);
+    const counts = await getBadgeCounts(user, options);
     if (res && res.locals) res.locals.badgeCounts = counts;
     return counts;
   } catch (err) {

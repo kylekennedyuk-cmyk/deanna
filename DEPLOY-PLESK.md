@@ -273,16 +273,16 @@ This Phusion Passenger page means the Node process **failed to start** or **died
    - Passenger often also prints Node `stdout`/`stderr` into the same error log
 3. App file log (after this deploy): `httpdocs/data/logs/app.log` (rotates at ~2 MB)
 
-**Reading the Passenger error ID (e.g. `46a68c0a`)**
+**Reading the Passenger error ID (e.g. `67f8112f`)**
 
 The sorry page shows an error ID. Search the domain **error_log** for that ID — the lines immediately above/below usually include the real Node stack (missing module, Prisma schema mismatch, unhandled exception, port conflict).
 
-In Plesk: Domains → your domain → **Logs** → open the error log → search for `46a68c0a` (or whatever ID is on the page). Over SSH:
+In Plesk: Domains → your domain → **Logs** → open the error log → search for `67f8112f` (or whatever ID is on the page). Over SSH:
 
 ```bash
-grep -n "46a68c0a" /var/www/vhosts/YOUR-DOMAIN/logs/error_log
+grep -n "67f8112f" /var/www/vhosts/YOUR-DOMAIN/logs/error_log
 # or:
-grep -n "46a68c0a" /var/www/vhosts/SYSTEM_USER/logs/error_log
+grep -n "67f8112f" /var/www/vhosts/SYSTEM_USER/logs/error_log
 ```
 
 Also check app stdout lines that start with `[boot]` (node version, cwd, PORT, whether DATABASE_URL is set, schema sanity) and `data/logs/app.log`.
@@ -291,16 +291,17 @@ Also check app stdout lines that start with `[boot]` (node version, cwd, PORT, w
 
 1. **Pending schema changes not applied** — new models such as `MessageRead`, `ChangeRequest`, or booking fields on `HolidayPlan` need `prisma db push`. Run script **`update`** (or `deploy` on a fresh install), then **Restart App**. Startup now logs a clear “schema appears out of date” warning if tables/columns are missing.
 2. **Missing `.env` / `DATABASE_URL`** — create `httpdocs/.env` as in step 4 above.
-3. **Unhandled background failures** — outbound email / IMAP used to be able to kill the Node 20 process via unhandled promise rejections. Current builds log these and keep the process alive (uncaught exceptions still exit so Passenger can respawn cleanly).
-4. **Wrong listen / `EADDRINUSE`** — do not hardcode `PORT` in `.env` and do not Run script `start`. Passenger injects `PORT`; `server.js` listens on `process.env.PORT` (with a `'passenger'` fallback only if PORT is unset under Passenger).
+3. **Unhandled background failures** — outbound email / IMAP used to kill Node 20 via unhandled rejections. Current builds **log and keep the process alive** for rejections and for most `uncaughtException`s (only OOM/critical exits so Passenger can respawn).
+4. **IMAP badge churn (fixed)** — older builds opened IMAP on **every** authenticated staff page load for the mailbox badge. Current builds **never** open IMAP from global badge middleware (cache peek / default 0); IMAP STATUS runs when browsing `/agent/mailbox` (10‑minute in-process cache).
+5. **Wrong listen / `EADDRINUSE`** — do not hardcode `PORT` in `.env` and do **not** Run script `start`. Passenger injects `PORT`; `server.js` listens on `process.env.PORT` (with a `'passenger'` fallback only if PORT is unset under Passenger). Running `start` while Passenger is managing the app causes port conflicts and the sorry page.
 
 **Quick recovery (Passenger “could not be started”)**
 
 1. Plesk **Git** → Pull `main` (or SSH `git pull origin main`)
 2. Node.js → **NPM install**
-3. Run script: `update` (not `start`)
+3. Run script: `update` (**not** `start`)
 4. Node.js → **Restart App**
-5. Open `https://your-domain/health` — expect JSON like `{"ok":true,...}`
+5. Open `https://your-domain/health` — expect JSON like `{"ok":true,...}` (DB-free; proves the worker is listening)
 
 ```bash
 cd /path/to/httpdocs   # folder with package.json
@@ -312,7 +313,18 @@ npm run update         # prisma generate + db push + CSS
 
 Or in the Plesk Node.js panel: **NPM install** → Run script `update` → **Restart App**.
 
-If the site keeps dying every few hours, grab the Passenger error ID + matching log lines and check `data/logs/app.log` for `Unhandled promise rejection` or `Uncaught exception`. Also confirm Passenger memory limits in the Node.js panel are not killing a healthy process.
+**If downtime continues — what to paste**
+
+1. The Passenger **Error ID** from the sorry page (e.g. `67f8112f`)
+2. Matching lines from the domain error log:
+   ```bash
+   grep -n "67f8112f" /var/www/vhosts/YOUR-DOMAIN/logs/error_log
+   # also:
+   tail -n 200 /var/www/vhosts/YOUR-DOMAIN/httpdocs/data/logs/app.log
+   ```
+3. Look for: `Unhandled promise rejection`, `Uncaught exception`, `[imap]`, `[mailbox]`, `EADDRINUSE`, `[boot]`, schema warnings
+4. Confirm there is **no** Run script named `start` being used; only `deploy` / `update`
+5. Confirm Passenger memory limits in the Node.js panel are not killing a healthy process
 
 ---
 

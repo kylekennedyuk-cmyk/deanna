@@ -142,8 +142,12 @@ function createApp() {
       res.locals.csrfToken = req.csrfToken ? req.csrfToken() : generateToken(req);
       res.locals.appUrl = process.env.APP_URL || '';
       // Badge counts must never break page rendering (schema drift / IMAP / SQLITE_BUSY).
+      // Mailbox IMAP is NEVER opened here — only a warm in-process cache (else 0).
+      // IMAP refresh happens on /agent/mailbox routes via refreshBadgeCounts({ refreshMailbox: true }).
       try {
-        res.locals.badgeCounts = req.user ? await getBadgeCounts(req.user) : emptyBadgeCounts();
+        res.locals.badgeCounts = req.user
+          ? await getBadgeCounts(req.user, { refreshMailbox: false })
+          : emptyBadgeCounts();
       } catch (badgeErr) {
         console.warn('[app] badge middleware failed:', badgeErr && badgeErr.message ? badgeErr.message : badgeErr);
         res.locals.badgeCounts = emptyBadgeCounts();

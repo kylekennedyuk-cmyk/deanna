@@ -5,7 +5,6 @@ const { sendNotification, sendNotificationAsync } = require('../../config/email'
 const {
   deleteMessage,
   getMessage,
-  invalidateInboxUnseenCache,
   listMessages,
   moveMessage,
   replySubject,
@@ -691,6 +690,12 @@ router.get('/mailbox', async (req, res) => {
   } catch (err) {
     error = err.message || 'Could not load mailbox.';
   }
+  // listMessages warms unseen cache via STATUS on the same IMAP connection.
+  try {
+    await refreshBadgeCounts(res, req.user, { refreshMailbox: false });
+  } catch {
+    /* ignore */
+  }
   const sidebar = folderSidebar(folders, activeFolder);
   return res.render('agent/mailbox', {
     title: 'Email mailbox',
@@ -759,9 +764,8 @@ router.get('/mailbox/m/:uid', async (req, res) => {
   const folder = mailboxFolder(req);
   try {
     const message = await getMessage(folder, req.params.uid);
-    // getMessage marks IMAP \\Seen; force-refresh cached unseen for this response.
-    invalidateInboxUnseenCache();
-    await refreshBadgeCounts(res, req.user);
+    // getMessage refreshes unseen cache on the same IMAP connection when marking Seen.
+    await refreshBadgeCounts(res, req.user, { refreshMailbox: false });
     return res.render('agent/mailbox-message', {
       title: message.subject,
       message,

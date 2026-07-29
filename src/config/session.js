@@ -12,6 +12,10 @@ function createSessionMiddleware() {
       path: sessionsDir,
       ttl: 60 * 60 * 24 * 14,
       retries: 1,
+      // Explicit reap so expired session files cannot grow forever on disk.
+      reapInterval: 3600,
+      reapAsync: true,
+      reapMaxConcurrent: 5,
     }),
     secret: process.env.SESSION_SECRET || 'dev-secret',
     resave: false,

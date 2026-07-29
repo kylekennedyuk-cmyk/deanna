@@ -32,13 +32,70 @@ process.on('unhandledRejection', (reason) => {
 });
 
 /**
- * Uncaught exceptions leave the process in an unknown state. Log loudly, then
- * exit so Phusion Passenger can respawn a clean worker. Do not swallow these.
+ * Uncaught exceptions: prefer keeping the Passenger worker alive.
+ * Exiting used to leave the site on the Phusion "could not be started" page
+ * whenever respawn failed (port conflict, boot race after git pull).
+ *
+ * Only exit for clearly fatal conditions (OOM / heap). Everything else is
+ * logged with a full stack and the process continues serving.
  */
+const FATAL_EXCEPTION_CODES = new Set([
+  'ERR_OUT_OF_MEMORY',
+  'ERR_WORKER_OUT_OF_MEMORY',
+  'ENOMEM',
+]);
+
+function isFatalUncaught(err) {
+  if (!err) return false;
+  if (err.code && FATAL_EXCEPTION_CODES.has(String(err.code))) return true;
+  const text = `${err.message || ''}\n${err.stack || ''}`;
+  return /out of memory|heap out of memory|ENOMEM|allocation failed/i.test(text);
+}
+
 process.on('uncaughtException', (err) => {
-  safeLog('fatal', 'Uncaught exception — exiting so Passenger can respawn', err);
-  setTimeout(() => process.exit(1), 250).unref?.();
+  safeLog('fatal', 'Uncaught exception (full stack below)', err);
+  if (isFatalUncaught(err)) {
+    safeLog(
+      'fatal',
+      'Fatal uncaught exception (OOM/critical) — exiting so Passenger can respawn',
+      err
+    );
+    setTimeout(() => process.exit(1), 250).unref?.();
+    return;
+  }
+  safeLog(
+    'error',
+    'Non-fatal uncaught exception — process kept alive to avoid Passenger sorry page',
+    err
+  );
 });
+
+/** Best-effort: delete session files older than 14 days so data/sessions cannot grow forever. */
+function pruneOldSessionFiles() {
+  const sessionsDir = path.join(__dirname, 'data', 'sessions');
+  const maxAgeMs = 14 * 24 * 60 * 60 * 1000;
+  try {
+    if (!fs.existsSync(sessionsDir)) return;
+    const now = Date.now();
+    let removed = 0;
+    for (const name of fs.readdirSync(sessionsDir)) {
+      if (!name.endsWith('.json')) continue;
+      const full = path.join(sessionsDir, name);
+      try {
+        const st = fs.statSync(full);
+        if (now - st.mtimeMs > maxAgeMs) {
+          fs.unlinkSync(full);
+          removed += 1;
+        }
+      } catch {
+        /* ignore per-file */
+      }
+    }
+    if (removed) safeLog('info', `Pruned ${removed} expired session file(s)`);
+  } catch (err) {
+    safeLog('warn', 'Session prune skipped', err);
+  }
+}
 
 function safeMkdir(dir) {
   try {
@@ -106,6 +163,7 @@ async function ensureReady() {
   safeMkdir(uploadsDir);
   safeMkdir(path.join(dataDir, 'sessions'));
   safeMkdir(logsDir);
+  pruneOldSessionFiles();
 
   if (!process.env.DATABASE_URL) {
     throw new Error(

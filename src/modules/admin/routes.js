@@ -654,15 +654,24 @@ router.post('/notifications/test', async (req, res, next) => {
     }
 
     // Cap wait so the admin UI never hangs for 20+ seconds.
+    // Attach .catch so a late sendMail rejection after timeout cannot float.
+    let timedOut = false;
+    const sendPromise = sendMail({
+      to: destination,
+      subject: 'Destinations With Deanna email test',
+      html: `<div style="font-family:Arial,sans-serif;padding:32px"><h1 style="color:#1a2b40">Email is working</h1><p>Your website can now send planning and portal notifications via ${settings.host}:${settings.port}.</p></div>`,
+      text: `Email is working. Your website can now send planning and portal notifications via ${settings.host}:${settings.port}.`,
+    });
+    sendPromise.catch((err) => {
+      if (timedOut) {
+        console.warn('[email test] late failure after timeout:', err && err.message ? err.message : err);
+      }
+    });
     const result = await Promise.race([
-      sendMail({
-        to: destination,
-        subject: 'Destinations With Deanna email test',
-        html: `<div style="font-family:Arial,sans-serif;padding:32px"><h1 style="color:#1a2b40">Email is working</h1><p>Your website can now send planning and portal notifications via ${settings.host}:${settings.port}.</p></div>`,
-        text: `Email is working. Your website can now send planning and portal notifications via ${settings.host}:${settings.port}.`,
-      }),
+      sendPromise,
       new Promise((_, reject) => {
         setTimeout(() => {
+          timedOut = true;
           reject(
             new Error(
               `Connection timed out talking to ${settings.host}:${settings.port}. Check the host is prime.ax (not prime.sx), port 465 with SSL, and that the server can reach outbound SMTP.`

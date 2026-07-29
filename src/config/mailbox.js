@@ -114,14 +114,27 @@ async function withImap(fn) {
   });
 
   let timer;
+  let timedOut = false;
   try {
     const work = (async () => {
       await client.connect();
       return fn(client, settings);
     })();
 
+    // If Promise.race settles on timeout, `work` may still reject later.
+    // Attach a handler so that late rejection cannot become unhandledRejection.
+    work.catch((err) => {
+      if (timedOut) {
+        console.warn(
+          '[imap] late failure after timeout (ignored):',
+          err && err.message ? err.message : err
+        );
+      }
+    });
+
     const timeout = new Promise((_, reject) => {
       timer = setTimeout(() => {
+        timedOut = true;
         const err = new Error(`IMAP operation timed out after ${IMAP_OP_TIMEOUT_MS}ms`);
         err.code = 'IMAP_TIMEOUT';
         reject(err);
@@ -223,7 +236,10 @@ async function listFolders() {
   return withImap(async (client) => mapListedFolders(await client.list()));
 }
 
-const UNSEEN_CACHE_TTL_MS = 45 * 1000;
+/** Keep badge warm for 10 minutes — never hit IMAP from every staff page load. */
+const UNSEEN_CACHE_TTL_MS = 10 * 60 * 1000;
+/** On IMAP errors, back off briefly so we do not reconnect-storm. */
+const UNSEEN_ERROR_TTL_MS = 2 * 60 * 1000;
 /** Soft bound: only one cached value + one inflight promise (no unbounded growth). */
 let unseenCache = { value: null, expiresAt: 0, inflight: null };
 
@@ -231,10 +247,33 @@ function invalidateInboxUnseenCache() {
   unseenCache = { value: null, expiresAt: 0, inflight: null };
 }
 
+/** Write the in-process unseen cache (used after mailbox list/open STATUS). */
+function setInboxUnseenCache(count, ttlMs = UNSEEN_CACHE_TTL_MS) {
+  unseenCache = {
+    value: Math.max(0, Number(count) || 0),
+    expiresAt: Date.now() + ttlMs,
+    inflight: null,
+  };
+  return unseenCache.value;
+}
+
+/**
+ * Synchronous peek — never opens IMAP.
+ * Returns the cached count when warm, otherwise 0 (badge stays quiet until
+ * /agent/mailbox refreshes the cache).
+ */
+function peekInboxUnseenCount() {
+  if (unseenCache.value !== null && Date.now() < unseenCache.expiresAt) {
+    return unseenCache.value;
+  }
+  return 0;
+}
+
 /**
  * Efficient INBOX unseen count via IMAP STATUS (not a full message list).
- * Short in-process cache; misconfiguration / IMAP errors return 0 (cached briefly).
+ * Long in-process cache; misconfiguration / IMAP errors return 0 (cached briefly).
  * The returned promise never rejects — callers must not need .catch().
+ * Prefer peekInboxUnseenCount() from global badge middleware.
  */
 async function getInboxUnseenCount({ force = false } = {}) {
   const now = Date.now();
@@ -251,33 +290,18 @@ async function getInboxUnseenCount({ force = false } = {}) {
         const status = await client.status('INBOX', { unseen: true, messages: true });
         return Number(status?.unseen || 0);
       });
-      unseenCache = {
-        value: count,
-        expiresAt: Date.now() + UNSEEN_CACHE_TTL_MS,
-        inflight: null,
-      };
-      return count;
+      return setInboxUnseenCache(count, UNSEEN_CACHE_TTL_MS);
     } catch (err) {
       // Fail-soft: never break pages; cache zero briefly to avoid reconnect storms.
       console.warn('[mailbox] unseen count failed:', err && err.message ? err.message : err);
-      unseenCache = {
-        value: 0,
-        expiresAt: Date.now() + UNSEEN_CACHE_TTL_MS,
-        inflight: null,
-      };
-      return 0;
+      return setInboxUnseenCache(0, UNSEEN_ERROR_TTL_MS);
     }
   })();
 
   // Extra belt: if the async IIFE ever rejects despite the try/catch, swallow it.
   unseenCache.inflight = fetchPromise.catch((err) => {
     console.warn('[mailbox] unseen inflight rejected:', err && err.message ? err.message : err);
-    unseenCache = {
-      value: 0,
-      expiresAt: Date.now() + UNSEEN_CACHE_TTL_MS,
-      inflight: null,
-    };
-    return 0;
+    return setInboxUnseenCache(0, UNSEEN_ERROR_TTL_MS);
   });
   return unseenCache.inflight;
 }
@@ -306,6 +330,15 @@ async function listMessages(folder = 'INBOX', { limit = 50 } = {}) {
     try {
       const total = client.mailbox.exists || 0;
       if (!total) {
+        // Warm badge cache from real STATUS when browsing inbox (same connection).
+        if (path.toUpperCase() === 'INBOX') {
+          try {
+            const status = await client.status('INBOX', { unseen: true });
+            setInboxUnseenCache(Number(status?.unseen || 0));
+          } catch {
+            setInboxUnseenCache(0, UNSEEN_ERROR_TTL_MS);
+          }
+        }
         return { messages: [], total: 0, folder: path, folders };
       }
 
@@ -335,6 +368,16 @@ async function listMessages(folder = 'INBOX', { limit = 50 } = {}) {
         const bTime = b.date ? new Date(b.date).getTime() : 0;
         return bTime - aTime;
       });
+
+      // Refresh nav badge from STATUS on the same connection (no second login).
+      if (path.toUpperCase() === 'INBOX') {
+        try {
+          const status = await client.status('INBOX', { unseen: true });
+          setInboxUnseenCache(Number(status?.unseen || 0));
+        } catch {
+          /* keep previous cache */
+        }
+      }
 
       return { messages, total, folder: path, folders };
     } finally {
@@ -375,7 +418,12 @@ async function getMessage(folder, uid) {
         try {
           await client.messageFlagsAdd(numericUid, ['\\Seen'], { uid: true });
           if ((folderMeta?.key || '') === 'inbox' || path.toUpperCase() === 'INBOX') {
-            invalidateInboxUnseenCache();
+            try {
+              const status = await client.status('INBOX', { unseen: true });
+              setInboxUnseenCache(Number(status?.unseen || 0));
+            } catch {
+              invalidateInboxUnseenCache();
+            }
           }
         } catch {
           /* non-fatal */
@@ -619,9 +667,11 @@ module.exports = {
   listInbox,
   listMessages,
   moveMessage,
+  peekInboxUnseenCount,
   replySubject,
   resolveFolderMap,
   resolveImapSettings,
   saveDraft,
   sendMailboxMail,
+  setInboxUnseenCache,
 };
