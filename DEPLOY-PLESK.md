@@ -56,22 +56,23 @@ git clone https://github.com/kylekennedyuk-cmyk/deanna.git .
 ### 3) Enable Node.js
 
 1. Domain → **Node.js** → Enable
-2. Set:
+2. Set (confirm exactly):
 
 | Setting | Value |
 |--------|--------|
-| Node.js version | **20 or 22 LTS** (avoid 25) |
-| Application root | `/httpdocs` (folder containing `package.json`) |
-| Application startup file | `server.js` |
-| Application mode | `production` |
-| **Document root** | **`/httpdocs/public`** |
+| Node.js version | **20 or 22 LTS** (prefer these; avoid experimental / Node 25) |
+| **Application root** | **`httpdocs`** (folder containing `package.json` / `server.js`) |
+| **Document root** | **`httpdocs/public`** |
+| **Application startup file** | **`server.js`** |
+| Application mode | `production` (use **development** temporarily if Passenger shows “could not be started” — see Troubleshooting) |
 
-> **Document root must be `/httpdocs/public`.**
-> If it points at `/httpdocs`, the web server looks for CSS at `/httpdocs/css/app.css` (wrong place),
+> **Document root must be `httpdocs/public`.**
+> If it points at `httpdocs`, the web server looks for CSS at `httpdocs/css/app.css` (wrong place),
 > so the site loads as unstyled HTML and `/health` returns “file not found”.
 > Static assets live in `public/`; everything else is passed to Node.
 
 3. Click **NPM install**
+4. Do **not** set `PORT` in custom environment variables or `.env` — let Passenger inject it.
 
 ### 3b) Remove any old WordPress files (critical if this domain used WordPress before)
 
@@ -248,7 +249,7 @@ Force sync is destructive for the affected page content and should never be part
 | `DATABASE_URL is missing` when running a script | Create `httpdocs/.env` with `DATABASE_URL=file:../data/deanna.db` — panel env vars are often ignored by Run script |
 | `EADDRINUSE :::3000` | Do not run script `start`. Passenger already runs the app. Use `deploy`, then **Restart App**. Remove any manual `PORT` from `.env` / the Node.js panel (let Passenger inject it) |
 | **Internal Server Error** | Almost always means the database was never created. Pull latest code, create `.env`, run script `deploy`, then **Restart App**. Also confirm `DATABASE_URL=file:../data/deanna.db` and `data/` is writable |
-| App won’t start / Passenger error | Use Node **20 or 22 LTS** (not 25). Check logs. Create `.env`, run `deploy`, Restart App |
+| App won’t start / Passenger error | Use Node **20 or 22 LTS** (not experimental). Confirm Application root=`httpdocs`, Document root=`httpdocs/public`, Startup=`server.js`. Remove any custom `PORT`. NPM install → Run `update` → Restart. Temporarily set Application mode to **development** to see the real stack |
 | Blank / unstyled pages | Run `npm run build` so `public/css/app.css` exists |
 | Login fails after redeploy | Do not delete `data/`; the SQLite DB and sessions live there |
 | 502 / proxy errors | Confirm the Node app is enabled and listening on the port Plesk expects |
@@ -258,11 +259,33 @@ Force sync is destructive for the affected page content and should never be part
 | Planner closed / maintenance page | Turn those off in Admin → Settings |
 | 3CX chat / call widget | Admin → Settings → **Live chat & calls (3CX)**. Enable, paste phonesystem URL + party id from 3CX Live Chat embed. Optional Talk URL and call number. Widget is public-site only |
 
-Health check: `https://your-domain/health` should return `{"ok":true}`.
+Health checks (once the worker is up):
 
-### Passenger “We're sorry, but something went wrong”
+- `https://your-domain/health` → JSON `{"ok":true,...}`
+- `https://your-domain/passenger-status.txt` → plain text `ok` (proves Document root = `httpdocs/public`)
 
-This Phusion Passenger page means the Node process **failed to start** or **died** and could not be respawned. It is different from a normal Express 500 page.
+### Passenger “We're sorry, but something went wrong” / “could not be started”
+
+This Phusion Passenger page means the Node process **failed to start** (boot failure) or **died** and could not be respawned. It is different from a normal Express 500 page.
+
+**See the REAL error once (required if still broken after pull + update)**
+
+1. Plesk → Domain → **Node.js**
+2. Set **Application mode** to **development** (or enable friendly / detailed error pages)
+3. **Restart App**
+4. Reload the site — Passenger should show the actual Node stack (missing module, listen error, syntax error)
+5. Screenshot or paste that stack, then set Application mode back to **production**
+
+Also confirm:
+
+| Check | Expected |
+|--------|----------|
+| Application root | `httpdocs` |
+| Document root | `httpdocs/public` |
+| Startup file | `server.js` |
+| Node.js version | **20** or **22** LTS (not experimental if possible) |
+| Custom env `PORT` | **unset** — let Passenger inject it |
+| After pull | **NPM install** → Run script **`update`** → **Restart App** |
 
 **Where to look for logs**
 
@@ -293,15 +316,17 @@ Also check app stdout lines that start with `[boot]` (node version, cwd, PORT, w
 2. **Missing `.env` / `DATABASE_URL`** — create `httpdocs/.env` as in step 4 above.
 3. **Unhandled background failures** — outbound email / IMAP used to kill Node 20 via unhandled rejections. Current builds **log and keep the process alive** for rejections and for most `uncaughtException`s (only OOM/critical exits so Passenger can respawn).
 4. **IMAP badge churn (fixed)** — older builds opened IMAP on **every** authenticated staff page load for the mailbox badge. Current builds **never** open IMAP from global badge middleware (cache peek / default 0); IMAP STATUS runs when browsing `/agent/mailbox` (10‑minute in-process cache).
-5. **Wrong listen / `EADDRINUSE`** — do not hardcode `PORT` in `.env` and do **not** Run script `start`. Passenger injects `PORT`; `server.js` listens on `process.env.PORT` (with a `'passenger'` fallback only if PORT is unset under Passenger). Running `start` while Passenger is managing the app causes port conflicts and the sorry page.
+5. **Wrong listen / `EADDRINUSE` / `PhusionPassenger.configure`** — do not hardcode `PORT` in `.env` or the Node.js panel, and do **not** Run script `start`. Current `server.js` uses the Plesk-safe pattern: `app.listen(process.env.PORT || 3000)` with **no** `PhusionPassenger.configure({ autoInstall: false })` unless you explicitly set `PASSENGER_FORCE_CUSTOM_LISTEN=1`. Running `start` while Passenger manages the app causes port conflicts and the sorry page.
 
 **Quick recovery (Passenger “could not be started”)**
 
 1. Plesk **Git** → Pull `main` (or SSH `git pull origin main`)
-2. Node.js → **NPM install**
-3. Run script: `update` (**not** `start`)
-4. Node.js → **Restart App**
-5. Open `https://your-domain/health` — expect JSON like `{"ok":true,...}` (DB-free; proves the worker is listening)
+2. Node.js → confirm Application root / Document root / Startup file (table above)
+3. Node.js → **NPM install**
+4. Run script: `update` (**not** `start`)
+5. Temporarily set Application mode to **development**, then **Restart App** — read the real stack if still broken
+6. Open `https://your-domain/health` and `/passenger-status.txt`
+7. Set Application mode back to **production** when fixed
 
 ```bash
 cd /path/to/httpdocs   # folder with package.json

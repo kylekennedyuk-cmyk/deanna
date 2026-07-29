@@ -5,7 +5,15 @@ const FileStore = require('session-file-store')(session);
 
 function createSessionMiddleware() {
   const sessionsDir = path.join(__dirname, '..', '..', 'data', 'sessions');
-  fs.mkdirSync(sessionsDir, { recursive: true });
+  try {
+    fs.mkdirSync(sessionsDir, { recursive: true });
+  } catch (err) {
+    console.error(
+      '[session] Could not create sessions dir (continuing; FileStore may fail):',
+      sessionsDir,
+      err && err.stack ? err.stack : err
+    );
+  }
 
   return session({
     store: new FileStore({

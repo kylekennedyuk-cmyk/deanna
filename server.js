@@ -1,44 +1,73 @@
+/**
+ * Plesk / Phusion Passenger entrypoint.
+ *
+ * Keep listen wiring minimal: Plesk injects PORT and expects a plain
+ * app.listen(process.env.PORT). Do NOT call PhusionPassenger.configure
+ * unless PASSENGER_FORCE_CUSTOM_LISTEN=1 — configure({ autoInstall: false })
+ * breaks boot on many Plesk setups when listen wiring is wrong.
+ */
 const path = require('path');
 const fs = require('fs');
-require('dotenv').config({ path: path.join(__dirname, '.env') });
 
-const { createApp } = require('./src/app');
-const { prisma, applySqlitePragmas } = require('./src/config/database');
-const { safeLog } = require('./src/utils/safeLog');
+function bootErr(label, err) {
+  const e = err instanceof Error ? err : new Error(String(err));
+  // Always print to stderr FIRST — safeLog / file logging may not be loadable yet.
+  console.error(`[boot] FATAL ${label}:`, e.message);
+  if (e.stack) console.error(e.stack);
+}
+
+let createApp;
+let prisma;
+let applySqlitePragmas;
+let safeLog;
+
+try {
+  require('dotenv').config({ path: path.join(__dirname, '.env') });
+} catch (err) {
+  bootErr('dotenv.config', err);
+}
+
+try {
+  ({ createApp } = require('./src/app'));
+  ({ prisma, applySqlitePragmas } = require('./src/config/database'));
+  ({ safeLog } = require('./src/utils/safeLog'));
+} catch (err) {
+  bootErr('require(./src/*) — missing module or syntax error after incomplete npm install?', err);
+  process.exit(1);
+}
 
 const underPassenger = typeof PhusionPassenger !== 'undefined';
 
-if (underPassenger) {
-  // Recommended for Passenger-managed Node apps (Plesk): disable autoInstall
-  // so we control listen() ourselves.
+// Only disable Passenger autoInstall when explicitly opted in.
+// Default Plesk pattern: no configure() call; listen on process.env.PORT.
+if (underPassenger && process.env.PASSENGER_FORCE_CUSTOM_LISTEN === '1') {
   try {
+    // eslint-disable-next-line no-undef
     PhusionPassenger.configure({ autoInstall: false });
+    console.log('[boot] PhusionPassenger.configure({ autoInstall: false }) (PASSENGER_FORCE_CUSTOM_LISTEN=1)');
   } catch (err) {
-    safeLog('warn', 'PhusionPassenger.configure failed (continuing)', err);
+    bootErr('PhusionPassenger.configure', err);
+    try {
+      safeLog('warn', 'PhusionPassenger.configure failed (continuing)', err);
+    } catch {
+      /* ignore */
+    }
   }
 }
 
 /**
- * Unhandled rejections are the most likely cause of intermittent Passenger
- * downtime: Node 20 terminates the process by default. Log and keep serving —
- * background mail/IMAP work must never take down the site.
+ * Unhandled rejections must not kill the Passenger worker (Node 20 default).
  */
 process.on('unhandledRejection', (reason) => {
-  safeLog(
-    'error',
-    'Unhandled promise rejection (process kept alive for Passenger)',
-    reason instanceof Error ? reason : new Error(String(reason))
-  );
+  const err = reason instanceof Error ? reason : new Error(String(reason));
+  console.error('[boot] Unhandled promise rejection (kept alive):', err.stack || err.message);
+  try {
+    safeLog('error', 'Unhandled promise rejection (process kept alive for Passenger)', err);
+  } catch {
+    /* ignore */
+  }
 });
 
-/**
- * Uncaught exceptions: prefer keeping the Passenger worker alive.
- * Exiting used to leave the site on the Phusion "could not be started" page
- * whenever respawn failed (port conflict, boot race after git pull).
- *
- * Only exit for clearly fatal conditions (OOM / heap). Everything else is
- * logged with a full stack and the process continues serving.
- */
 const FATAL_EXCEPTION_CODES = new Set([
   'ERR_OUT_OF_MEMORY',
   'ERR_WORKER_OUT_OF_MEMORY',
@@ -53,21 +82,25 @@ function isFatalUncaught(err) {
 }
 
 process.on('uncaughtException', (err) => {
-  safeLog('fatal', 'Uncaught exception (full stack below)', err);
+  console.error('[boot] Uncaught exception:', err && err.stack ? err.stack : err);
+  try {
+    safeLog('fatal', 'Uncaught exception (full stack below)', err);
+  } catch {
+    /* ignore */
+  }
   if (isFatalUncaught(err)) {
-    safeLog(
-      'fatal',
-      'Fatal uncaught exception (OOM/critical) — exiting so Passenger can respawn',
-      err
-    );
     setTimeout(() => process.exit(1), 250).unref?.();
     return;
   }
-  safeLog(
-    'error',
-    'Non-fatal uncaught exception — process kept alive to avoid Passenger sorry page',
-    err
-  );
+  try {
+    safeLog(
+      'error',
+      'Non-fatal uncaught exception — process kept alive to avoid Passenger sorry page',
+      err
+    );
+  } catch {
+    /* ignore */
+  }
 });
 
 /** Best-effort: delete session files older than 14 days so data/sessions cannot grow forever. */
@@ -91,9 +124,15 @@ function pruneOldSessionFiles() {
         /* ignore per-file */
       }
     }
-    if (removed) safeLog('info', `Pruned ${removed} expired session file(s)`);
+    if (removed) {
+      try {
+        safeLog('info', `Pruned ${removed} expired session file(s)`);
+      } catch {
+        console.log(`[boot] Pruned ${removed} expired session file(s)`);
+      }
+    }
   } catch (err) {
-    safeLog('warn', 'Session prune skipped', err);
+    console.warn('[boot] Session prune skipped:', err && err.message ? err.message : err);
   }
 }
 
@@ -102,7 +141,7 @@ function safeMkdir(dir) {
     fs.mkdirSync(dir, { recursive: true });
     return true;
   } catch (err) {
-    safeLog('warn', `Could not create directory ${dir} (continuing boot)`, err);
+    console.warn(`[boot] Could not create directory ${dir}:`, err && err.message ? err.message : err);
     return false;
   }
 }
@@ -143,12 +182,16 @@ async function checkSchemaSanity() {
   }
 
   if (missing.length) {
-    safeLog(
-      'error',
+    const msg =
       `Database schema appears out of date. Missing or broken: ${missing.join('; ')}. ` +
-        'In Plesk Node.js → Run script, type: update  (runs prisma generate && prisma db push). ' +
-        'Then Restart App. Until then badge/booking features may error.'
-    );
+      'In Plesk Node.js → Run script, type: update  (runs prisma generate && prisma db push). ' +
+      'Then Restart App. Until then badge/booking features may error.';
+    console.error(`[boot] ${msg}`);
+    try {
+      safeLog('error', msg);
+    } catch {
+      /* ignore */
+    }
     return { ok: false, missing };
   }
 
@@ -185,44 +228,114 @@ async function ensureReady() {
   try {
     const userCount = await prisma.user.count();
     if (userCount === 0) {
-      safeLog(
-        'warn',
-        'Warning: database has no users. Run the "deploy" script (or npm run db:seed) to create the admin login.'
+      console.warn(
+        '[boot] Warning: database has no users. Run the "deploy" script (or npm run db:seed) to create the admin login.'
       );
     }
   } catch (err) {
-    safeLog('warn', 'Could not count users during startup (continuing)', err);
+    console.warn('[boot] Could not count users during startup:', err && err.message ? err.message : err);
   }
 
   return schema;
 }
 
+/**
+ * Plesk-safe listen target: use PORT as-is (string OK for Unix socket paths).
+ * Never use the literal string 'passenger' unless PASSENGER_FORCE_CUSTOM_LISTEN=1
+ * and PORT is unset.
+ */
 function listenTarget() {
-  // Plesk Node + Passenger injects PORT (often a Unix socket path or port string).
-  // Always prefer it. Only fall back to the classic 'passenger' socket name when
-  // under Passenger with no PORT; local dev uses 3000.
-  if (process.env.PORT) return process.env.PORT;
-  if (underPassenger) return 'passenger';
+  if (process.env.PORT != null && process.env.PORT !== '') {
+    return process.env.PORT;
+  }
+  if (underPassenger && process.env.PASSENGER_FORCE_CUSTOM_LISTEN === '1') {
+    return 'passenger';
+  }
   return 3000;
+}
+
+function attachListen(app, target) {
+  const server = app.listen(target, () => {
+    console.log(
+      `[boot] Destinations With Deanna listening on ${target} ` +
+        `(passenger=${underPassenger})`
+    );
+    if (!underPassenger) {
+      console.log('Admin login: username admin / password password');
+    }
+  });
+
+  server.on('error', (err) => {
+    console.error(`[boot] Listen error on ${target}:`, err && err.stack ? err.stack : err);
+    if (err && err.code === 'EADDRINUSE') {
+      console.error(
+        `[boot] Listen target ${target} is already in use. Do not run "start" in Plesk while Passenger is managing the app. Use Run script "deploy"/"update", then Restart App.`
+      );
+      // Exit 0 so Passenger is less likely to stick on a hard sorry-page loop from a conflict.
+      process.exit(0);
+      return;
+    }
+
+    // Non-fatal first failure: retry once on PORT (or 3000) after 500ms.
+    const retryTarget =
+      process.env.PORT != null && process.env.PORT !== '' ? process.env.PORT : 3000;
+    if (String(retryTarget) !== String(target)) {
+      console.error(`[boot] Retrying listen on ${retryTarget} in 500ms…`);
+      setTimeout(() => {
+        try {
+          attachListen(app, retryTarget);
+        } catch (retryErr) {
+          bootErr('listen retry threw', retryErr);
+          process.exit(1);
+        }
+      }, 500).unref?.();
+      return;
+    }
+
+    console.error(`[boot] Retrying same target ${target} once in 500ms…`);
+    let retried = false;
+    setTimeout(() => {
+      if (retried) return;
+      retried = true;
+      const retryServer = app.listen(target, () => {
+        console.log(`[boot] Listen retry succeeded on ${target}`);
+      });
+      retryServer.on('error', (err2) => {
+        bootErr('listen retry failed', err2);
+        process.exit(1);
+      });
+    }, 500).unref?.();
+  });
+
+  return server;
 }
 
 async function start() {
   console.log(
     `[boot] node=${process.version} cwd=${process.cwd()} ` +
       `passenger=${underPassenger} PORT=${process.env.PORT || '(unset)'} ` +
-      `DATABASE_URL=${process.env.DATABASE_URL ? 'set' : 'missing'}`
+      `DATABASE_URL=${process.env.DATABASE_URL ? 'set' : 'missing'} ` +
+      `FORCE_CUSTOM_LISTEN=${process.env.PASSENGER_FORCE_CUSTOM_LISTEN || '0'}`
   );
 
   let schemaResult = { ok: false, missing: ['not-checked'] };
   try {
     schemaResult = await ensureReady();
   } catch (err) {
-    safeLog(
-      'error',
-      `Startup check failed (app will still listen, but requests may 500): ${err.message}. ` +
-        'Fix: create httpdocs/.env with DATABASE_URL, then Run script "deploy" or "update", then Restart App.',
-      err
+    console.error(
+      `[boot] Startup check failed (app will still listen, but requests may 500): ${err.message}`
     );
+    if (err.stack) console.error(err.stack);
+    try {
+      safeLog(
+        'error',
+        `Startup check failed (app will still listen, but requests may 500): ${err.message}. ` +
+          'Fix: create httpdocs/.env with DATABASE_URL, then Run script "deploy" or "update", then Restart App.',
+        err
+      );
+    } catch {
+      /* ignore */
+    }
   }
 
   console.log(
@@ -236,36 +349,26 @@ async function start() {
   try {
     app = createApp();
   } catch (err) {
-    safeLog('fatal', 'createApp() threw during boot — exiting so Passenger can retry', err);
+    bootErr('createApp() threw during boot', err);
+    try {
+      safeLog('fatal', 'createApp() threw during boot — exiting so Passenger can retry', err);
+    } catch {
+      /* ignore */
+    }
     process.exit(1);
     return;
   }
 
   const target = listenTarget();
-  const server = app.listen(target, () => {
-    console.log(
-      `[boot] Destinations With Deanna listening on ${target} ` +
-        `(passenger=${underPassenger})`
-    );
-    if (!underPassenger) {
-      console.log('Admin login: username admin / password password');
-    }
-  });
-
-  server.on('error', (err) => {
-    if (err && err.code === 'EADDRINUSE') {
-      safeLog(
-        'error',
-        `Listen target ${target} is already in use. Do not run "start" in Plesk while Passenger is managing the app. Use Run script "deploy", then click Restart App.`
-      );
-      process.exit(0);
-    }
-    safeLog('fatal', 'HTTP server error', err);
-    process.exit(1);
-  });
+  attachListen(app, target);
 }
 
 start().catch((err) => {
-  safeLog('fatal', 'start() rejected', err);
+  bootErr('start() rejected', err);
+  try {
+    safeLog('fatal', 'start() rejected', err);
+  } catch {
+    /* ignore */
+  }
   process.exit(1);
 });

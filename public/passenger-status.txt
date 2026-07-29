@@ -1,0 +1,4 @@
+ok
+Destinations With Deanna — static probe file.
+If you can read this via https://your-domain/passenger-status.txt, the document root is httpdocs/public.
+If /health returns JSON {"ok":true,...}, the Node/Passenger worker is listening.

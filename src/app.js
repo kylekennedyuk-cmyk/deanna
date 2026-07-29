@@ -56,7 +56,13 @@ function applySafeLocals(res) {
 }
 
 function createApp() {
-  const app = express();
+  let app;
+  try {
+    app = express();
+  } catch (err) {
+    console.error('[app] express() failed:', err && err.stack ? err.stack : err);
+    throw err;
+  }
 
   for (const dir of [
     path.join(__dirname, '..', 'data'),
@@ -70,7 +76,12 @@ function createApp() {
     }
   }
 
-  configurePassport();
+  try {
+    configurePassport();
+  } catch (err) {
+    console.error('[app] configurePassport() failed:', err && err.stack ? err.stack : err);
+    throw err;
+  }
 
   app.set('view engine', 'ejs');
   app.set('views', path.join(__dirname, '..', 'views'));
@@ -98,7 +109,12 @@ function createApp() {
     });
   });
 
-  app.use(createSessionMiddleware());
+  try {
+    app.use(createSessionMiddleware());
+  } catch (err) {
+    console.error('[app] createSessionMiddleware() failed:', err && err.stack ? err.stack : err);
+    throw err;
+  }
   app.use(passport.initialize());
   app.use(passport.session());
 
