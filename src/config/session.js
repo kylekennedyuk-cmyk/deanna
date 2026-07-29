@@ -18,9 +18,10 @@ function createSessionMiddleware() {
   return session({
     store: new FileStore({
       path: sessionsDir,
-      ttl: 60 * 60 * 24 * 14,
+      ttl: 60 * 60 * 24 * 14, // 14 days — matches cookie maxAge
       retries: 1,
-      // Explicit reap so expired session files cannot grow forever on disk.
+      // Reap expired session files so data/sessions cannot grow forever.
+      // Hourly is enough; keep reapAsync so the interval does not block the event loop.
       reapInterval: 3600,
       reapAsync: true,
       reapMaxConcurrent: 5,

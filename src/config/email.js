@@ -108,8 +108,15 @@ function transportCacheKey(settings) {
 
 let cachedTransport = null;
 let cachedKey = '';
+/** Close pooled SMTP after idle so Passenger workers do not hold sockets forever. */
+const TRANSPORT_IDLE_CLOSE_MS = 5 * 60 * 1000;
+let transportIdleTimer = null;
 
 function closeCachedTransport() {
+  if (transportIdleTimer) {
+    clearTimeout(transportIdleTimer);
+    transportIdleTimer = null;
+  }
   if (!cachedTransport) return;
   try {
     cachedTransport.close();
@@ -376,8 +383,19 @@ async function sendNotification(type, { to, values = {}, body = '', buttonLabel,
 }
 
 /** Serial background queue so SMTP isn't hammered by parallel reconnects. */
+const OUTBOUND_QUEUE_MAX = 100;
 const outboundQueue = [];
 let queueRunning = false;
+
+function scheduleTransportIdleClose() {
+  if (transportIdleTimer) clearTimeout(transportIdleTimer);
+  transportIdleTimer = setTimeout(() => {
+    transportIdleTimer = null;
+    if (queueRunning || outboundQueue.length) return;
+    closeCachedTransport();
+  }, TRANSPORT_IDLE_CLOSE_MS);
+  if (typeof transportIdleTimer.unref === 'function') transportIdleTimer.unref();
+}
 
 async function runOutboundQueue() {
   if (queueRunning) return;
@@ -394,6 +412,7 @@ async function runOutboundQueue() {
   } finally {
     // Always clear the flag so a thrown error cannot stall the queue forever.
     queueRunning = false;
+    scheduleTransportIdleClose();
   }
 }
 
@@ -403,17 +422,27 @@ function kickOutboundQueue() {
     runOutboundQueue().catch((err) => {
       console.error('[email queue fatal]', err && err.message ? err.message : err);
       queueRunning = false;
+      scheduleTransportIdleClose();
     });
   });
 }
 
 function sendNotificationAsync(type, payload) {
-  outboundQueue.push(async () => {
+  if (outboundQueue.length >= OUTBOUND_QUEUE_MAX) {
+    const dropped = outboundQueue.shift();
+    console.warn(
+      `[email queue] full (max ${OUTBOUND_QUEUE_MAX}) — dropped oldest job` +
+        (dropped && dropped._label ? `: ${dropped._label}` : '')
+    );
+  }
+  const job = async () => {
     const result = await sendNotification(type, payload);
     if (result && result.skipped) {
       console.warn(`[email async skipped] ${type} → ${payload.to}: ${result.reason || 'not configured'}`);
     }
-  });
+  };
+  job._label = `${type} → ${payload && payload.to ? payload.to : '?'}`;
+  outboundQueue.push(job);
   kickOutboundQueue();
 }
 

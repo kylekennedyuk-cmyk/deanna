@@ -76,11 +76,64 @@ function imapBlockReason(settings) {
 
 const IMAP_OP_TIMEOUT_MS = 45000;
 
+/** Global semaphore: at most one IMAP connection at a time (memory / FD pressure). */
+let imapActive = null;
+const imapWaitQueue = [];
+
+function acquireImapSlot() {
+  if (!imapActive) {
+    let release;
+    imapActive = new Promise((resolve) => {
+      release = resolve;
+    });
+    return Promise.resolve(release);
+  }
+  return new Promise((resolve) => {
+    imapWaitQueue.push(resolve);
+  }).then((release) => release);
+}
+
+function releaseImapSlot(release) {
+  try {
+    if (typeof release === 'function') release();
+  } catch {
+    /* ignore */
+  }
+  const next = imapWaitQueue.shift();
+  if (next) {
+    let nextRelease;
+    imapActive = new Promise((resolve) => {
+      nextRelease = resolve;
+    });
+    next(nextRelease);
+  } else {
+    imapActive = null;
+  }
+}
+
+function forceCloseImapClient(client) {
+  try {
+    client.close();
+  } catch {
+    /* ignore */
+  }
+  try {
+    if (client.socket && typeof client.socket.destroy === 'function') {
+      client.socket.destroy();
+    }
+  } catch {
+    /* ignore */
+  }
+}
+
 /**
  * ImapFlow emits 'error' asynchronously. Without a listener, Node treats that
  * as an uncaughtException and kills the process — a strong match for
  * intermittent Passenger downtime every few hours when staff hit the mailbox
  * or badge middleware probes INBOX STATUS.
+ *
+ * Serialised to max 1 concurrent op. On timeout, force-close the socket.
+ * Global badge middleware must never call this — use peekInboxUnseenCount only.
  */
 async function withImap(fn) {
   const settings = await resolveImapSettings();
@@ -91,6 +144,7 @@ async function withImap(fn) {
     throw err;
   }
 
+  const release = await acquireImapSlot();
   const client = new ImapFlow({
     host: settings.host,
     port: settings.port,
@@ -135,6 +189,8 @@ async function withImap(fn) {
     const timeout = new Promise((_, reject) => {
       timer = setTimeout(() => {
         timedOut = true;
+        console.warn(`[imap] timeout after ${IMAP_OP_TIMEOUT_MS}ms — force closing client`);
+        forceCloseImapClient(client);
         const err = new Error(`IMAP operation timed out after ${IMAP_OP_TIMEOUT_MS}ms`);
         err.code = 'IMAP_TIMEOUT';
         reject(err);
@@ -146,14 +202,15 @@ async function withImap(fn) {
   } finally {
     if (timer) clearTimeout(timer);
     try {
-      await client.logout();
-    } catch {
-      try {
-        client.close();
-      } catch {
-        /* ignore */
+      if (!timedOut) {
+        await client.logout();
+      } else {
+        forceCloseImapClient(client);
       }
+    } catch {
+      forceCloseImapClient(client);
     }
+    releaseImapSlot(release);
   }
 }
 

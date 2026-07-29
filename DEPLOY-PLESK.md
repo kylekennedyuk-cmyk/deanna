@@ -247,7 +247,7 @@ Force sync is destructive for the affected page content and should never be part
 | **Guide pages only show a CTA / missing hotels & dining** | Review and edit the page in Admin → Pages. Safe `content:sync` only creates missing pages or fills empty stubs; force sync is a destructive manual reset, not a routine fix |
 | `npm error Missing script: "npx"` | Plesk's Run script box takes a script **name** only. Use `deploy` or `update` |
 | `DATABASE_URL is missing` when running a script | Create `httpdocs/.env` with `DATABASE_URL=file:../data/deanna.db` — panel env vars are often ignored by Run script |
-| `EADDRINUSE :::3000` | Do not run script `start`. Passenger already runs the app. Use `deploy`, then **Restart App**. Remove any manual `PORT` from `.env` / the Node.js panel (let Passenger inject it) |
+| `EADDRINUSE :::3000` / sticky “could not be started” | Do **not** run script `start`. Passenger already runs the app. Use `deploy`/`update`, then **Restart App**. Remove any manual `PORT` from `.env` / the Node.js panel. Current builds exit **1** (not 0) on bind conflict so Passenger can auto-respawn — see Troubleshooting below |
 | **Internal Server Error** | Almost always means the database was never created. Pull latest code, create `.env`, run script `deploy`, then **Restart App**. Also confirm `DATABASE_URL=file:../data/deanna.db` and `data/` is writable |
 | App won’t start / Passenger error | Use Node **20 or 22 LTS** (not experimental). Confirm Application root=`httpdocs`, Document root=`httpdocs/public`, Startup=`server.js`. Remove any custom `PORT`. NPM install → Run `update` → Restart. Temporarily set Application mode to **development** to see the real stack |
 | Blank / unstyled pages | Run `npm run build` so `public/css/app.css` exists |
@@ -267,6 +267,18 @@ Health checks (once the worker is up):
 ### Passenger “We're sorry, but something went wrong” / “could not be started”
 
 This Phusion Passenger page means the Node process **failed to start** (boot failure) or **died** and could not be respawned. It is different from a normal Express 500 page.
+
+**Sticky sorry page after ~hours of uptime (important)**
+
+If the site works for a few hours, then shows “could not be started” until you **manually Restart App**, that is usually a **failed respawn**, not a 4‑hour timer in the app:
+
+1. The worker dies (memory pressure, IMAP hang, host kill, etc.).
+2. Passenger tries to start a new worker, but listen hits **`EADDRINUSE`** (old socket still held, or a stray `npm start` process).
+3. Older builds called **`process.exit(0)` on `EADDRINUSE`**, which looks like a clean shutdown — Passenger often **stops retrying**, so the sorry page sticks until a manual Restart.
+
+Current `server.js` retries listen a few times, then **`process.exit(1)`** so Passenger treats it as a crash and keeps respawning. Graceful `SIGTERM`/`SIGINT` still exit `0` after closing HTTP, SMTP, and Prisma. Auto-recovery should improve after you pull this build; if an outage still sticks, paste `data/logs/app.log` lines (see below).
+
+**Do not use Run script `start`.** Passenger already runs the app. Running `start` binds a second process and causes `EADDRINUSE` / sticky downtime. Use only `deploy` or `update`, then **Restart App**.
 
 **See the REAL error once (required if still broken after pull + update)**
 
@@ -296,27 +308,30 @@ Also confirm:
    - Passenger often also prints Node `stdout`/`stderr` into the same error log
 3. App file log (after this deploy): `httpdocs/data/logs/app.log` (rotates at ~2 MB)
 
-**Reading the Passenger error ID (e.g. `67f8112f`)**
+**Reading the Passenger error ID (e.g. `fb3d1485`)**
 
 The sorry page shows an error ID. Search the domain **error_log** for that ID — the lines immediately above/below usually include the real Node stack (missing module, Prisma schema mismatch, unhandled exception, port conflict).
 
-In Plesk: Domains → your domain → **Logs** → open the error log → search for `67f8112f` (or whatever ID is on the page). Over SSH:
+In Plesk: Domains → your domain → **Logs** → open the error log → search for `fb3d1485` (or whatever ID is on the page). Over SSH:
 
 ```bash
-grep -n "67f8112f" /var/www/vhosts/YOUR-DOMAIN/logs/error_log
+grep -n "fb3d1485" /var/www/vhosts/YOUR-DOMAIN/logs/error_log
 # or:
-grep -n "67f8112f" /var/www/vhosts/SYSTEM_USER/logs/error_log
+grep -n "fb3d1485" /var/www/vhosts/SYSTEM_USER/logs/error_log
+# also always check the app log:
+tail -n 200 /var/www/vhosts/YOUR-DOMAIN/httpdocs/data/logs/app.log
+grep -n "EADDRINUSE\|\[boot\]\|\[mem/" /var/www/vhosts/YOUR-DOMAIN/httpdocs/data/logs/app.log | tail -n 50
 ```
 
-Also check app stdout lines that start with `[boot]` (node version, cwd, PORT, whether DATABASE_URL is set, schema sanity) and `data/logs/app.log`.
+Also check app stdout lines that start with `[boot]` (node version, cwd, PORT, whether DATABASE_URL is set, schema sanity, memory/uptime) and `data/logs/app.log`.
 
 **Typical causes after a code pull**
 
 1. **Pending schema changes not applied** — new models such as `MessageRead`, `ChangeRequest`, or booking fields on `HolidayPlan` need `prisma db push`. Run script **`update`** (or `deploy` on a fresh install), then **Restart App**. Startup now logs a clear “schema appears out of date” warning if tables/columns are missing.
 2. **Missing `.env` / `DATABASE_URL`** — create `httpdocs/.env` as in step 4 above.
 3. **Unhandled background failures** — outbound email / IMAP used to kill Node 20 via unhandled rejections. Current builds **log and keep the process alive** for rejections and for most `uncaughtException`s (only OOM/critical exits so Passenger can respawn).
-4. **IMAP badge churn (fixed)** — older builds opened IMAP on **every** authenticated staff page load for the mailbox badge. Current builds **never** open IMAP from global badge middleware (cache peek / default 0); IMAP STATUS runs when browsing `/agent/mailbox` (10‑minute in-process cache).
-5. **Wrong listen / `EADDRINUSE` / `PhusionPassenger.configure`** — do not hardcode `PORT` in `.env` or the Node.js panel, and do **not** Run script `start`. Current `server.js` uses the Plesk-safe pattern: `app.listen(process.env.PORT || 3000)` with **no** `PhusionPassenger.configure({ autoInstall: false })` unless you explicitly set `PASSENGER_FORCE_CUSTOM_LISTEN=1`. Running `start` while Passenger manages the app causes port conflicts and the sorry page.
+4. **IMAP badge churn (fixed)** — older builds opened IMAP on **every** authenticated staff page load for the mailbox badge. Current builds **never** open IMAP from global badge middleware (cache peek / default 0); IMAP STATUS runs when browsing `/agent/mailbox` (10‑minute in-process cache). IMAP ops are also serialised (max 1 concurrent) with force-close on timeout.
+5. **Wrong listen / `EADDRINUSE` / `PhusionPassenger.configure`** — do not hardcode `PORT` in `.env` or the Node.js panel, and do **not** Run script `start`. Current `server.js` uses the Plesk-safe pattern: `app.listen(process.env.PORT || 3000)` with **no** `PhusionPassenger.configure({ autoInstall: false })` unless you explicitly set `PASSENGER_FORCE_CUSTOM_LISTEN=1`. On `EADDRINUSE` it retries then exits **1** (not 0) so Passenger keeps trying to respawn. Running `start` while Passenger manages the app causes port conflicts and the sorry page.
 
 **Quick recovery (Passenger “could not be started”)**
 
@@ -340,14 +355,14 @@ Or in the Plesk Node.js panel: **NPM install** → Run script `update` → **Res
 
 **If downtime continues — what to paste**
 
-1. The Passenger **Error ID** from the sorry page (e.g. `67f8112f`)
-2. Matching lines from the domain error log:
+1. The Passenger **Error ID** from the sorry page (e.g. `fb3d1485`)
+2. Matching lines from the domain error log **and** app.log:
    ```bash
-   grep -n "67f8112f" /var/www/vhosts/YOUR-DOMAIN/logs/error_log
+   grep -n "fb3d1485" /var/www/vhosts/YOUR-DOMAIN/logs/error_log
    # also:
    tail -n 200 /var/www/vhosts/YOUR-DOMAIN/httpdocs/data/logs/app.log
    ```
-3. Look for: `Unhandled promise rejection`, `Uncaught exception`, `[imap]`, `[mailbox]`, `EADDRINUSE`, `[boot]`, schema warnings
+3. Look for: `Unhandled promise rejection`, `Uncaught exception`, `[imap]`, `[mailbox]`, `EADDRINUSE`, `[boot]`, `[mem/`, schema warnings
 4. Confirm there is **no** Run script named `start` being used; only `deploy` / `update`
 5. Confirm Passenger memory limits in the Node.js panel are not killing a healthy process
 

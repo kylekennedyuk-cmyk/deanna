@@ -20,6 +20,7 @@ let createApp;
 let prisma;
 let applySqlitePragmas;
 let safeLog;
+let closeCachedTransport = () => {};
 
 try {
   require('dotenv').config({ path: path.join(__dirname, '.env') });
@@ -31,12 +32,23 @@ try {
   ({ createApp } = require('./src/app'));
   ({ prisma, applySqlitePragmas } = require('./src/config/database'));
   ({ safeLog } = require('./src/utils/safeLog'));
+  try {
+    ({ closeCachedTransport } = require('./src/config/email'));
+  } catch {
+    closeCachedTransport = () => {};
+  }
 } catch (err) {
   bootErr('require(./src/*) — missing module or syntax error after incomplete npm install?', err);
   process.exit(1);
 }
 
 const underPassenger = typeof PhusionPassenger !== 'undefined';
+const bootStartedAt = Date.now();
+
+/** Active HTTP server — closed on SIGTERM/SIGINT so ports release cleanly. */
+let httpServer = null;
+let shuttingDown = false;
+let memoryLogInterval = null;
 
 // Only disable Passenger autoInstall when explicitly opted in.
 // Default Plesk pattern: no configure() call; listen on process.env.PORT.
@@ -102,6 +114,89 @@ process.on('uncaughtException', (err) => {
     /* ignore */
   }
 });
+
+function logMemory(label = 'periodic') {
+  try {
+    const mem = process.memoryUsage();
+    const uptimeSec = Math.round(process.uptime());
+    const msg =
+      `[mem/${label}] uptime=${uptimeSec}s rss=${Math.round(mem.rss / 1024 / 1024)}MB ` +
+      `heapUsed=${Math.round(mem.heapUsed / 1024 / 1024)}MB ` +
+      `heapTotal=${Math.round(mem.heapTotal / 1024 / 1024)}MB`;
+    console.log(`[boot] ${msg}`);
+    try {
+      safeLog('info', msg);
+    } catch {
+      /* ignore */
+    }
+  } catch {
+    /* ignore */
+  }
+}
+
+function startMemoryLogging() {
+  if (memoryLogInterval) return;
+  logMemory('boot');
+  // Single interval only — do not accumulate timers on restarts within same process.
+  memoryLogInterval = setInterval(() => logMemory('periodic'), 30 * 60 * 1000);
+  if (typeof memoryLogInterval.unref === 'function') memoryLogInterval.unref();
+}
+
+/**
+ * Graceful shutdown for SIGTERM/SIGINT only.
+ * Closes HTTP, SMTP pool, Prisma — then exit(0).
+ * Do NOT use exit(0) for listen failures (EADDRINUSE); that looks "clean" to
+ * Passenger and often stops respawn → sticky sorry page until manual Restart.
+ */
+function gracefulShutdown(signal) {
+  if (shuttingDown) return;
+  shuttingDown = true;
+  console.log(`[boot] ${signal} received — graceful shutdown`);
+  try {
+    safeLog('info', `${signal} received — graceful shutdown (uptime=${Math.round(process.uptime())}s)`);
+  } catch {
+    /* ignore */
+  }
+
+  if (memoryLogInterval) {
+    clearInterval(memoryLogInterval);
+    memoryLogInterval = null;
+  }
+
+  const finish = () => {
+    try {
+      closeCachedTransport();
+    } catch {
+      /* ignore */
+    }
+    Promise.resolve()
+      .then(() => (prisma && prisma.$disconnect ? prisma.$disconnect() : undefined))
+      .catch(() => {})
+      .finally(() => {
+        process.exit(0);
+      });
+  };
+
+  const forceTimer = setTimeout(() => {
+    console.error('[boot] Graceful shutdown timed out — exiting');
+    process.exit(0);
+  }, 8000);
+  forceTimer.unref?.();
+
+  if (httpServer && typeof httpServer.close === 'function') {
+    httpServer.close(() => {
+      clearTimeout(forceTimer);
+      finish();
+    });
+    return;
+  }
+
+  clearTimeout(forceTimer);
+  finish();
+}
+
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 
 /** Best-effort: delete session files older than 14 days so data/sessions cannot grow forever. */
 function pruneOldSessionFiles() {
@@ -254,36 +349,76 @@ function listenTarget() {
   return 3000;
 }
 
-function attachListen(app, target) {
+const EADDRINUSE_MAX_ATTEMPTS = 3;
+const EADDRINUSE_BACKOFF_MS = [400, 900, 1600];
+
+/**
+ * Bind HTTP. On EADDRINUSE: retry a few times with backoff, then exit(1).
+ * Never exit(0) on EADDRINUSE — Passenger treats that as a clean stop and often
+ * stops respawning, leaving the sticky “could not be started” page until
+ * a manual Restart App.
+ */
+function attachListen(app, target, attempt = 1) {
   const server = app.listen(target, () => {
+    httpServer = server;
     console.log(
       `[boot] Destinations With Deanna listening on ${target} ` +
-        `(passenger=${underPassenger})`
+        `(passenger=${underPassenger}) attempt=${attempt} ` +
+        `bootMs=${Date.now() - bootStartedAt}`
     );
     if (!underPassenger) {
       console.log('Admin login: username admin / password password');
     }
+    startMemoryLogging();
   });
 
   server.on('error', (err) => {
     console.error(`[boot] Listen error on ${target}:`, err && err.stack ? err.stack : err);
+    try {
+      safeLog('error', `Listen error on ${target} (attempt ${attempt})`, err);
+    } catch {
+      /* ignore */
+    }
+
     if (err && err.code === 'EADDRINUSE') {
-      console.error(
-        `[boot] Listen target ${target} is already in use. Do not run "start" in Plesk while Passenger is managing the app. Use Run script "deploy"/"update", then Restart App.`
-      );
-      // Exit 0 so Passenger is less likely to stick on a hard sorry-page loop from a conflict.
-      process.exit(0);
+      const msg =
+        `EADDRINUSE on ${target} (attempt ${attempt}/${EADDRINUSE_MAX_ATTEMPTS}). ` +
+        'Do not Run script "start" while Passenger manages the app. ' +
+        'Use deploy/update, then Restart App. Exiting with code 1 so Passenger retries respawn.';
+      console.error(`[boot] ${msg}`);
+      try {
+        safeLog('error', msg, err);
+      } catch {
+        /* ignore */
+      }
+
+      if (attempt < EADDRINUSE_MAX_ATTEMPTS) {
+        const delay = EADDRINUSE_BACKOFF_MS[attempt - 1] || 1000;
+        console.error(`[boot] Retrying listen on ${target} in ${delay}ms…`);
+        setTimeout(() => {
+          try {
+            attachListen(app, target, attempt + 1);
+          } catch (retryErr) {
+            bootErr('listen retry threw', retryErr);
+            process.exit(1);
+          }
+        }, delay).unref?.();
+        return;
+      }
+
+      // Crash exit — Passenger should treat this as failed and respawn.
+      setTimeout(() => process.exit(1), 250).unref?.();
       return;
     }
 
-    // Non-fatal first failure: retry once on PORT (or 3000) after 500ms.
+    // Non-EADDRINUSE: retry once on PORT (or 3000) after 500ms if target differed.
     const retryTarget =
       process.env.PORT != null && process.env.PORT !== '' ? process.env.PORT : 3000;
     if (String(retryTarget) !== String(target)) {
       console.error(`[boot] Retrying listen on ${retryTarget} in 500ms…`);
       setTimeout(() => {
         try {
-          attachListen(app, retryTarget);
+          attachListen(app, retryTarget, 1);
         } catch (retryErr) {
           bootErr('listen retry threw', retryErr);
           process.exit(1);
@@ -293,17 +428,13 @@ function attachListen(app, target) {
     }
 
     console.error(`[boot] Retrying same target ${target} once in 500ms…`);
-    let retried = false;
     setTimeout(() => {
-      if (retried) return;
-      retried = true;
-      const retryServer = app.listen(target, () => {
-        console.log(`[boot] Listen retry succeeded on ${target}`);
-      });
-      retryServer.on('error', (err2) => {
-        bootErr('listen retry failed', err2);
+      try {
+        attachListen(app, target, attempt + 1);
+      } catch (retryErr) {
+        bootErr('listen retry threw', retryErr);
         process.exit(1);
-      });
+      }
     }, 500).unref?.();
   });
 

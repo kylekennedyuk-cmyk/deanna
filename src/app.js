@@ -126,7 +126,21 @@ function createApp() {
   });
   app.use(csrfSynchronisedProtection);
 
-  app.use(async (req, res, next) => {
+  // Soft in-memory cache for site settings + nav (cuts SQLite churn on every request).
+  // Fail-soft: if DB fails while cache is warm, serve stale; if cold, fall through to error handler.
+  const SETTINGS_NAV_TTL_MS = 45 * 1000;
+  let settingsNavCache = { expiresAt: 0, settings: null, nav: null };
+
+  async function loadSettingsAndNav() {
+    const now = Date.now();
+    if (
+      settingsNavCache.settings &&
+      settingsNavCache.nav &&
+      now < settingsNavCache.expiresAt
+    ) {
+      return { settings: settingsNavCache.settings, nav: settingsNavCache.nav };
+    }
+
     try {
       const settingsRows = await prisma.siteSetting.findMany();
       const settings = Object.fromEntries(settingsRows.map((r) => [r.key, r.value]));
@@ -134,6 +148,27 @@ function createApp() {
         where: { visible: true },
         orderBy: [{ location: 'asc' }, { sortOrder: 'asc' }],
       });
+      settingsNavCache = {
+        expiresAt: now + SETTINGS_NAV_TTL_MS,
+        settings,
+        nav,
+      };
+      return { settings, nav };
+    } catch (err) {
+      if (settingsNavCache.settings && settingsNavCache.nav) {
+        console.warn(
+          '[app] settings/nav query failed — serving stale cache:',
+          err && err.message ? err.message : err
+        );
+        return { settings: settingsNavCache.settings, nav: settingsNavCache.nav };
+      }
+      throw err;
+    }
+  }
+
+  app.use(async (req, res, next) => {
+    try {
+      const { settings, nav } = await loadSettingsAndNav();
 
       res.locals.siteName = settings.site_name || 'Destinations With Deanna';
       res.locals.siteTagline = settings.site_tagline || '';
