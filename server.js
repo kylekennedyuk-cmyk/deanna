@@ -198,37 +198,69 @@ function gracefulShutdown(signal) {
 process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
 process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 
-/** Best-effort: delete session files older than 14 days so data/sessions cannot grow forever. */
-function pruneOldSessionFiles() {
+/**
+ * Best-effort: delete session files older than 14 days.
+ * Batched across event-loop ticks so a huge data/sessions dir cannot freeze boot
+ * or trip Passenger's startup timeout. Never call this before listen().
+ */
+function pruneOldSessionFilesAsync(options = {}) {
+  const batchSize = Math.max(1, Number(options.batchSize) || 50);
   const sessionsDir = path.join(__dirname, 'data', 'sessions');
   const maxAgeMs = 14 * 24 * 60 * 60 * 1000;
-  try {
-    if (!fs.existsSync(sessionsDir)) return;
+
+  return new Promise((resolve) => {
+    let names;
+    try {
+      if (!fs.existsSync(sessionsDir)) {
+        resolve({ removed: 0, scanned: 0 });
+        return;
+      }
+      names = fs.readdirSync(sessionsDir);
+    } catch (err) {
+      console.warn('[boot] Session prune skipped:', err && err.message ? err.message : err);
+      resolve({ removed: 0, scanned: 0, error: true });
+      return;
+    }
+
     const now = Date.now();
+    let index = 0;
     let removed = 0;
-    for (const name of fs.readdirSync(sessionsDir)) {
-      if (!name.endsWith('.json')) continue;
-      const full = path.join(sessionsDir, name);
-      try {
-        const st = fs.statSync(full);
-        if (now - st.mtimeMs > maxAgeMs) {
-          fs.unlinkSync(full);
-          removed += 1;
+    const total = names.length;
+
+    const processBatch = () => {
+      const end = Math.min(index + batchSize, total);
+      for (; index < end; index += 1) {
+        const name = names[index];
+        if (!name.endsWith('.json')) continue;
+        const full = path.join(sessionsDir, name);
+        try {
+          const st = fs.statSync(full);
+          if (now - st.mtimeMs > maxAgeMs) {
+            fs.unlinkSync(full);
+            removed += 1;
+          }
+        } catch {
+          /* ignore per-file */
         }
-      } catch {
-        /* ignore per-file */
       }
-    }
-    if (removed) {
-      try {
-        safeLog('info', `Pruned ${removed} expired session file(s)`);
-      } catch {
-        console.log(`[boot] Pruned ${removed} expired session file(s)`);
+
+      if (index < total) {
+        setImmediate(processBatch);
+        return;
       }
-    }
-  } catch (err) {
-    console.warn('[boot] Session prune skipped:', err && err.message ? err.message : err);
-  }
+
+      if (removed) {
+        try {
+          safeLog('info', `Pruned ${removed} expired session file(s) (scanned=${total})`);
+        } catch {
+          console.log(`[boot] Pruned ${removed} expired session file(s) (scanned=${total})`);
+        }
+      }
+      resolve({ removed, scanned: total });
+    };
+
+    setImmediate(processBatch);
+  });
 }
 
 function safeMkdir(dir) {
@@ -293,45 +325,67 @@ async function checkSchemaSanity() {
   return { ok: true, missing: [] };
 }
 
-async function ensureReady() {
-  const dataDir = path.join(__dirname, 'data');
-  const uploadsDir = path.join(__dirname, 'public', 'uploads');
-  const logsDir = path.join(dataDir, 'logs');
-  safeMkdir(dataDir);
-  safeMkdir(uploadsDir);
-  safeMkdir(path.join(dataDir, 'sessions'));
-  safeMkdir(logsDir);
-  pruneOldSessionFiles();
+/**
+ * Post-listen warmup only: dirs + DB checks. Session prune is separate and batched.
+ * Soft-timeout so a hung DB open cannot hang the worker forever.
+ */
+async function ensureReady(options = {}) {
+  const timeoutMs = Math.max(1000, Number(options.timeoutMs) || 15000);
 
-  if (!process.env.DATABASE_URL) {
-    throw new Error(
-      'DATABASE_URL is missing. Create a .env file in httpdocs with DATABASE_URL=file:../data/deanna.db (Plesk Run script often ignores panel env vars).'
-    );
-  }
+  const run = async () => {
+    const dataDir = path.join(__dirname, 'data');
+    const uploadsDir = path.join(__dirname, 'public', 'uploads');
+    const logsDir = path.join(dataDir, 'logs');
+    safeMkdir(dataDir);
+    safeMkdir(uploadsDir);
+    safeMkdir(path.join(dataDir, 'sessions'));
+    safeMkdir(logsDir);
 
-  try {
-    await applySqlitePragmas();
-    await prisma.$queryRaw`SELECT 1`;
-  } catch (err) {
-    throw new Error(
-      `Database is not ready (${err.message}). In Plesk Node.js → Run script, type: deploy  then Restart App.`
-    );
-  }
-
-  const schema = await checkSchemaSanity();
-
-  try {
-    const userCount = await prisma.user.count();
-    if (userCount === 0) {
-      console.warn(
-        '[boot] Warning: database has no users. Run the "deploy" script (or npm run db:seed) to create the admin login.'
+    if (!process.env.DATABASE_URL) {
+      throw new Error(
+        'DATABASE_URL is missing. Create a .env file in httpdocs with DATABASE_URL=file:../data/deanna.db (Plesk Run script often ignores panel env vars).'
       );
     }
-  } catch (err) {
-    console.warn('[boot] Could not count users during startup:', err && err.message ? err.message : err);
-  }
 
-  return schema;
+    try {
+      await applySqlitePragmas();
+      await prisma.$queryRaw`SELECT 1`;
+    } catch (err) {
+      throw new Error(
+        `Database is not ready (${err.message}). In Plesk Node.js → Run script, type: deploy  then Restart App.`
+      );
+    }
+
+    const schema = await checkSchemaSanity();
+
+    try {
+      const userCount = await prisma.user.count();
+      if (userCount === 0) {
+        console.warn(
+          '[boot] Warning: database has no users. Run the "deploy" script (or npm run db:seed) to create the admin login.'
+        );
+      }
+    } catch (err) {
+      console.warn('[boot] Could not count users during startup:', err && err.message ? err.message : err);
+    }
+
+    return schema;
+  };
+
+  let timer;
+  try {
+    return await Promise.race([
+      run(),
+      new Promise((_, reject) => {
+        timer = setTimeout(() => {
+          reject(new Error(`ensureReady timed out after ${timeoutMs}ms`));
+        }, timeoutMs);
+        timer.unref?.();
+      }),
+    ]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
 }
 
 /**
@@ -349,14 +403,23 @@ function listenTarget() {
   return 3000;
 }
 
-const EADDRINUSE_MAX_ATTEMPTS = 3;
-const EADDRINUSE_BACKOFF_MS = [400, 900, 1600];
+const EADDRINUSE_MAX_ATTEMPTS_LOCAL = 3;
+const EADDRINUSE_BACKOFF_MS = [1000, 2000, 5000, 10000];
+
+function eaddrInuseBackoffMs(attempt) {
+  const idx = Math.min(Math.max(attempt - 1, 0), EADDRINUSE_BACKOFF_MS.length - 1);
+  return EADDRINUSE_BACKOFF_MS[idx];
+}
 
 /**
- * Bind HTTP. On EADDRINUSE: retry a few times with backoff, then exit(1).
- * Never exit(0) on EADDRINUSE — Passenger treats that as a clean stop and often
- * stops respawning, leaving the sticky “could not be started” page until
- * a manual Restart App.
+ * Bind HTTP immediately (Passenger startup timeout requires a fast listen).
+ *
+ * EADDRINUSE:
+ * - Under Passenger: retry forever with capped backoff (1s→2s→5s→10s). Never
+ *   process.exit — exiting trips crash protection and leaves the site down.
+ * - Local/dev: limited retries then exit(1).
+ *
+ * Never exit(0) on EADDRINUSE — Passenger treats that as a clean stop.
  */
 function attachListen(app, target, attempt = 1) {
   const server = app.listen(target, () => {
@@ -381,10 +444,41 @@ function attachListen(app, target, attempt = 1) {
     }
 
     if (err && err.code === 'EADDRINUSE') {
+      const delay = eaddrInuseBackoffMs(attempt);
+
+      if (underPassenger) {
+        const msg =
+          `EADDRINUSE on ${target} (Passenger attempt ${attempt}, retry forever in ${delay}ms). ` +
+          'Do not Run script "start" while Passenger manages the app. ' +
+          'Keeping process alive — will not exit (avoids crash protection).';
+        console.error(`[boot] ${msg}`);
+        try {
+          safeLog('error', msg, err);
+        } catch {
+          /* ignore */
+        }
+        setTimeout(() => {
+          try {
+            attachListen(app, target, attempt + 1);
+          } catch (retryErr) {
+            bootErr('listen retry threw', retryErr);
+            // Still do not exit under Passenger — schedule another attempt.
+            setTimeout(() => {
+              try {
+                attachListen(app, target, attempt + 1);
+              } catch {
+                /* ignore */
+              }
+            }, eaddrInuseBackoffMs(attempt + 1)).unref?.();
+          }
+        }, delay).unref?.();
+        return;
+      }
+
       const msg =
-        `EADDRINUSE on ${target} (attempt ${attempt}/${EADDRINUSE_MAX_ATTEMPTS}). ` +
+        `EADDRINUSE on ${target} (attempt ${attempt}/${EADDRINUSE_MAX_ATTEMPTS_LOCAL}). ` +
         'Do not Run script "start" while Passenger manages the app. ' +
-        'Use deploy/update, then Restart App. Exiting with code 1 so Passenger retries respawn.';
+        'Use deploy/update, then Restart App.';
       console.error(`[boot] ${msg}`);
       try {
         safeLog('error', msg, err);
@@ -392,8 +486,7 @@ function attachListen(app, target, attempt = 1) {
         /* ignore */
       }
 
-      if (attempt < EADDRINUSE_MAX_ATTEMPTS) {
-        const delay = EADDRINUSE_BACKOFF_MS[attempt - 1] || 1000;
+      if (attempt < EADDRINUSE_MAX_ATTEMPTS_LOCAL) {
         console.error(`[boot] Retrying listen on ${target} in ${delay}ms…`);
         setTimeout(() => {
           try {
@@ -406,7 +499,6 @@ function attachListen(app, target, attempt = 1) {
         return;
       }
 
-      // Crash exit — Passenger should treat this as failed and respawn.
       setTimeout(() => process.exit(1), 250).unref?.();
       return;
     }
@@ -421,9 +513,22 @@ function attachListen(app, target, attempt = 1) {
           attachListen(app, retryTarget, 1);
         } catch (retryErr) {
           bootErr('listen retry threw', retryErr);
-          process.exit(1);
+          if (!underPassenger) process.exit(1);
         }
       }, 500).unref?.();
+      return;
+    }
+
+    if (underPassenger) {
+      const delay = eaddrInuseBackoffMs(attempt);
+      console.error(`[boot] Retrying same target ${target} under Passenger in ${delay}ms…`);
+      setTimeout(() => {
+        try {
+          attachListen(app, target, attempt + 1);
+        } catch (retryErr) {
+          bootErr('listen retry threw', retryErr);
+        }
+      }, delay).unref?.();
       return;
     }
 
@@ -441,39 +546,64 @@ function attachListen(app, target, attempt = 1) {
   return server;
 }
 
-async function start() {
+/**
+ * Listen FIRST (Passenger requires a fast bind), then warm up AFTER.
+ * Never await ensureReady / session prune before listen.
+ */
+function schedulePostListenWarmup() {
+  setImmediate(() => {
+    console.log('[boot] listen-first: starting async warmup (ensureReady + session prune)');
+    (async () => {
+      let schemaResult = { ok: false, missing: ['not-checked'] };
+      try {
+        schemaResult = await ensureReady({ timeoutMs: 15000 });
+      } catch (err) {
+        console.error(
+          `[boot] Startup check failed (app is listening; requests may 500): ${err.message}`
+        );
+        if (err.stack) console.error(err.stack);
+        try {
+          safeLog(
+            'error',
+            `Startup check failed (app is listening; requests may 500): ${err.message}. ` +
+              'Fix: create httpdocs/.env with DATABASE_URL, then Run script "deploy" or "update", then Restart App.',
+            err
+          );
+        } catch {
+          /* ignore */
+        }
+      }
+
+      console.log(
+        `[boot] schemaSanity=${schemaResult.ok ? 'ok' : 'fail'}` +
+          (schemaResult.missing && schemaResult.missing.length
+            ? ` missing=${schemaResult.missing.join(',')}`
+            : '')
+      );
+
+      try {
+        const prune = await pruneOldSessionFilesAsync({ batchSize: 50 });
+        console.log(
+          `[boot] session prune done removed=${prune.removed || 0} scanned=${prune.scanned || 0}`
+        );
+      } catch (err) {
+        console.warn(
+          '[boot] Session prune failed (non-fatal):',
+          err && err.message ? err.message : err
+        );
+      }
+    })().catch((err) => {
+      console.error('[boot] Post-listen warmup rejected (non-fatal):', err && err.stack ? err.stack : err);
+    });
+  });
+}
+
+function start() {
   console.log(
-    `[boot] node=${process.version} cwd=${process.cwd()} ` +
+    `[boot] listen-first node=${process.version} cwd=${process.cwd()} ` +
       `passenger=${underPassenger} PORT=${process.env.PORT || '(unset)'} ` +
       `DATABASE_URL=${process.env.DATABASE_URL ? 'set' : 'missing'} ` +
       `FORCE_CUSTOM_LISTEN=${process.env.PASSENGER_FORCE_CUSTOM_LISTEN || '0'}`
-  );
-
-  let schemaResult = { ok: false, missing: ['not-checked'] };
-  try {
-    schemaResult = await ensureReady();
-  } catch (err) {
-    console.error(
-      `[boot] Startup check failed (app will still listen, but requests may 500): ${err.message}`
-    );
-    if (err.stack) console.error(err.stack);
-    try {
-      safeLog(
-        'error',
-        `Startup check failed (app will still listen, but requests may 500): ${err.message}. ` +
-          'Fix: create httpdocs/.env with DATABASE_URL, then Run script "deploy" or "update", then Restart App.',
-        err
-      );
-    } catch {
-      /* ignore */
-    }
-  }
-
-  console.log(
-    `[boot] schemaSanity=${schemaResult.ok ? 'ok' : 'fail'}` +
-      (schemaResult.missing && schemaResult.missing.length
-        ? ` missing=${schemaResult.missing.join(',')}`
-        : '')
   );
 
   let app;
@@ -491,15 +621,19 @@ async function start() {
   }
 
   const target = listenTarget();
+  // Bind immediately — do not await DB or session prune before this.
   attachListen(app, target);
+  schedulePostListenWarmup();
 }
 
-start().catch((err) => {
-  bootErr('start() rejected', err);
+try {
+  start();
+} catch (err) {
+  bootErr('start() threw', err);
   try {
-    safeLog('fatal', 'start() rejected', err);
+    safeLog('fatal', 'start() threw', err);
   } catch {
     /* ignore */
   }
   process.exit(1);
-});
+}

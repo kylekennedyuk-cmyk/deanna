@@ -247,7 +247,8 @@ Force sync is destructive for the affected page content and should never be part
 | **Guide pages only show a CTA / missing hotels & dining** | Review and edit the page in Admin → Pages. Safe `content:sync` only creates missing pages or fills empty stubs; force sync is a destructive manual reset, not a routine fix |
 | `npm error Missing script: "npx"` | Plesk's Run script box takes a script **name** only. Use `deploy` or `update` |
 | `DATABASE_URL is missing` when running a script | Create `httpdocs/.env` with `DATABASE_URL=file:../data/deanna.db` — panel env vars are often ignored by Run script |
-| `EADDRINUSE :::3000` / sticky “could not be started” | Do **not** run script `start`. Passenger already runs the app. Use `deploy`/`update`, then **Restart App**. Remove any manual `PORT` from `.env` / the Node.js panel. Current builds exit **1** (not 0) on bind conflict so Passenger can auto-respawn — see Troubleshooting below |
+| `EADDRINUSE :::3000` / sticky “could not be started” | Do **not** run script `start`. Passenger already runs the app. Use `deploy`/`update`, then **Restart App**. Remove any manual `PORT` from `.env` / the Node.js panel. Under Passenger, current builds **retry forever** on `EADDRINUSE` (no exit) so crash protection is not tripped — see Troubleshooting below |
+| Restart App then dies again quickly / changing error IDs | Often **Passenger crash protection** after repeated failed starts, or boot blocked before listen. Pull latest (listen-first boot), wait **2–3 minutes**, Restart App. Prefer Node **20 or 22** (not 25). Check `data/sessions` file count — if thousands, delete old `.json` session files |
 | **Internal Server Error** | Almost always means the database was never created. Pull latest code, create `.env`, run script `deploy`, then **Restart App**. Also confirm `DATABASE_URL=file:../data/deanna.db` and `data/` is writable |
 | App won’t start / Passenger error | Use Node **20 or 22 LTS** (not experimental). Confirm Application root=`httpdocs`, Document root=`httpdocs/public`, Startup=`server.js`. Remove any custom `PORT`. NPM install → Run `update` → Restart. Temporarily set Application mode to **development** to see the real stack |
 | Blank / unstyled pages | Run `npm run build` so `public/css/app.css` exists |
@@ -268,15 +269,27 @@ Health checks (once the worker is up):
 
 This Phusion Passenger page means the Node process **failed to start** (boot failure) or **died** and could not be respawned. It is different from a normal Express 500 page.
 
+**Crash protection (restart then dies again / changing error IDs)**
+
+If **Restart App** brings the site up briefly (or not at all) and it fails again with a **new** Passenger Error ID each time, Passenger’s **crash protection** may be engaged: too many failed starts in a short window, so it refuses to spawn workers until a cooldown.
+
+1. **Wait 2–3 minutes** (or longer if your host’s cooldown is longer), then **Restart App** once more from the Node.js panel.
+2. Or wait the cooldown and let Passenger try again after Pull + NPM install.
+3. Set **Application mode** to **development** temporarily so Passenger shows the real Node stderr/stack instead of only the sorry page.
+4. Prefer Node.js **20 or 22 LTS** — avoid experimental / Node **25** if the panel offers it.
+5. Confirm there is **no** Run script `start` — only `deploy` / `update`, then Restart App.
+
+Also check **File Manager → `httpdocs/data/sessions`**. If there are **thousands** of `.json` files, boot used to block on a synchronous prune before listen (Passenger timeout → “could not be started”). Current builds **listen first** and prune in small async batches after bind. You can still delete old session files manually to reclaim disk and speed prune.
+
 **Sticky sorry page after ~hours of uptime (important)**
 
 If the site works for a few hours, then shows “could not be started” until you **manually Restart App**, that is usually a **failed respawn**, not a 4‑hour timer in the app:
 
 1. The worker dies (memory pressure, IMAP hang, host kill, etc.).
 2. Passenger tries to start a new worker, but listen hits **`EADDRINUSE`** (old socket still held, or a stray `npm start` process).
-3. Older builds called **`process.exit(0)` on `EADDRINUSE`**, which looks like a clean shutdown — Passenger often **stops retrying**, so the sorry page sticks until a manual Restart.
+3. Older builds called **`process.exit(0)` on `EADDRINUSE`**, which looks like a clean shutdown — Passenger often **stops retrying**. Other builds exited **1** after a few retries, which could trip **crash protection**.
 
-Current `server.js` retries listen a few times, then **`process.exit(1)`** so Passenger treats it as a crash and keeps respawning. Graceful `SIGTERM`/`SIGINT` still exit `0` after closing HTTP, SMTP, and Prisma. Auto-recovery should improve after you pull this build; if an outage still sticks, paste `data/logs/app.log` lines (see below).
+Current `server.js` uses **listen-first** boot (DB/schema/session prune run only *after* `listen`). Under Passenger, **`EADDRINUSE` retries forever** with capped backoff (1s → 2s → 5s → max 10s) and **does not** `process.exit` — the worker stays alive waiting for the port. Local/dev still exits after limited retries. Graceful `SIGTERM`/`SIGINT` still exit `0` after closing HTTP, SMTP, and Prisma.
 
 **Do not use Run script `start`.** Passenger already runs the app. Running `start` binds a second process and causes `EADDRINUSE` / sticky downtime. Use only `deploy` or `update`, then **Restart App**.
 
@@ -331,17 +344,20 @@ Also check app stdout lines that start with `[boot]` (node version, cwd, PORT, w
 2. **Missing `.env` / `DATABASE_URL`** — create `httpdocs/.env` as in step 4 above.
 3. **Unhandled background failures** — outbound email / IMAP used to kill Node 20 via unhandled rejections. Current builds **log and keep the process alive** for rejections and for most `uncaughtException`s (only OOM/critical exits so Passenger can respawn).
 4. **IMAP badge churn (fixed)** — older builds opened IMAP on **every** authenticated staff page load for the mailbox badge. Current builds **never** open IMAP from global badge middleware (cache peek / default 0); IMAP STATUS runs when browsing `/agent/mailbox` (10‑minute in-process cache). IMAP ops are also serialised (max 1 concurrent) with force-close on timeout.
-5. **Wrong listen / `EADDRINUSE` / `PhusionPassenger.configure`** — do not hardcode `PORT` in `.env` or the Node.js panel, and do **not** Run script `start`. Current `server.js` uses the Plesk-safe pattern: `app.listen(process.env.PORT || 3000)` with **no** `PhusionPassenger.configure({ autoInstall: false })` unless you explicitly set `PASSENGER_FORCE_CUSTOM_LISTEN=1`. On `EADDRINUSE` it retries then exits **1** (not 0) so Passenger keeps trying to respawn. Running `start` while Passenger manages the app causes port conflicts and the sorry page.
+5. **Wrong listen / `EADDRINUSE` / `PhusionPassenger.configure`** — do not hardcode `PORT` in `.env` or the Node.js panel, and do **not** Run script `start`. Current `server.js` uses the Plesk-safe pattern: `app.listen(process.env.PORT || 3000)` with **no** `PhusionPassenger.configure({ autoInstall: false })` unless you explicitly set `PASSENGER_FORCE_CUSTOM_LISTEN=1`. Boot is **listen-first**; under Passenger, `EADDRINUSE` retries forever without exiting. Running `start` while Passenger manages the app causes port conflicts and the sorry page.
+6. **Slow pre-listen work / huge `data/sessions`** — older builds pruned sessions synchronously *before* listen. If the folder grew large, Passenger’s startup timeout killed the worker (“could not be started”, new Error IDs on every restart). Pull latest, optionally trim old session files in File Manager, wait if crash protection was on, then Restart App.
 
 **Quick recovery (Passenger “could not be started”)**
 
 1. Plesk **Git** → Pull `main` (or SSH `git pull origin main`)
-2. Node.js → confirm Application root / Document root / Startup file (table above)
+2. Node.js → confirm Application root / Document root / Startup file (table above); Node **20 or 22** preferred
 3. Node.js → **NPM install**
 4. Run script: `update` (**not** `start`)
-5. Temporarily set Application mode to **development**, then **Restart App** — read the real stack if still broken
-6. Open `https://your-domain/health` and `/passenger-status.txt`
-7. Set Application mode back to **production** when fixed
+5. If crash protection may be on: **wait ~2 minutes**, then **Restart App** once
+6. Temporarily set Application mode to **development**, then **Restart App** — read the real stack if still broken
+7. Open `https://your-domain/health` and `/passenger-status.txt`
+8. Optional: File Manager → if `data/sessions` has thousands of files, delete old `.json` sessions
+9. Set Application mode back to **production** when fixed
 
 ```bash
 cd /path/to/httpdocs   # folder with package.json
