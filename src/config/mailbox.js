@@ -1,7 +1,13 @@
 const { ImapFlow } = require('imapflow');
 const { simpleParser } = require('mailparser');
 const { decryptSecret, getSettings } = require('./settings');
-const { brandedLayout, escapeHtml, resolveEmailSettings, sendMail } = require('./email');
+const {
+  brandedLayout,
+  escapeHtml,
+  plainTextToEmailHtml,
+  resolveEmailSettings,
+  sendMail,
+} = require('./email');
 
 function addressList(value) {
   if (!value) return '';
@@ -642,18 +648,11 @@ async function deleteMessage(folder, uid) {
 }
 
 function brandedOutgoingHtml(settings, { subject, bodyText }) {
-  const paragraphs = String(bodyText || '')
-    .split(/\n{2,}/)
-    .map((block) => block.trim())
-    .filter(Boolean)
-    .map(
-      (block) =>
-        `<p style="margin:0 0 16px;font-size:16px;line-height:1.7;color:#1a2b40;white-space:pre-wrap">${escapeHtml(block)}</p>`
-    )
-    .join('');
+  const paragraphs =
+    plainTextToEmailHtml(bodyText) || `<p style="margin:0;color:#3d5b79"> </p>`;
 
   const bodyHtml = `
-    ${paragraphs || `<p style="margin:0;color:#3d5b79"> </p>`}
+    ${paragraphs}
     <p style="margin:28px 0 0;font-size:15px;line-height:1.6;color:#3d5b79">
       Warm regards,<br />
       <strong style="color:#1a2b40">${escapeHtml(settings.fromName || settings.siteName)}</strong><br />

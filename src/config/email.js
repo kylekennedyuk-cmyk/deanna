@@ -10,6 +10,55 @@ function escapeHtml(value) {
     .replace(/'/g, '&#039;');
 }
 
+const EMAIL_PARAGRAPH_STYLE =
+  'margin:0 0 16px;font-size:16px;line-height:1.65;color:#1a2b40';
+const EMAIL_LINK_STYLE = 'color:#1a2b40;text-decoration:underline';
+
+/** Light markdown on already-escaped text: **bold**, *italic*. */
+function applyLightMarkdown(escaped) {
+  return String(escaped || '')
+    .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*([^*]+)\*/g, '<em>$1</em>');
+}
+
+/** Auto-link http(s) URLs in already-escaped text; strip trailing punctuation from the URL. */
+function linkifyEscapedUrls(escaped) {
+  return String(escaped || '').replace(/https?:\/\/[^\s<]+/gi, (rawUrl) => {
+    let url = rawUrl;
+    let trailing = '';
+    while (url && /[.,;:!?)\]'"”’]$/.test(url)) {
+      trailing = url.slice(-1) + trailing;
+      url = url.slice(0, -1);
+    }
+    if (!/^https?:\/\//i.test(url)) return rawUrl;
+    return `<a href="${url}" style="${EMAIL_LINK_STYLE}" target="_blank">${url}</a>${trailing}`;
+  });
+}
+
+/**
+ * Convert plain text into safe email HTML paragraphs.
+ * Escapes HTML first, then blank lines → <p>, single newlines → <br />,
+ * http(s) auto-links, and optional **bold** / *italic*.
+ */
+function plainTextToEmailHtml(text) {
+  const escaped = escapeHtml(text);
+  const blocks = escaped
+    .split(/\n{2,}/)
+    .map((block) => block.trim())
+    .filter(Boolean);
+
+  if (!blocks.length) return '';
+
+  return blocks
+    .map((block) => {
+      const withMarkdown = applyLightMarkdown(block);
+      const withLinks = linkifyEscapedUrls(withMarkdown);
+      const withBreaks = withLinks.replace(/\n/g, '<br />');
+      return `<p style="${EMAIL_PARAGRAPH_STYLE}">${withBreaks}</p>`;
+    })
+    .join('');
+}
+
 function interpolate(template, values) {
   return String(template || '').replace(/\{\{(\w+)\}\}/g, (match, key) =>
     values[key] === undefined ? match : String(values[key])
@@ -380,7 +429,8 @@ async function sendNotification(type, { to, values = {}, body = '', buttonLabel,
   const subject = interpolate(subjectTemplate, values);
   const heading = interpolate(headingTemplate, values);
   const intro = interpolate(introTemplate, values);
-  const bodyHtml = `<div style="white-space:pre-wrap;background:#f3f6fa;border-radius:14px;padding:18px">${escapeHtml(body)}</div>`;
+  const formattedBody = plainTextToEmailHtml(body);
+  const bodyHtml = `<div style="background:#f3f6fa;border-radius:14px;padding:18px">${formattedBody || `<p style="${EMAIL_PARAGRAPH_STYLE}"> </p>`}</div>`;
   const html = brandedLayout(settings, {
     heading,
     intro,
@@ -462,6 +512,7 @@ module.exports = {
   createTransport,
   escapeHtml,
   normalizeSmtpHost,
+  plainTextToEmailHtml,
   resolveEmailSettings,
   sendMail,
   sendNotification,
