@@ -1,4 +1,9 @@
 <%- include('../partials/shell-start', { bodyClass: 'portal-shell' }) %>
+<%
+  const isTrash = message && message.folderKey === 'trash';
+  const deleteConfirm = isTrash ? 'Delete forever?' : 'Move to Deleted?';
+  const deleteLabel = isTrash ? 'Delete forever' : 'Delete';
+%>
 <section class="section-sm max-w-4xl">
   <%- include('../partials/portal-nav', { backHref: '/agent/mailbox?folder=' + encodeURIComponent(activeFolder || 'INBOX'), backLabel: 'Mailbox' }) %>
 
@@ -17,6 +22,11 @@
         <% if (message.folderKey !== 'sent') { %>
           <a href="/agent/mailbox/m/<%= message.uid %>/reply?folder=<%= encodeURIComponent(activeFolder || message.folder || 'INBOX') %>" class="btn-primary">Reply</a>
         <% } %>
+        <form method="post" action="/agent/mailbox/m/<%= message.uid %>/delete" onsubmit="return confirm('<%= deleteConfirm %>');">
+          <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+          <input type="hidden" name="folder" value="<%= activeFolder || message.folder || 'INBOX' %>" />
+          <button type="submit" class="btn-destructive"><%= deleteLabel %></button>
+        </form>
       </div>
     </div>
 
@@ -50,13 +60,13 @@
       <% } %>
 
       <div class="flex flex-wrap items-center gap-3 border-t border-primary-100 pt-5">
-        <form method="post" action="/agent/mailbox/m/<%= message.uid %>/delete" onsubmit="return confirm('<%= message.folderKey === 'trash' ? 'Permanently delete this message?' : 'Move this message to Deleted?' %>');">
+        <form method="post" action="/agent/mailbox/m/<%= message.uid %>/delete" onsubmit="return confirm('<%= deleteConfirm %>');">
           <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
           <input type="hidden" name="folder" value="<%= activeFolder || message.folder || 'INBOX' %>" />
-          <button type="submit" class="btn-logout btn-sm"><%= message.folderKey === 'trash' ? 'Delete forever' : 'Delete' %></button>
+          <button type="submit" class="btn-destructive btn-sm"><%= deleteLabel %></button>
         </form>
 
-        <% if (message.folderKey === 'trash') { %>
+        <% if (isTrash) { %>
           <form method="post" action="/agent/mailbox/m/<%= message.uid %>/move">
             <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
             <input type="hidden" name="folder" value="<%= activeFolder || message.folder || 'INBOX' %>" />

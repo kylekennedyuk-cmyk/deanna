@@ -223,6 +223,25 @@ function summariseEnvelope(envelope = {}) {
   };
 }
 
+const TRASH_FOLDER_NAMES = [
+  'trash',
+  'deleted',
+  'deleted items',
+  'bin',
+  'inbox.trash',
+  'inbox.deleted',
+  'inbox.deleted items',
+];
+
+function isTrashFolderName(value) {
+  const raw = String(value || '').trim();
+  if (!raw) return false;
+  const lower = raw.toLowerCase();
+  if (TRASH_FOLDER_NAMES.includes(lower)) return true;
+  // Nested paths like INBOX/Trash, [Gmail]/Trash, INBOX.Deleted Items
+  return /(?:^|[/.\[\]])(trash|deleted(?:\s+items)?|bin)(?:$|[/.\[\]])/i.test(raw);
+}
+
 function classifyFolder(box) {
   const path = box.path || '';
   const name = String(box.name || path.split(/[/.\[]/).pop() || path).trim();
@@ -238,7 +257,7 @@ function classifyFolder(box) {
   if (special === '\\drafts' || /\bdraft/.test(lower)) {
     return { key: 'drafts', label: 'Drafts', order: 3 };
   }
-  if (special === '\\trash' || /\b(trash|deleted|bin)\b/.test(lower)) {
+  if (special === '\\trash' || isTrashFolderName(path) || isTrashFolderName(name) || /\b(trash|deleted|bin)\b/.test(lower)) {
     return { key: 'trash', label: 'Deleted', order: 4 };
   }
   if (special === '\\junk' || /\b(junk|spam)\b/.test(lower)) {
@@ -526,7 +545,32 @@ async function listFoldersViaClient(client) {
 async function findFolderPath(client, key) {
   const folders = await listFoldersViaClient(client);
   const match = folders.find((f) => f.key === key);
-  return match ? match.path : null;
+  if (match) return match.path;
+
+  if (key === 'trash') {
+    const preferred = [
+      'Trash',
+      'Deleted',
+      'INBOX.Trash',
+      'Deleted Items',
+      'INBOX.Deleted',
+      'INBOX.Deleted Items',
+      'Bin',
+    ];
+    for (const candidate of preferred) {
+      const hit = folders.find(
+        (f) =>
+          f.path === candidate ||
+          String(f.name || '').toLowerCase() === candidate.toLowerCase() ||
+          String(f.path || '').toLowerCase() === candidate.toLowerCase()
+      );
+      if (hit) return hit.path;
+    }
+    const fuzzy = folders.find((f) => isTrashFolderName(f.path) || isTrashFolderName(f.name));
+    if (fuzzy) return fuzzy.path;
+  }
+
+  return null;
 }
 
 async function moveMessage(folder, uid, targetKeyOrPath) {
@@ -566,11 +610,19 @@ async function deleteMessage(folder, uid) {
     const folders = await listFoldersViaClient(client);
     const source = normalizeFolder(folder, folders);
     const sourceMeta = folders.find((f) => f.path === source);
-    const trashPath = (await findFolderPath(client, 'trash')) || 'Trash';
+    const trashPath =
+      folders.find((f) => f.key === 'trash')?.path ||
+      folders.find((f) => isTrashFolderName(f.path) || isTrashFolderName(f.name))?.path ||
+      (await findFolderPath(client, 'trash')) ||
+      'Trash';
+    const inTrash =
+      sourceMeta?.key === 'trash' ||
+      source === trashPath ||
+      isTrashFolderName(source);
 
     const lock = await client.getMailboxLock(source);
     try {
-      if (sourceMeta?.key === 'trash' || source === trashPath) {
+      if (inTrash) {
         await client.messageDelete(String(numericUid), { uid: true });
         return { deleted: true, permanent: true, folder: source };
       }

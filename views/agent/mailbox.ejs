@@ -1,10 +1,14 @@
 <%- include('../partials/shell-start', { bodyClass: 'portal-shell' }) %>
 <%
-  const folderLabel = (sidebar.primary.concat(sidebar.other || []).find(function(f) { return f.path === activeFolder; }) || {}).label || activeFolder || 'Inbox';
+  const activeMeta = (sidebar.primary.concat(sidebar.other || []).find(function(f) { return f.path === activeFolder; }) || {});
+  const folderLabel = activeMeta.label || activeFolder || 'Inbox';
+  const isTrashFolder = activeMeta.key === 'trash';
   const peerLabel = function(msg) {
     if (/sent|draft/i.test(folderLabel)) return msg.to || msg.from;
     return msg.from;
   };
+  const deleteConfirm = isTrashFolder ? 'Delete forever?' : 'Move to Deleted?';
+  const deleteLabel = isTrashFolder ? 'Delete forever' : 'Delete';
 %>
 <section class="section-sm">
   <%- include('../partials/portal-nav', { backHref: '/agent', backLabel: 'Agent home' }) %>
@@ -57,16 +61,28 @@
         <div class="card text-primary-600">This folder is empty.</div>
       <% } %>
       <% messages.forEach(function(msg) { %>
-        <a href="/agent/mailbox/m/<%= msg.uid %>?folder=<%= encodeURIComponent(activeFolder || 'INBOX') %>" class="card-hover card-accent block <%= msg.unseen ? 'border-secondary-200 bg-secondary-50/40' : '' %>">
-          <div class="flex flex-wrap items-center justify-between gap-2">
-            <div class="text-sm font-semibold text-primary-950">
-              <% if (msg.unseen) { %><span class="mr-2 inline-block h-2 w-2 rounded-full bg-secondary-600" aria-hidden="true"></span><% } %>
-              <%= peerLabel(msg) %>
+        <div class="card-hover card-accent flex flex-wrap items-center gap-3 <%= msg.unseen ? 'border-secondary-200 bg-secondary-50/40' : '' %>">
+          <a href="/agent/mailbox/m/<%= msg.uid %>?folder=<%= encodeURIComponent(activeFolder || 'INBOX') %>" class="min-w-0 flex-1">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <div class="text-sm font-semibold text-primary-950">
+                <% if (msg.unseen) { %><span class="mr-2 inline-block h-2 w-2 rounded-full bg-secondary-600" aria-hidden="true"></span><% } %>
+                <%= peerLabel(msg) %>
+              </div>
+              <div class="text-xs text-primary-500"><%= msg.date ? formatDateTime(msg.date) : '' %></div>
             </div>
-            <div class="text-xs text-primary-500"><%= msg.date ? formatDateTime(msg.date) : '' %></div>
-          </div>
-          <div class="mt-1 font-medium text-primary-900"><%= msg.subject %></div>
-        </a>
+            <div class="mt-1 font-medium text-primary-900"><%= msg.subject %></div>
+          </a>
+          <form
+            method="post"
+            action="/agent/mailbox/m/<%= msg.uid %>/delete"
+            class="shrink-0"
+            onsubmit="return confirm('<%= deleteConfirm %>');"
+          >
+            <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+            <input type="hidden" name="folder" value="<%= activeFolder || 'INBOX' %>" />
+            <button type="submit" class="btn-destructive btn-sm"><%= deleteLabel %></button>
+          </form>
+        </div>
       <% }) %>
       <% if (total) { %>
         <p class="pt-2 text-sm text-primary-500">Showing <%= messages.length %> of <%= total %> messages.</p>
