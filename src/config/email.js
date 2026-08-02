@@ -295,11 +295,12 @@ function brandedLayout(settings, { heading, intro, bodyHtml, buttonLabel, button
       )
     : '';
   // Keep natural aspect ratio — many email clients stretch imgs without height:auto + width:auto.
+  // White padding box around the logo so dark-mode clients keep it readable.
   const logo = logoSrc
-    ? `<table role="presentation" cellpadding="0" cellspacing="0" border="0" align="center" style="margin:0 auto 20px"><tr><td align="center" style="text-align:center">
+    ? `<table role="presentation" cellpadding="0" cellspacing="0" border="0" align="center" bgcolor="#ffffff" style="margin:0 auto;background-color:#ffffff"><tr><td align="center" bgcolor="#ffffff" style="background-color:#ffffff;text-align:center;padding:8px 16px">
         <img src="${logoSrc}" alt="${escapeHtml(settings.siteName)}" width="200" style="display:block;margin:0 auto;border:0;outline:none;text-decoration:none;-ms-interpolation-mode:bicubic;width:auto;max-width:200px;height:auto;max-height:72px" />
       </td></tr></table>`
-    : `<div style="font-family:Georgia,serif;font-size:28px;font-weight:700;color:#1a2b40;text-align:center;margin-bottom:20px">${escapeHtml(settings.siteName)}</div>`;
+    : `<div style="font-family:Georgia,serif;font-size:28px;font-weight:700;color:#1a2b40;text-align:center;background-color:#ffffff">${escapeHtml(settings.siteName)}</div>`;
 
   const button =
     buttonLabel && buttonUrl
@@ -314,7 +315,11 @@ function brandedLayout(settings, { heading, intro, bodyHtml, buttonLabel, button
 <html><body style="margin:0;background:#fbf8f3;font-family:Arial,sans-serif;color:#1a2b40">
   <div style="padding:32px 16px">
     <div style="max-width:640px;margin:0 auto;background:#fff;border-radius:20px;overflow:hidden;box-shadow:0 10px 35px rgba(15,26,40,.08)">
-      <div style="padding:36px 36px 20px;text-align:center">${logo}</div>
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#ffffff" style="background-color:#ffffff;width:100%">
+        <tr>
+          <td align="center" bgcolor="#ffffff" style="background-color:#ffffff;padding:36px 36px 20px;text-align:center">${logo}</td>
+        </tr>
+      </table>
       <div style="padding:0 36px 36px">
         <h1 style="font-family:Georgia,serif;font-size:32px;line-height:1.2;margin:0 0 16px;color:#1a2b40">${escapeHtml(heading)}</h1>
         ${introHtml}
