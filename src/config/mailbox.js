@@ -612,7 +612,6 @@ function brandedOutgoingHtml(settings, { subject, bodyText }) {
 
   return brandedLayout(settings, {
     heading: subject || 'Message from Destinations With Deanna',
-    intro: 'A personal note from your Disneyland Paris specialist.',
     bodyHtml,
   });
 }

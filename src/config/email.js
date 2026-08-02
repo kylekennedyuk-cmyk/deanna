@@ -305,6 +305,10 @@ function brandedLayout(settings, { heading, intro, bodyHtml, buttonLabel, button
       ? `<p style="margin:28px 0"><a href="${escapeHtml(buttonUrl)}" style="display:inline-block;background:${escapeHtml(settings.primaryColour)};color:#fff;text-decoration:none;padding:13px 24px;border-radius:999px;font-weight:700">${escapeHtml(buttonLabel)}</a></p>`
       : '';
 
+  const introHtml = String(intro || '').trim()
+    ? `<p style="font-size:16px;line-height:1.65;color:#3d5b79;margin:0 0 20px">${escapeHtml(intro)}</p>`
+    : '';
+
   return `<!doctype html>
 <html><body style="margin:0;background:#fbf8f3;font-family:Arial,sans-serif;color:#1a2b40">
   <div style="padding:32px 16px">
@@ -312,7 +316,7 @@ function brandedLayout(settings, { heading, intro, bodyHtml, buttonLabel, button
       <div style="padding:36px 36px 20px;text-align:center">${logo}</div>
       <div style="padding:0 36px 36px">
         <h1 style="font-family:Georgia,serif;font-size:32px;line-height:1.2;margin:0 0 16px;color:#1a2b40">${escapeHtml(heading)}</h1>
-        <p style="font-size:16px;line-height:1.65;color:#3d5b79;margin:0 0 20px">${escapeHtml(intro)}</p>
+        ${introHtml}
         <div style="font-size:16px;line-height:1.65;color:#1a2b40">${bodyHtml}</div>
         ${button}
       </div>
