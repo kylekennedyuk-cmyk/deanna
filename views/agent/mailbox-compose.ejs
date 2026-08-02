@@ -9,7 +9,7 @@
 
   <% if (error) { %><div class="mb-5 rounded-card border border-danger-100 bg-danger-50 px-4 py-3 text-danger-700" role="alert"><%= error %></div><% } %>
 
-  <form method="post" action="/agent/mailbox/send" class="card space-y-4">
+  <form method="post" action="/agent/mailbox/send?_csrf=<%= encodeURIComponent(csrfToken) %>" enctype="multipart/form-data" class="card space-y-4">
     <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
     <input type="hidden" name="mode" value="<%= mode %>" />
     <input type="hidden" name="folder" value="<%= form.folder || activeFolder || 'INBOX' %>" />
@@ -32,6 +32,11 @@
       <label class="label" for="body">Message</label>
       <textarea class="field min-h-[260px]" id="body" name="body"><%= form.body || '' %></textarea>
       <p class="help">Your message is wrapped in the branded email layout with logo and signature when sent.</p>
+    </div>
+    <div>
+      <label class="label" for="attachments">Attachments <span class="font-normal text-primary-500">(optional)</span></label>
+      <input class="field" id="attachments" name="attachments" type="file" multiple />
+      <p class="help">Up to 5 files, 10MB each. Allowed: PDF, images, Office (Word/Excel/PowerPoint), text/CSV, and zip. Files are sent with the email only — not stored on the server. Drafts ignore attachments.</p>
     </div>
 
     <div class="flex flex-wrap gap-2 pt-2">

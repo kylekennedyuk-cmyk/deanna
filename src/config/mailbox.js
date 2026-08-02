@@ -616,15 +616,32 @@ function brandedOutgoingHtml(settings, { subject, bodyText }) {
   });
 }
 
-function buildMime({ from, to, cc, subject, text, html, inReplyTo, references, draft = false }) {
-  const boundary = `dwd_${Date.now().toString(16)}`;
+function sanitizeMimeFilename(name) {
+  return String(name || 'attachment')
+    .replace(/[\r\n"\\]/g, '_')
+    .replace(/[^\w.\- ()[\]]+/g, '_')
+    .slice(0, 180) || 'attachment';
+}
+
+function encodeBase64Lines(buffer) {
+  return Buffer.from(buffer).toString('base64').replace(/.{1,76}/g, (line) => `${line}\r\n`);
+}
+
+function buildMime({ from, to, cc, subject, text, html, inReplyTo, references, draft = false, attachments = [] }) {
+  const files = Array.isArray(attachments) ? attachments.filter((a) => a && a.content) : [];
+  const hasAttachments = files.length > 0;
+  const altBoundary = `dwd_alt_${Date.now().toString(16)}`;
+  const mixedBoundary = `dwd_mix_${Date.now().toString(16)}a`;
+
   const headers = [
     `From: ${from}`,
     `To: ${to}`,
     cc ? `Cc: ${cc}` : null,
     `Subject: ${subject}`,
     `MIME-Version: 1.0`,
-    `Content-Type: multipart/alternative; boundary="${boundary}"`,
+    hasAttachments
+      ? `Content-Type: multipart/mixed; boundary="${mixedBoundary}"`
+      : `Content-Type: multipart/alternative; boundary="${altBoundary}"`,
     `Date: ${new Date().toUTCString()}`,
     draft ? 'X-Draft: yes' : null,
     inReplyTo ? `In-Reply-To: ${inReplyTo}` : null,
@@ -633,7 +650,25 @@ function buildMime({ from, to, cc, subject, text, html, inReplyTo, references, d
     .filter(Boolean)
     .join('\r\n');
 
-  return `${headers}\r\n\r\n--${boundary}\r\nContent-Type: text/plain; charset=utf-8\r\nContent-Transfer-Encoding: 7bit\r\n\r\n${text}\r\n\r\n--${boundary}\r\nContent-Type: text/html; charset=utf-8\r\nContent-Transfer-Encoding: 7bit\r\n\r\n${html}\r\n\r\n--${boundary}--\r\n`;
+  const altPart = `--${altBoundary}\r\nContent-Type: text/plain; charset=utf-8\r\nContent-Transfer-Encoding: 7bit\r\n\r\n${text}\r\n\r\n--${altBoundary}\r\nContent-Type: text/html; charset=utf-8\r\nContent-Transfer-Encoding: 7bit\r\n\r\n${html}\r\n\r\n--${altBoundary}--`;
+
+  if (!hasAttachments) {
+    return `${headers}\r\n\r\n${altPart}\r\n`;
+  }
+
+  let body = `--${mixedBoundary}\r\nContent-Type: multipart/alternative; boundary="${altBoundary}"\r\n\r\n${altPart}\r\n`;
+  for (const file of files) {
+    const filename = sanitizeMimeFilename(file.filename);
+    const contentType = String(file.contentType || 'application/octet-stream').replace(/[\r\n]/g, '');
+    const content = Buffer.isBuffer(file.content) ? file.content : Buffer.from(file.content);
+    body += `\r\n--${mixedBoundary}\r\n`;
+    body += `Content-Type: ${contentType}; name="${filename}"\r\n`;
+    body += `Content-Transfer-Encoding: base64\r\n`;
+    body += `Content-Disposition: attachment; filename="${filename}"\r\n\r\n`;
+    body += encodeBase64Lines(content);
+  }
+  body += `\r\n--${mixedBoundary}--\r\n`;
+  return `${headers}\r\n\r\n${body}`;
 }
 
 async function appendToFolder(folderKey, raw, flags = []) {
@@ -650,10 +685,19 @@ function replySubject(subject) {
   return /^re:/i.test(value) ? value : `Re: ${value}`;
 }
 
-async function sendMailboxMail({ to, cc, subject, text, inReplyTo, references }) {
+async function sendMailboxMail({ to, cc, subject, text, inReplyTo, references, attachments }) {
   const settings = await resolveEmailSettings();
   const html = brandedOutgoingHtml(settings, { subject, bodyText: text });
   const from = `"${settings.fromName}" <${settings.fromEmail}>`;
+  const mailAttachments = Array.isArray(attachments)
+    ? attachments
+        .filter((a) => a && a.content)
+        .map((a) => ({
+          filename: a.filename || 'attachment',
+          content: a.content,
+          contentType: a.contentType || undefined,
+        }))
+    : [];
 
   const result = await sendMail({
     to,
@@ -663,6 +707,7 @@ async function sendMailboxMail({ to, cc, subject, text, inReplyTo, references })
     html,
     inReplyTo: inReplyTo || undefined,
     references: references || undefined,
+    attachments: mailAttachments.length ? mailAttachments : undefined,
   });
   if (result && result.skipped) return { skipped: true, reason: result.reason };
 
@@ -676,6 +721,7 @@ async function sendMailboxMail({ to, cc, subject, text, inReplyTo, references })
       html,
       inReplyTo,
       references,
+      attachments: mailAttachments,
     });
     await appendToFolder('sent', raw, ['\\Seen']);
   } catch (err) {

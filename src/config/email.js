@@ -237,6 +237,7 @@ async function sendMailOnce(transport, settings, payload) {
     html: payload.html,
     inReplyTo: payload.inReplyTo || undefined,
     references: payload.references || undefined,
+    attachments: payload.attachments && payload.attachments.length ? payload.attachments : undefined,
   });
 }
 

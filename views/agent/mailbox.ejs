@@ -21,7 +21,7 @@
   </div>
 
   <% if (sent) { %><div class="mb-5 rounded-card border border-success-100 bg-success-50 px-4 py-3 text-success-700">Email sent and saved to Sent.</div><% } %>
-  <% if (saved) { %><div class="mb-5 rounded-card border border-success-100 bg-success-50 px-4 py-3 text-success-700">Draft saved.</div><% } %>
+  <% if (saved) { %><div class="mb-5 rounded-card border border-success-100 bg-success-50 px-4 py-3 text-success-700">Draft saved.<% if (typeof attachIgnored !== 'undefined' && attachIgnored) { %> Attachments were not saved with the draft — attach them when you send.<% } %></div><% } %>
   <% if (deleted) { %><div class="mb-5 rounded-card border border-success-100 bg-success-50 px-4 py-3 text-success-700">Message deleted.</div><% } %>
   <% if (error) { %><div class="mb-5 rounded-card border border-danger-100 bg-danger-50 px-4 py-3 text-danger-700" role="alert"><%= error %></div><% } %>
 

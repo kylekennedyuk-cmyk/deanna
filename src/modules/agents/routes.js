@@ -24,9 +24,27 @@ const { streamPlanPdf } = require('../../utils/brandedPdf');
 const { requireRole } = require('../../middleware/auth');
 const { resolveHomeSections } = require('../../content/homeDefaults');
 const { jsonUploadHandler, listMediaJson } = require('../../utils/mediaUpload');
+const { mailboxAttachments, mailboxUploadError } = require('../../utils/mailboxUpload');
 
 const router = express.Router();
 router.use(requireRole(['agent', 'admin']));
+
+function clearMailboxAttachmentBuffers(files) {
+  if (!Array.isArray(files)) return;
+  for (const file of files) {
+    if (file) file.buffer = null;
+  }
+  files.length = 0;
+}
+
+function mapMailboxAttachments(files) {
+  if (!Array.isArray(files) || !files.length) return [];
+  return files.map((file) => ({
+    filename: file.originalname || 'attachment',
+    content: file.buffer,
+    contentType: file.mimetype || 'application/octet-stream',
+  }));
+}
 
 /** Public content pages agents may edit without full admin access. */
 const AGENT_EDITABLE_SLUGS = [
@@ -681,6 +699,7 @@ router.get('/mailbox', async (req, res) => {
   const sent = req.query.sent === '1';
   const saved = req.query.saved === '1';
   const deleted = req.query.deleted === '1';
+  const attachIgnored = req.query.attachIgnored === '1';
   try {
     const result = await listMessages(folder, { limit: 60 });
     messages = result.messages || [];
@@ -708,6 +727,7 @@ router.get('/mailbox', async (req, res) => {
     sent,
     saved,
     deleted,
+    attachIgnored,
     account: process.env.SMTP_FROM_EMAIL || process.env.SMTP_USER || process.env.IMAP_USER || '',
   });
 });
@@ -810,7 +830,30 @@ router.post('/mailbox/m/:uid/move', async (req, res) => {
   }
 });
 
-router.post('/mailbox/send', async (req, res) => {
+router.post('/mailbox/send', (req, res, next) => {
+  mailboxAttachments(req, res, (err) => {
+    if (err) {
+      const mode = String((req.body && req.body.mode) || 'compose');
+      const folder = String((req.body && req.body.folder) || 'INBOX').trim() || 'INBOX';
+      return res.status(400).render('agent/mailbox-compose', {
+        title: mode === 'reply' ? 'Reply' : 'Compose email',
+        mode,
+        error: mailboxUploadError(err),
+        activeFolder: folder,
+        form: {
+          to: String((req.body && req.body.to) || ''),
+          cc: String((req.body && req.body.cc) || ''),
+          subject: String((req.body && req.body.subject) || ''),
+          body: String((req.body && req.body.body) || ''),
+          inReplyTo: String((req.body && req.body.inReplyTo) || ''),
+          references: String((req.body && req.body.references) || ''),
+          folder,
+        },
+      });
+    }
+    return next();
+  });
+}, async (req, res) => {
   const to = String(req.body.to || '').trim();
   const cc = String(req.body.cc || '').trim();
   const subject = String(req.body.subject || '').trim();
@@ -820,14 +863,18 @@ router.post('/mailbox/send', async (req, res) => {
   const mode = String(req.body.mode || 'compose');
   const folder = String(req.body.folder || 'INBOX').trim() || 'INBOX';
   const action = String(req.body.action || 'send');
+  const uploadedFiles = Array.isArray(req.files) ? req.files : [];
+  const hadAttachments = uploadedFiles.length > 0;
 
   const form = { to, cc, subject, body, inReplyTo, references, folder };
 
   if (action === 'draft') {
+    clearMailboxAttachmentBuffers(uploadedFiles);
     try {
       const draft = await saveDraft({ to, cc, subject, text: body });
+      const attachQ = hadAttachments ? '&attachIgnored=1' : '';
       return res.redirect(
-        `/agent/mailbox?folder=${encodeURIComponent(draft.folder || 'Drafts')}&saved=1`
+        `/agent/mailbox?folder=${encodeURIComponent(draft.folder || 'Drafts')}&saved=1${attachQ}`
       );
     } catch (err) {
       return res.render('agent/mailbox-compose', {
@@ -841,6 +888,7 @@ router.post('/mailbox/send', async (req, res) => {
   }
 
   if (!to || !subject || !body) {
+    clearMailboxAttachmentBuffers(uploadedFiles);
     return res.render('agent/mailbox-compose', {
       title: mode === 'reply' ? 'Reply' : 'Compose email',
       mode,
@@ -849,6 +897,10 @@ router.post('/mailbox/send', async (req, res) => {
       form,
     });
   }
+
+  const attachments = mapMailboxAttachments(uploadedFiles);
+  // Drop multer file refs; attachment buffers stay alive until send finishes.
+  if (req.files) req.files = [];
 
   try {
     // Send in the background so compose doesn't hang on slow SMTP.
@@ -863,14 +915,25 @@ router.post('/mailbox/send', async (req, res) => {
             text: body,
             inReplyTo: inReplyTo || undefined,
             references: references || undefined,
+            attachments: attachments.length ? attachments : undefined,
           })
         )
         .catch((err) => {
           console.error('[mailbox send]', err && err.message ? err.message : err);
+        })
+        .finally(() => {
+          for (const attachment of attachments) {
+            if (attachment) attachment.content = null;
+          }
+          attachments.length = 0;
         });
     });
     return res.redirect('/agent/mailbox?folder=Sent&sent=1');
   } catch (err) {
+    for (const attachment of attachments) {
+      if (attachment) attachment.content = null;
+    }
+    attachments.length = 0;
     return res.render('agent/mailbox-compose', {
       title: mode === 'reply' ? 'Reply' : 'Compose email',
       mode,
