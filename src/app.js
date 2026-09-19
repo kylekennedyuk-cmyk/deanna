@@ -192,6 +192,7 @@ function createApp() {
       res.locals.currentUser = req.user || null;
       res.locals.csrfToken = req.csrfToken ? req.csrfToken() : generateToken(req);
       res.locals.appUrl = process.env.APP_URL || '';
+      res.locals.currentPath = req.path || '';
       // Badge counts must never break page rendering (schema drift / IMAP / SQLITE_BUSY).
       // Mailbox IMAP is NEVER opened here — only a warm in-process cache (else 0).
       // IMAP refresh happens on /agent/mailbox routes via refreshBadgeCounts({ refreshMailbox: true }).

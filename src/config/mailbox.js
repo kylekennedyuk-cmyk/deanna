@@ -58,24 +58,31 @@ function textFromParsed(parsed) {
   );
 }
 
-/** Soften inbound HTML for iframe display (scripts blocked by sandbox too). */
+/** Soften inbound HTML for display (no scripts / embeds). */
 function sanitizeEmailHtml(html) {
   return String(html || '')
     .replace(/<script[\s\S]*?<\/script>/gi, '')
     .replace(/<iframe[\s\S]*?<\/iframe>/gi, '')
     .replace(/<object[\s\S]*?<\/object>/gi, '')
     .replace(/<embed[\s\S]*?>/gi, '')
+    .replace(/<base\b[^>]*>/gi, '')
     .replace(/\son\w+\s*=\s*(['"])[\s\S]*?\1/gi, '')
     .replace(/\son\w+\s*=\s*[^\s>]+/gi, '')
     .replace(/javascript:/gi, '')
     .replace(/data:text\/html/gi, 'data:blocked');
 }
 
-/** Encode HTML for use in an iframe srcdoc="..." attribute. */
-function htmlToSrcdocAttr(html) {
-  return String(html || '')
-    .replace(/&/g, '&amp;')
-    .replace(/"/g, '&quot;');
+/** Prefer <body> contents so full documents can render inside a page div. */
+function extractEmailBodyHtml(html) {
+  const raw = String(html || '').trim();
+  if (!raw) return '';
+  const bodyMatch = raw.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
+  if (bodyMatch) return bodyMatch[1].trim();
+  return raw
+    .replace(/<!doctype[^>]*>/gi, '')
+    .replace(/<\/?html[^>]*>/gi, '')
+    .replace(/<\/?head[^>]*>[\s\S]*?<\/head>/gi, '')
+    .trim();
 }
 
 async function resolveImapSettings() {
@@ -517,7 +524,7 @@ async function getMessage(folder, uid) {
       const parsed = await simpleParser(msg.source);
       const text = textFromParsed(parsed);
       const rawHtml = String(parsed.html || '').trim();
-      const html = rawHtml ? sanitizeEmailHtml(rawHtml) : '';
+      const html = rawHtml ? sanitizeEmailHtml(extractEmailBodyHtml(rawHtml)) : '';
       const folderMeta = folders.find((f) => f.path === path);
 
       if (!(msg.flags && msg.flags.has('\\Seen'))) {
@@ -556,7 +563,6 @@ async function getMessage(folder, uid) {
           : '',
         text,
         html,
-        htmlSrcdoc: html ? htmlToSrcdocAttr(html) : '',
         draft: Boolean(msg.flags && msg.flags.has('\\Draft')),
         attachments: (parsed.attachments || []).map((file) => ({
           filename: file.filename || 'attachment',

@@ -1,57 +1,97 @@
 <%
   const role = currentUser && currentUser.role;
   const portalHome = role === 'admin' ? '/admin' : (role === 'agent' ? '/agent' : '/customer');
-  const portalLabel = role === 'admin' ? 'Admin dashboard' : (role === 'agent' ? 'Agent dashboard' : 'My dashboard');
+  const portalLabel = role === 'admin' ? 'Admin' : (role === 'agent' ? 'Agent' : 'My dashboard');
   const counts = typeof badgeCounts !== 'undefined' && badgeCounts ? badgeCounts : { messages: 0, plans: 0, mailbox: 0, changeRequests: 0, total: 0 };
+  const pathNow = typeof currentPath !== 'undefined' && currentPath ? String(currentPath) : '';
+  function portalActive(href) {
+    if (!pathNow || !href) return false;
+    if (href === '/admin' || href === '/agent' || href === '/customer') return pathNow === href;
+    return pathNow === href || pathNow.indexOf(href + '/') === 0 || pathNow.indexOf(href + '?') === 0;
+  }
+  const workspaceCount = (counts.plans || 0) + (counts.messages || 0) + (counts.mailbox || 0);
+  const manageCount = counts.changeRequests || 0;
 %>
-<nav class="mb-6 flex flex-wrap items-center gap-2 border-b border-primary-100/80 pb-4" aria-label="Portal">
-  <a href="<%= portalHome %>" class="btn-ghost btn-sm">
-    ← <%= portalLabel %>
-    <%- include('count-badge', { count: counts.total, label: counts.total + ' total notifications' }) %>
-  </a>
-  <% if (typeof backHref !== 'undefined' && backHref) { %>
-    <a href="<%= backHref %>" class="btn-ghost btn-sm">← <%= typeof backLabel !== 'undefined' && backLabel ? backLabel : 'Back' %></a>
-  <% } %>
-  <% if (role === 'admin') { %>
-    <a href="/admin/pages" class="btn-ghost btn-sm">Pages</a>
-    <a href="/agent/site" class="btn-ghost btn-sm">Site content</a>
-    <a href="/admin/users" class="btn-ghost btn-sm">Users</a>
-    <a href="/admin/settings" class="btn-ghost btn-sm">Settings</a>
-    <a href="/admin/notifications" class="btn-ghost btn-sm">Email</a>
-    <a href="/admin/change-requests" class="btn-ghost btn-sm">
-      Site changes
-      <%- include('count-badge', { count: counts.changeRequests, label: counts.changeRequests + ' open site change requests' }) %>
-    </a>
-    <a href="/agent" class="btn-ghost btn-sm">Agent workspace</a>
-    <a href="/agent/plans?filter=active" class="btn-ghost btn-sm">
-      Plans
-      <%- include('count-badge', { count: counts.plans, label: counts.plans + ' plans needing action' }) %>
-    </a>
-    <a href="/agent/inbox" class="btn-ghost btn-sm">
-      Inbox
-      <%- include('count-badge', { count: counts.messages, label: counts.messages + ' unread plan messages' }) %>
-    </a>
-    <a href="/agent/mailbox" class="btn-ghost btn-sm">
-      Mailbox
-      <%- include('count-badge', { count: counts.mailbox, label: counts.mailbox + ' unread emails' }) %>
-    </a>
-    <a href="/agent/password" class="btn-ghost btn-sm">Password</a>
-  <% } else if (role === 'agent') { %>
-    <a href="/agent/site" class="btn-ghost btn-sm">Edit site</a>
-    <a href="/agent/plans?filter=active" class="btn-ghost btn-sm">
-      Plans
-      <%- include('count-badge', { count: counts.plans, label: counts.plans + ' plans needing action' }) %>
-    </a>
-    <a href="/agent/inbox" class="btn-ghost btn-sm">
-      Inbox
-      <%- include('count-badge', { count: counts.messages, label: counts.messages + ' unread plan messages' }) %>
-    </a>
-    <a href="/agent/mailbox" class="btn-ghost btn-sm">
-      Mailbox
-      <%- include('count-badge', { count: counts.mailbox, label: counts.mailbox + ' unread emails' }) %>
-    </a>
-    <a href="/agent/change-requests" class="btn-ghost btn-sm">Site changes</a>
-    <a href="/agent/password" class="btn-ghost btn-sm">Password</a>
-  <% } %>
-  <a href="/" class="btn-ghost btn-sm ml-auto">View website</a>
+<nav class="portal-nav" aria-label="Portal">
+  <div class="portal-nav__bar">
+    <div class="portal-nav__primary">
+      <a href="<%= portalHome %>" class="portal-nav__link<%= portalActive(portalHome) ? ' is-active' : '' %>">
+        <%= portalLabel %>
+        <%- include('count-badge', { count: counts.total, label: counts.total + ' total notifications', compact: true }) %>
+      </a>
+
+      <% if (typeof backHref !== 'undefined' && backHref) { %>
+        <a href="<%= backHref %>" class="portal-nav__link portal-nav__link--muted">← <%= typeof backLabel !== 'undefined' && backLabel ? backLabel : 'Back' %></a>
+      <% } %>
+
+      <% if (role === 'admin' || role === 'agent') { %>
+        <% if (role === 'admin') { %>
+          <div class="portal-menu" data-portal-menu>
+            <button type="button" class="portal-menu__trigger" aria-expanded="false" aria-haspopup="true" data-portal-menu-trigger>
+              Website
+              <span class="portal-menu__chevron" aria-hidden="true"></span>
+            </button>
+            <div class="portal-menu__panel" role="menu" hidden data-portal-menu-panel>
+              <a href="/admin/pages" class="portal-menu__item<%= portalActive('/admin/pages') ? ' is-active' : '' %>" role="menuitem">Pages</a>
+              <a href="/agent/site" class="portal-menu__item<%= portalActive('/agent/site') ? ' is-active' : '' %>" role="menuitem">Site content</a>
+              <a href="/admin/media" class="portal-menu__item<%= portalActive('/admin/media') ? ' is-active' : '' %>" role="menuitem">Media</a>
+              <a href="/admin/navigation" class="portal-menu__item<%= portalActive('/admin/navigation') ? ' is-active' : '' %>" role="menuitem">Navigation</a>
+            </div>
+          </div>
+        <% } else { %>
+          <a href="/agent/site" class="portal-nav__link<%= portalActive('/agent/site') ? ' is-active' : '' %>">Edit site</a>
+        <% } %>
+
+        <div class="portal-menu" data-portal-menu>
+          <button type="button" class="portal-menu__trigger" aria-expanded="false" aria-haspopup="true" data-portal-menu-trigger>
+            Workspace
+            <%- include('count-badge', { count: workspaceCount, label: workspaceCount + ' workspace notifications', compact: true }) %>
+            <span class="portal-menu__chevron" aria-hidden="true"></span>
+          </button>
+          <div class="portal-menu__panel" role="menu" hidden data-portal-menu-panel>
+            <% if (role === 'admin') { %>
+              <a href="/agent" class="portal-menu__item<%= portalActive('/agent') ? ' is-active' : '' %>" role="menuitem">Agent home</a>
+            <% } %>
+            <a href="/agent/plans?filter=active" class="portal-menu__item<%= portalActive('/agent/plans') ? ' is-active' : '' %>" role="menuitem">
+              Plans
+              <%- include('count-badge', { count: counts.plans, label: counts.plans + ' plans needing action', compact: true }) %>
+            </a>
+            <a href="/agent/inbox" class="portal-menu__item<%= portalActive('/agent/inbox') ? ' is-active' : '' %>" role="menuitem">
+              Inbox
+              <%- include('count-badge', { count: counts.messages, label: counts.messages + ' unread plan messages', compact: true }) %>
+            </a>
+            <a href="/agent/mailbox" class="portal-menu__item<%= portalActive('/agent/mailbox') ? ' is-active' : '' %>" role="menuitem">
+              Mailbox
+              <%- include('count-badge', { count: counts.mailbox, label: counts.mailbox + ' unread emails', compact: true }) %>
+            </a>
+          </div>
+        </div>
+
+        <div class="portal-menu" data-portal-menu>
+          <button type="button" class="portal-menu__trigger" aria-expanded="false" aria-haspopup="true" data-portal-menu-trigger>
+            <%= role === 'admin' ? 'Manage' : 'More' %>
+            <%- include('count-badge', { count: manageCount, label: manageCount + ' open site change requests', compact: true }) %>
+            <span class="portal-menu__chevron" aria-hidden="true"></span>
+          </button>
+          <div class="portal-menu__panel" role="menu" hidden data-portal-menu-panel>
+            <% if (role === 'admin') { %>
+              <a href="/admin/users" class="portal-menu__item<%= portalActive('/admin/users') ? ' is-active' : '' %>" role="menuitem">Users</a>
+              <a href="/admin/settings" class="portal-menu__item<%= portalActive('/admin/settings') ? ' is-active' : '' %>" role="menuitem">Settings</a>
+              <a href="/admin/notifications" class="portal-menu__item<%= portalActive('/admin/notifications') ? ' is-active' : '' %>" role="menuitem">Email</a>
+              <a href="/admin/change-requests" class="portal-menu__item<%= portalActive('/admin/change-requests') ? ' is-active' : '' %>" role="menuitem">
+                Site changes
+                <%- include('count-badge', { count: counts.changeRequests, label: counts.changeRequests + ' open site change requests', compact: true }) %>
+              </a>
+              <a href="/admin/deals" class="portal-menu__item<%= portalActive('/admin/deals') ? ' is-active' : '' %>" role="menuitem">Deals</a>
+            <% } else { %>
+              <a href="/agent/change-requests" class="portal-menu__item<%= portalActive('/agent/change-requests') ? ' is-active' : '' %>" role="menuitem">Site changes</a>
+            <% } %>
+            <a href="/agent/password" class="portal-menu__item<%= portalActive('/agent/password') ? ' is-active' : '' %>" role="menuitem">Password</a>
+          </div>
+        </div>
+      <% } %>
+    </div>
+
+    <a href="/" class="portal-nav__link portal-nav__link--end">View website</a>
+  </div>
 </nav>

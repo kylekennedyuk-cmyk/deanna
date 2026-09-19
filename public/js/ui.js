@@ -249,7 +249,6 @@
       if (protocol !== 'http:' && protocol !== 'https:') return true;
       const host = url.hostname.toLowerCase();
       if (trustedHosts.has(host)) return false;
-      // Treat apex/www as the same site when either is trusted.
       const bare = host.replace(/^www\./, '');
       if (trustedHosts.has(bare) || trustedHosts.has(`www.${bare}`)) return false;
       return true;
@@ -301,100 +300,164 @@
     styleMailAnchor(anchor);
     if (!anchor.getAttribute('target')) anchor.setAttribute('target', '_blank');
     if (!anchor.getAttribute('rel')) anchor.setAttribute('rel', 'noopener noreferrer');
-    anchor.addEventListener('click', (event) => {
-      event.preventDefault();
-      event.stopPropagation();
-      openMailHref(anchor.getAttribute('href'), trustedHosts);
-    });
   }
 
-  function resizeMailFrame(frame, doc) {
-    const height = Math.max(
-      doc.body ? doc.body.scrollHeight : 0,
-      doc.documentElement ? doc.documentElement.scrollHeight : 0
-    );
-    frame.style.height = `${Math.min(Math.max(height + 24, 240), 3200)}px`;
-  }
+  const URL_IN_TEXT = /(https?:\/\/[^\s<>"']+|mailto:[^\s<>"']+|tel:[^\s<>"']+)/gi;
 
-  function enhanceMailDocument(doc, trustedHosts) {
-    if (!doc) return;
-    if (!doc.getElementById('dwd-mail-link-style')) {
-      const style = doc.createElement('style');
-      style.id = 'dwd-mail-link-style';
-      style.textContent =
-        'a[href]{color:#1a2b40!important;text-decoration:underline!important;cursor:pointer!important;pointer-events:auto!important}' +
-        'a[href]:hover{color:#845425!important}';
-      (doc.head || doc.documentElement).appendChild(style);
+  function trimUrlMatch(raw) {
+    let url = raw;
+    let trailing = '';
+    while (url && /[.,;:!?)\]'"”’]$/.test(url)) {
+      trailing = url.slice(-1) + trailing;
+      url = url.slice(0, -1);
     }
-    doc.querySelectorAll('a[href]').forEach((anchor) => bindMailAnchor(anchor, trustedHosts));
+    return { url, trailing };
   }
 
-  function initMailHtmlFrames() {
-    document.querySelectorAll('iframe.mail-html-frame').forEach((frame) => {
-      if (frame.dataset.mailFrameBound === '1') return;
-      frame.dataset.mailFrameBound = '1';
-      const trustedHosts = parseTrustedHosts(frame.dataset.trustedHosts);
+  function linkifyTextNode(textNode, trustedHosts) {
+    const text = textNode.nodeValue || '';
+    if (!text || !URL_IN_TEXT.test(text)) return;
+    URL_IN_TEXT.lastIndex = 0;
 
-      const setup = () => {
-        try {
-          const doc = frame.contentDocument || (frame.contentWindow && frame.contentWindow.document);
-          if (!doc) return;
-          enhanceMailDocument(doc, trustedHosts);
-          resizeMailFrame(frame, doc);
-        } catch {
-          /* cross-origin or empty frame */
+    const frag = document.createDocumentFragment();
+    let lastIndex = 0;
+    let match;
+    while ((match = URL_IN_TEXT.exec(text)) !== null) {
+      if (match.index > lastIndex) {
+        frag.appendChild(document.createTextNode(text.slice(lastIndex, match.index)));
+      }
+      const parts = trimUrlMatch(match[0]);
+      if (parts.url) {
+        const anchor = document.createElement('a');
+        anchor.href = parts.url;
+        anchor.textContent = parts.url;
+        bindMailAnchor(anchor, trustedHosts);
+        frag.appendChild(anchor);
+      }
+      if (parts.trailing) frag.appendChild(document.createTextNode(parts.trailing));
+      lastIndex = match.index + match[0].length;
+    }
+    if (lastIndex === 0) return;
+    if (lastIndex < text.length) {
+      frag.appendChild(document.createTextNode(text.slice(lastIndex)));
+    }
+    textNode.parentNode.replaceChild(frag, textNode);
+  }
+
+  function linkifyTree(root, trustedHosts) {
+    const skip = new Set(['A', 'SCRIPT', 'STYLE', 'TEXTAREA', 'CODE', 'PRE']);
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
+      acceptNode(node) {
+        const parent = node.parentElement;
+        if (!parent) return NodeFilter.FILTER_REJECT;
+        if (skip.has(parent.tagName)) return NodeFilter.FILTER_REJECT;
+        if (!node.nodeValue || !/https?:\/\/|mailto:|tel:/i.test(node.nodeValue)) {
+          return NodeFilter.FILTER_REJECT;
         }
-      };
+        return NodeFilter.FILTER_ACCEPT;
+      },
+    });
+    const nodes = [];
+    let current = walker.nextNode();
+    while (current) {
+      nodes.push(current);
+      current = walker.nextNode();
+    }
+    nodes.forEach((node) => linkifyTextNode(node, trustedHosts));
+  }
 
-      frame.addEventListener('load', setup);
-      setup();
+  function enhanceMailRoot(root, trustedHosts) {
+    if (!root) return;
+    linkifyTree(root, trustedHosts);
+    root.querySelectorAll('a[href]').forEach((anchor) => bindMailAnchor(anchor, trustedHosts));
+  }
+
+  function onMailLinkClick(event) {
+    const anchor = event.target.closest('a[href]');
+    if (!anchor) return;
+    const root = anchor.closest('[data-mail-html], [data-mail-plain]');
+    if (!root) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const trustedHosts = parseTrustedHosts(root.dataset.trustedHosts || '');
+    openMailHref(anchor.getAttribute('href'), trustedHosts);
+  }
+
+  function initMailHtmlBodies() {
+    document.querySelectorAll('[data-mail-html]').forEach((el) => {
+      if (el.dataset.mailHtmlBound === '1') return;
+      el.dataset.mailHtmlBound = '1';
+      const trustedHosts = parseTrustedHosts(el.dataset.trustedHosts);
+      enhanceMailRoot(el, trustedHosts);
     });
   }
 
   function linkifyPlainMail(el) {
     if (!el || el.dataset.mailPlainBound === '1') return;
     el.dataset.mailPlainBound = '1';
-    const text = el.textContent || '';
-    if (!text.trim()) return;
-
     const trustedHosts = parseTrustedHosts(el.dataset.trustedHosts || '');
-    const pattern = /(https?:\/\/[^\s<]+|mailto:[^\s<]+|tel:[^\s<]+)/gi;
-    const frag = document.createDocumentFragment();
-    let lastIndex = 0;
-    let match;
-
-    while ((match = pattern.exec(text)) !== null) {
-      if (match.index > lastIndex) {
-        frag.appendChild(document.createTextNode(text.slice(lastIndex, match.index)));
-      }
-      let url = match[0];
-      let trailing = '';
-      while (url && /[.,;:!?)\]'"”’]$/.test(url)) {
-        trailing = url.slice(-1) + trailing;
-        url = url.slice(0, -1);
-      }
-      const anchor = document.createElement('a');
-      anchor.href = url;
-      anchor.textContent = url;
-      bindMailAnchor(anchor, trustedHosts);
-      frag.appendChild(anchor);
-      if (trailing) frag.appendChild(document.createTextNode(trailing));
-      lastIndex = match.index + match[0].length;
-    }
-
-    if (lastIndex === 0) return;
-    if (lastIndex < text.length) {
-      frag.appendChild(document.createTextNode(text.slice(lastIndex)));
-    }
-    el.replaceChildren(frag);
+    linkifyTree(el, trustedHosts);
+    el.querySelectorAll('a[href]').forEach((anchor) => bindMailAnchor(anchor, trustedHosts));
   }
 
   function initPlainMailBodies() {
     document.querySelectorAll('[data-mail-plain]').forEach(linkifyPlainMail);
   }
 
-  initMailHtmlFrames();
+  document.addEventListener('click', onMailLinkClick);
+  initMailHtmlBodies();
   initPlainMailBodies();
+
+  function closePortalMenu(menu) {
+    if (!menu) return;
+    const trigger = menu.querySelector('[data-portal-menu-trigger]');
+    const panel = menu.querySelector('[data-portal-menu-panel]');
+    if (trigger) trigger.setAttribute('aria-expanded', 'false');
+    if (panel) panel.hidden = true;
+  }
+
+  function closeAllPortalMenus(except) {
+    document.querySelectorAll('[data-portal-menu]').forEach((menu) => {
+      if (except && menu === except) return;
+      closePortalMenu(menu);
+    });
+  }
+
+  function openPortalMenu(menu) {
+    closeAllPortalMenus(menu);
+    const trigger = menu.querySelector('[data-portal-menu-trigger]');
+    const panel = menu.querySelector('[data-portal-menu-panel]');
+    if (trigger) trigger.setAttribute('aria-expanded', 'true');
+    if (panel) panel.hidden = false;
+  }
+
+  function initPortalMenus() {
+    document.querySelectorAll('[data-portal-menu]').forEach((menu) => {
+      if (menu.dataset.portalMenuBound === '1') return;
+      menu.dataset.portalMenuBound = '1';
+      const trigger = menu.querySelector('[data-portal-menu-trigger]');
+      if (!trigger) return;
+
+      trigger.addEventListener('click', (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        const open = trigger.getAttribute('aria-expanded') === 'true';
+        if (open) closePortalMenu(menu);
+        else openPortalMenu(menu);
+      });
+    });
+
+    document.addEventListener('click', (event) => {
+      if (event.target.closest('[data-portal-menu]')) return;
+      closeAllPortalMenus();
+    });
+
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape') closeAllPortalMenus();
+    });
+  }
+
+  initPortalMenus();
 
   window.DWD = { showToast };
 })();

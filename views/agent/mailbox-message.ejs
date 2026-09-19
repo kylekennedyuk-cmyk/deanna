@@ -45,7 +45,7 @@
       </dl>
 
       <div class="border-t border-primary-100 pt-5">
-        <% if (message.htmlSrcdoc) { %>
+        <% if (message.html) { %>
           <%
             const trustedHostList = ['destinationswithdeanna.com', 'www.destinationswithdeanna.com'];
             try {
@@ -57,14 +57,11 @@
               return all.indexOf(host) === index;
             }).join(',');
           %>
-          <iframe
-            class="mail-html-frame"
-            title="Message body"
-            sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox"
-            referrerpolicy="no-referrer"
+          <div
+            class="mail-html-body"
+            data-mail-html
             data-trusted-hosts="<%= trustedHostsAttr %>"
-            srcdoc="<%- message.htmlSrcdoc %>"
-          ></iframe>
+          ><%- message.html %></div>
         <% } else { %>
           <div class="mail-plain-body whitespace-pre-wrap font-sans text-base leading-relaxed text-primary-900" data-mail-plain><%= message.text || '(No text content)' %></div>
         <% } %>
