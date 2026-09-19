@@ -81,15 +81,15 @@
           <span class="portal-sidebar__label">Plans</span>
           <%- include('count-badge', { count: counts.plans, label: counts.plans + ' plans needing action', compact: true }) %>
         </a>
-        <a href="/agent/inbox" class="portal-sidebar__link<%= portalActive('/agent/inbox') ? ' is-active' : '' %>">
-          <%- icon('M4 6h16v12H4V6zm0 0l8 6 8-6') %>
-          <span class="portal-sidebar__label">Inbox</span>
-          <%- include('count-badge', { count: counts.messages, label: counts.messages + ' unread plan messages', compact: true }) %>
-        </a>
         <a href="/agent/mailbox" class="portal-sidebar__link<%= portalActive('/agent/mailbox') ? ' is-active' : '' %>">
           <%- icon('M3 7a2 2 0 012-2h14a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V7zm0 1l9 6 9-6') %>
-          <span class="portal-sidebar__label">Mailbox</span>
+          <span class="portal-sidebar__label">Inbox</span>
           <%- include('count-badge', { count: counts.mailbox, label: counts.mailbox + ' unread emails', compact: true }) %>
+        </a>
+        <a href="/agent/inbox" class="portal-sidebar__link<%= portalActive('/agent/inbox') ? ' is-active' : '' %>">
+          <%- icon('M4 6h16v12H4V6zm0 0l8 6 8-6') %>
+          <span class="portal-sidebar__label">Plan messages</span>
+          <%- include('count-badge', { count: counts.messages, label: counts.messages + ' unread plan messages', compact: true }) %>
         </a>
       </div>
 

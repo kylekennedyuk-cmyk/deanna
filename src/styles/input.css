@@ -1026,6 +1026,85 @@
   min-width: 0;
 }
 
+/* Mailbox folder nav — works inside portal shell on mobile + desktop */
+.mailbox-layout {
+  display: grid;
+  gap: 1.25rem;
+}
+
+.mailbox-folders {
+  height: fit-content;
+}
+
+.mailbox-folders__heading {
+  margin: 0;
+  padding: 0 0.75rem 0.5rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--brand-primary, #1a2b40) 55%, #666);
+}
+
+.mailbox-folders__heading--more {
+  padding-top: 1rem;
+}
+
+.mailbox-folders__nav {
+  display: flex;
+  gap: 0.35rem;
+  overflow-x: auto;
+  padding-bottom: 0.15rem;
+  -webkit-overflow-scrolling: touch;
+}
+
+.mailbox-folders__link {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.55rem 0.85rem;
+  border-radius: 0.75rem;
+  color: color-mix(in srgb, var(--brand-primary, #1a2b40) 88%, #111);
+  font-size: 0.875rem;
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.mailbox-folders__link:hover {
+  background: color-mix(in srgb, var(--brand-primary, #1a2b40) 6%, #fff);
+}
+
+.mailbox-folders__link.is-active {
+  background: var(--brand-primary, #1a2b40);
+  color: #fff;
+}
+
+.mailbox-folders__link.is-active .nav-count {
+  background: #fff;
+  color: var(--brand-primary, #1a2b40);
+}
+
+@media (min-width: 1024px) {
+  .mailbox-layout {
+    grid-template-columns: 15rem minmax(0, 1fr);
+    align-items: start;
+  }
+
+  .mailbox-folders__nav {
+    flex-direction: column;
+    overflow: visible;
+  }
+
+  .mailbox-folders__link {
+    width: 100%;
+    white-space: normal;
+  }
+}
+
 @media (min-width: 1024px) {
   .portal-frame {
     overflow-x: visible;

@@ -1,6 +1,10 @@
 <%- include('../partials/shell-start', { bodyClass: 'portal-shell' }) %>
 <%
-  const activeMeta = (sidebar.primary.concat(sidebar.other || []).find(function(f) { return f.path === activeFolder; }) || {});
+  const allFolders = (sidebar.primary || []).concat(sidebar.other || []);
+  function folderActive(path) {
+    return String(path || '').toLowerCase() === String(activeFolder || '').toLowerCase();
+  }
+  const activeMeta = allFolders.find(function(f) { return folderActive(f.path); }) || {};
   const folderLabel = activeMeta.label || activeFolder || 'Inbox';
   const isTrashFolder = activeMeta.key === 'trash';
   const peerLabel = function(msg) {
@@ -13,7 +17,7 @@
 <section class="section-sm">
   <div class="mb-8 flex flex-wrap items-end justify-between gap-4">
     <div>
-      <p class="badge bg-white text-secondary-800 shadow-soft">Mailbox</p>
+      <p class="badge bg-white text-secondary-800 shadow-soft">Email inbox</p>
       <h1 class="mt-3 text-display-md"><%= folderLabel %></h1>
       <p class="mt-2 text-primary-700"><%= account || 'Destinations With Deanna mailbox' %> — folders, delete, drafts and branded send.</p>
     </div>
@@ -28,14 +32,14 @@
   <% if (deleted) { %><div class="mb-5 rounded-card border border-success-100 bg-success-50 px-4 py-3 text-success-700">Message deleted.</div><% } %>
   <% if (error) { %><div class="mb-5 rounded-card border border-danger-100 bg-danger-50 px-4 py-3 text-danger-700" role="alert"><%= error %></div><% } %>
 
-  <div class="grid gap-6 lg:grid-cols-[15rem_minmax(0,1fr)]">
-    <aside class="card h-fit p-3">
-      <p class="px-3 pb-2 text-xs font-semibold uppercase tracking-wide text-primary-500">Folders</p>
-      <nav class="space-y-1" aria-label="Mailbox folders">
+  <div class="mailbox-layout">
+    <aside class="mailbox-folders card p-3">
+      <p class="mailbox-folders__heading">Folders</p>
+      <nav class="mailbox-folders__nav" aria-label="Mailbox folders">
         <% (sidebar.primary || []).forEach(function(folder) { %>
           <a
             href="/agent/mailbox?folder=<%= encodeURIComponent(folder.path) %>"
-            class="flex items-center justify-between gap-2 rounded-xl px-3 py-2.5 text-sm font-medium transition <%= folder.path === activeFolder ? 'bg-primary-950 text-white' : 'text-primary-800 hover:bg-primary-50' %>"
+            class="mailbox-folders__link<%= folderActive(folder.path) ? ' is-active' : '' %>"
           >
             <span><%= folder.label %></span>
             <% if (folder.key === 'inbox') { %>
@@ -44,18 +48,18 @@
           </a>
         <% }) %>
         <% if (sidebar.other && sidebar.other.length) { %>
-          <p class="px-3 pb-1 pt-4 text-xs font-semibold uppercase tracking-wide text-primary-500">More</p>
+          <p class="mailbox-folders__heading mailbox-folders__heading--more">More</p>
           <% sidebar.other.forEach(function(folder) { %>
             <a
               href="/agent/mailbox?folder=<%= encodeURIComponent(folder.path) %>"
-              class="block rounded-xl px-3 py-2.5 text-sm font-medium transition <%= folder.path === activeFolder ? 'bg-primary-950 text-white' : 'text-primary-800 hover:bg-primary-50' %>"
+              class="mailbox-folders__link<%= folderActive(folder.path) ? ' is-active' : '' %>"
             ><%= folder.label %></a>
           <% }) %>
         <% } %>
       </nav>
     </aside>
 
-    <div class="space-y-3">
+    <div class="mailbox-messages space-y-3">
       <% if (!messages.length && !error) { %>
         <div class="card text-primary-600">This folder is empty.</div>
       <% } %>
