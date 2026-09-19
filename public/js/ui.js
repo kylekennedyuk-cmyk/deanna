@@ -228,5 +228,173 @@
     document.querySelectorAll('button.safe-email').forEach(paintSafeEmail);
   });
 
+  function parseTrustedHosts(raw) {
+    const hosts = new Set(
+      String(raw || '')
+        .split(',')
+        .map((h) => h.trim().toLowerCase())
+        .filter(Boolean)
+    );
+    if (window.location.hostname) hosts.add(window.location.hostname.toLowerCase());
+    hosts.add('destinationswithdeanna.com');
+    hosts.add('www.destinationswithdeanna.com');
+    return hosts;
+  }
+
+  function isExternalHttpUrl(href, trustedHosts) {
+    try {
+      const url = new URL(href, window.location.href);
+      const protocol = url.protocol.toLowerCase();
+      if (protocol === 'mailto:' || protocol === 'tel:') return false;
+      if (protocol !== 'http:' && protocol !== 'https:') return true;
+      const host = url.hostname.toLowerCase();
+      if (trustedHosts.has(host)) return false;
+      // Treat apex/www as the same site when either is trusted.
+      const bare = host.replace(/^www\./, '');
+      if (trustedHosts.has(bare) || trustedHosts.has(`www.${bare}`)) return false;
+      return true;
+    } catch {
+      return true;
+    }
+  }
+
+  function confirmExternalLink(href) {
+    return window.confirm(
+      `This link goes to an external website:\n\n${href}\n\nOnly continue if you trust the sender.\n\nOpen this link?`
+    );
+  }
+
+  function openMailHref(href, trustedHosts) {
+    const raw = String(href || '').trim();
+    if (!raw || raw.startsWith('#')) return;
+
+    let absolute = raw;
+    try {
+      absolute = new URL(raw, window.location.href).href;
+    } catch {
+      return;
+    }
+
+    const lower = absolute.toLowerCase();
+    if (lower.startsWith('mailto:') || lower.startsWith('tel:')) {
+      window.location.href = absolute;
+      return;
+    }
+
+    if (isExternalHttpUrl(absolute, trustedHosts) && !confirmExternalLink(absolute)) {
+      return;
+    }
+
+    window.open(absolute, '_blank', 'noopener,noreferrer');
+  }
+
+  function styleMailAnchor(anchor) {
+    anchor.style.color = '#1a2b40';
+    anchor.style.textDecoration = 'underline';
+    anchor.style.cursor = 'pointer';
+    anchor.style.pointerEvents = 'auto';
+  }
+
+  function bindMailAnchor(anchor, trustedHosts) {
+    if (!anchor || anchor.dataset.mailLinkBound === '1') return;
+    anchor.dataset.mailLinkBound = '1';
+    styleMailAnchor(anchor);
+    if (!anchor.getAttribute('target')) anchor.setAttribute('target', '_blank');
+    if (!anchor.getAttribute('rel')) anchor.setAttribute('rel', 'noopener noreferrer');
+    anchor.addEventListener('click', (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      openMailHref(anchor.getAttribute('href'), trustedHosts);
+    });
+  }
+
+  function resizeMailFrame(frame, doc) {
+    const height = Math.max(
+      doc.body ? doc.body.scrollHeight : 0,
+      doc.documentElement ? doc.documentElement.scrollHeight : 0
+    );
+    frame.style.height = `${Math.min(Math.max(height + 24, 240), 3200)}px`;
+  }
+
+  function enhanceMailDocument(doc, trustedHosts) {
+    if (!doc) return;
+    if (!doc.getElementById('dwd-mail-link-style')) {
+      const style = doc.createElement('style');
+      style.id = 'dwd-mail-link-style';
+      style.textContent =
+        'a[href]{color:#1a2b40!important;text-decoration:underline!important;cursor:pointer!important;pointer-events:auto!important}' +
+        'a[href]:hover{color:#845425!important}';
+      (doc.head || doc.documentElement).appendChild(style);
+    }
+    doc.querySelectorAll('a[href]').forEach((anchor) => bindMailAnchor(anchor, trustedHosts));
+  }
+
+  function initMailHtmlFrames() {
+    document.querySelectorAll('iframe.mail-html-frame').forEach((frame) => {
+      if (frame.dataset.mailFrameBound === '1') return;
+      frame.dataset.mailFrameBound = '1';
+      const trustedHosts = parseTrustedHosts(frame.dataset.trustedHosts);
+
+      const setup = () => {
+        try {
+          const doc = frame.contentDocument || (frame.contentWindow && frame.contentWindow.document);
+          if (!doc) return;
+          enhanceMailDocument(doc, trustedHosts);
+          resizeMailFrame(frame, doc);
+        } catch {
+          /* cross-origin or empty frame */
+        }
+      };
+
+      frame.addEventListener('load', setup);
+      setup();
+    });
+  }
+
+  function linkifyPlainMail(el) {
+    if (!el || el.dataset.mailPlainBound === '1') return;
+    el.dataset.mailPlainBound = '1';
+    const text = el.textContent || '';
+    if (!text.trim()) return;
+
+    const trustedHosts = parseTrustedHosts(el.dataset.trustedHosts || '');
+    const pattern = /(https?:\/\/[^\s<]+|mailto:[^\s<]+|tel:[^\s<]+)/gi;
+    const frag = document.createDocumentFragment();
+    let lastIndex = 0;
+    let match;
+
+    while ((match = pattern.exec(text)) !== null) {
+      if (match.index > lastIndex) {
+        frag.appendChild(document.createTextNode(text.slice(lastIndex, match.index)));
+      }
+      let url = match[0];
+      let trailing = '';
+      while (url && /[.,;:!?)\]'"”’]$/.test(url)) {
+        trailing = url.slice(-1) + trailing;
+        url = url.slice(0, -1);
+      }
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.textContent = url;
+      bindMailAnchor(anchor, trustedHosts);
+      frag.appendChild(anchor);
+      if (trailing) frag.appendChild(document.createTextNode(trailing));
+      lastIndex = match.index + match[0].length;
+    }
+
+    if (lastIndex === 0) return;
+    if (lastIndex < text.length) {
+      frag.appendChild(document.createTextNode(text.slice(lastIndex)));
+    }
+    el.replaceChildren(frag);
+  }
+
+  function initPlainMailBodies() {
+    document.querySelectorAll('[data-mail-plain]').forEach(linkifyPlainMail);
+  }
+
+  initMailHtmlFrames();
+  initPlainMailBodies();
+
   window.DWD = { showToast };
 })();

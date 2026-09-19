@@ -697,3 +697,13 @@
   background: #fff;
   overflow: auto;
 }
+
+.mail-plain-body a {
+  color: #1a2b40;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.mail-plain-body a:hover {
+  color: #845425;
+}
