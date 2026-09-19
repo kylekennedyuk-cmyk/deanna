@@ -288,6 +288,8 @@ function buildTransport(settings) {
   };
   // Prefer Plesk/Prime DKIM signing; env DKIM_* is an optional app-side fallback.
   if (dkim) options.dkim = dkim;
+  // Identifies this app in SMTP conversation / X-Mailer fallbacks (not a spam trick).
+  options.name = 'DestinationsWithDeanna';
   return nodemailer.createTransport(options);
 }
 
@@ -361,6 +363,49 @@ function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+/**
+ * Build headers that help Gmail/Outlook classify portal mail as transactional
+ * (not bulk marketing). Do not set Precedence: bulk or List-Unsubscribe here —
+ * those are for newsletters and can make 1:1 planning mail look like a list.
+ */
+function buildTransactionalHeaders({ fromDomain, category }) {
+  const headers = {
+    // Helps filters treat this as system mail, not a cold bulk blast.
+    'Auto-Submitted': 'auto-generated',
+    'X-Auto-Response-Suppress': 'OOF, AutoReply, DR, NRN, RN',
+    // Stable product identity (avoids generic "Nodemailer" as the only signal).
+    'X-Mailer': 'DestinationsWithDeanna-Portal',
+  };
+  if (category) {
+    headers['X-Entity-Ref-ID'] = `${category}@${fromDomain}`;
+  }
+  return headers;
+}
+
+/** Prefer a real text/plain part; strip tags from HTML only as a last resort. */
+function ensurePlainText(text, html) {
+  const plain = String(text || '').trim();
+  if (plain) return plain;
+  const fromHtml = String(html || '')
+    .replace(/<style[\s\S]*?<\/style>/gi, '')
+    .replace(/<script[\s\S]*?<\/script>/gi, '')
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/p>/gi, '\n\n')
+    .replace(/<\/h[1-6]>/gi, '\n\n')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&#039;/gi, "'")
+    .replace(/&quot;/gi, '"')
+    .replace(/[ \t]+\n/g, '\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .replace(/[ \t]{2,}/g, ' ')
+    .trim();
+  return fromHtml || 'Message from Destinations With Deanna.';
+}
+
 async function sendMailOnce(transport, settings, payload) {
   const fromEmail = resolveAlignedFromEmail(settings);
   const fromDomain = emailDomain(fromEmail) || MAIL_DOMAIN;
@@ -376,6 +421,11 @@ async function sendMailOnce(transport, settings, payload) {
     .map((part) => extractEmailAddress(part))
     .filter(Boolean);
 
+  // Human mailbox compose is person-to-person; notifications are auto-generated.
+  const isTransactional = payload.transactional !== false && payload.human !== true;
+  const text = ensurePlainText(payload.text, payload.html);
+  const html = payload.html || undefined;
+
   return transport.sendMail({
     from: `"${settings.fromName}" <${fromEmail}>`,
     replyTo: replyTo || undefined,
@@ -385,14 +435,23 @@ async function sendMailOnce(transport, settings, payload) {
       to: envelopeTo.length ? envelopeTo : undefined,
     },
     messageId,
+    date: new Date(),
     to: payload.to,
     cc: payload.cc || undefined,
     subject: payload.subject,
-    text: payload.text,
-    html: payload.html,
+    text,
+    html,
     inReplyTo: payload.inReplyTo || undefined,
     references: payload.references || undefined,
     attachments: payload.attachments && payload.attachments.length ? payload.attachments : undefined,
+    headers: isTransactional
+      ? buildTransactionalHeaders({
+          fromDomain,
+          category: payload.category || 'notification',
+        })
+      : {
+          'X-Mailer': 'DestinationsWithDeanna-Mailbox',
+        },
   });
 }
 
@@ -528,10 +587,6 @@ async function sendNotification(type, { to, values = {}, body = '', buttonLabel,
   const subjectTemplate = settings.templates[`email_${type}_subject`] || fallback.subject;
   const headingTemplate = settings.templates[`email_${type}_heading`] || fallback.heading;
   const introTemplate = settings.templates[`email_${type}_intro`] || fallback.intro;
-  const safeValues = Object.fromEntries(
-    Object.entries(values).map(([key, value]) => [key, escapeHtml(value)])
-  );
-
   const subject = interpolate(subjectTemplate, values);
   const heading = interpolate(headingTemplate, values);
   const intro = interpolate(introTemplate, values);
@@ -544,8 +599,29 @@ async function sendNotification(type, { to, values = {}, body = '', buttonLabel,
     buttonLabel,
     buttonUrl,
   });
-  const text = `${interpolate(headingTemplate, safeValues)}\n\n${interpolate(introTemplate, safeValues)}\n\n${body}\n\n${buttonUrl || ''}`;
-  return sendMail({ to, subject, text, html });
+  const text = [
+    heading,
+    '',
+    intro,
+    body ? `\n${body}` : '',
+    buttonUrl ? `\n${buttonLabel || 'Open link'}: ${buttonUrl}` : '',
+    '',
+    `—`,
+    settings.siteName,
+    resolveAlignedFromEmail(settings),
+  ]
+    .filter((line) => line !== undefined && line !== null)
+    .join('\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+  return sendMail({
+    to,
+    subject,
+    text,
+    html,
+    transactional: true,
+    category: type || 'notification',
+  });
 }
 
 /** Serial background queue so SMTP isn't hammered by parallel reconnects. */
@@ -615,9 +691,11 @@ function sendNotificationAsync(type, payload) {
 module.exports = {
   MAIL_DOMAIN,
   brandedLayout,
+  buildTransactionalHeaders,
   closeCachedTransport,
   createTransport,
   emailDomain,
+  ensurePlainText,
   escapeHtml,
   extractEmailAddress,
   normalizeSmtpHost,

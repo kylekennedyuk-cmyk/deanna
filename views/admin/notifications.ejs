@@ -54,13 +54,14 @@
       </div>
 
       <div class="mt-6 rounded-card border border-primary-100 bg-primary-50/50 p-4 text-sm text-primary-800">
-        <p class="font-semibold text-primary-950">Deliverability (SPF / DKIM / DMARC)</p>
+        <p class="font-semibold text-primary-950">Deliverability (SPF / DKIM / DMARC / Gmail)</p>
         <ul class="mt-2 list-disc space-y-1 pl-5">
-          <li>Send only as <strong>@destinationswithdeanna.com</strong> via <strong>prime.ax</strong> (SMTP host). The app sets From, Reply-To, Message-ID, and envelope From to that domain.</li>
+          <li>Send only as <strong>@destinationswithdeanna.com</strong> via <strong>prime.ax</strong> (SMTP host). The app sets From, Reply-To, Message-ID, and envelope From to that domain, with text+HTML multipart.</li>
           <li><strong>Prefer server-side DKIM</strong> in Plesk: Mail Settings → “Use DKIM spam protection…”, then publish the <code>default._domainkey</code> TXT in Cloudflare (DNS is external).</li>
           <li>App-side DKIM is optional via <code>DKIM_SELECTOR</code> + <code>DKIM_PRIVATE_KEY</code> env vars only — never paste private keys into the dashboard or git.</li>
-          <li>Hotmail/Outlook <strong>S3150</strong> blocks of IP <code>87.106.199.222</code> are a <strong>Prime.ax reputation</strong> issue; DNS/code help alignment but Prime must delist/fix the IP.</li>
-          <li>Check DNS anytime: <code>npm run mail:verify-dns</code> (no secrets). Full records: see <code>DEPLOY-PLESK.md</code> → Email authentication.</li>
+          <li><strong>Gmail spam while iCloud is fine</strong> is usually shared IP + broken PTR (<code>87.106.199.222</code> → <code>prime.sx</code>), not “missing SPF”. Ask IONOS/Prime to set PTR to <code>cp.prime.ax</code>. Verify domain in <a class="underline" href="https://postmaster.google.com/" target="_blank" rel="noopener">Google Postmaster Tools</a>.</li>
+          <li>Hotmail/Outlook <strong>S3150</strong> on IP <code>87.106.199.222</code> is a <strong>Prime.ax reputation</strong> issue; DNS/code help alignment but Prime must delist/fix the IP.</li>
+          <li>Check DNS anytime: <code>npm run mail:verify-dns</code> (no secrets; includes Gmail FCrDNS checks). Full checklist: <code>DEPLOY-PLESK.md</code> → Email authentication.</li>
         </ul>
       </div>
     </section>

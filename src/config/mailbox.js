@@ -4,7 +4,9 @@ const { decryptSecret, getSettings } = require('./settings');
 const {
   brandedLayout,
   escapeHtml,
+  extractEmailAddress,
   plainTextToEmailHtml,
+  resolveAlignedFromEmail,
   resolveEmailSettings,
   sendMail,
 } = require('./email');
@@ -678,7 +680,20 @@ function encodeBase64Lines(buffer) {
   return Buffer.from(buffer).toString('base64').replace(/.{1,76}/g, (line) => `${line}\r\n`);
 }
 
-function buildMime({ from, to, cc, subject, text, html, inReplyTo, references, draft = false, attachments = [] }) {
+function buildMime({
+  from,
+  to,
+  cc,
+  subject,
+  text,
+  html,
+  inReplyTo,
+  references,
+  replyTo,
+  messageId,
+  draft = false,
+  attachments = [],
+}) {
   const files = Array.isArray(attachments) ? attachments.filter((a) => a && a.content) : [];
   const hasAttachments = files.length > 0;
   const altBoundary = `dwd_alt_${Date.now().toString(16)}`;
@@ -688,6 +703,8 @@ function buildMime({ from, to, cc, subject, text, html, inReplyTo, references, d
     `From: ${from}`,
     `To: ${to}`,
     cc ? `Cc: ${cc}` : null,
+    replyTo ? `Reply-To: ${replyTo}` : null,
+    messageId ? `Message-ID: ${messageId}` : null,
     `Subject: ${subject}`,
     `MIME-Version: 1.0`,
     hasAttachments
@@ -701,7 +718,8 @@ function buildMime({ from, to, cc, subject, text, html, inReplyTo, references, d
     .filter(Boolean)
     .join('\r\n');
 
-  const altPart = `--${altBoundary}\r\nContent-Type: text/plain; charset=utf-8\r\nContent-Transfer-Encoding: 7bit\r\n\r\n${text}\r\n\r\n--${altBoundary}\r\nContent-Type: text/html; charset=utf-8\r\nContent-Transfer-Encoding: 7bit\r\n\r\n${html}\r\n\r\n--${altBoundary}--`;
+  const plain = String(text || '').trim() || 'Message from Destinations With Deanna.';
+  const altPart = `--${altBoundary}\r\nContent-Type: text/plain; charset=utf-8\r\nContent-Transfer-Encoding: 8bit\r\n\r\n${plain}\r\n\r\n--${altBoundary}\r\nContent-Type: text/html; charset=utf-8\r\nContent-Transfer-Encoding: 8bit\r\n\r\n${html}\r\n\r\n--${altBoundary}--`;
 
   if (!hasAttachments) {
     return `${headers}\r\n\r\n${altPart}\r\n`;
@@ -738,8 +756,11 @@ function replySubject(subject) {
 
 async function sendMailboxMail({ to, cc, subject, text, inReplyTo, references, attachments }) {
   const settings = await resolveEmailSettings();
+  const fromEmail = resolveAlignedFromEmail(settings);
+  const replyTo =
+    extractEmailAddress(settings.replyTo) || fromEmail;
   const html = brandedOutgoingHtml(settings, { subject, bodyText: text });
-  const from = `"${settings.fromName}" <${settings.fromEmail}>`;
+  const from = `"${settings.fromName}" <${fromEmail}>`;
   const mailAttachments = Array.isArray(attachments)
     ? attachments
         .filter((a) => a && a.content)
@@ -754,8 +775,12 @@ async function sendMailboxMail({ to, cc, subject, text, inReplyTo, references, a
     to,
     cc: cc || undefined,
     subject,
-    text: `${text}\n\n—\n${settings.fromName}\n${settings.siteName}\n${settings.fromEmail || ''}`,
+    text: `${text}\n\n—\n${settings.fromName}\n${settings.siteName}\n${fromEmail || ''}`,
     html,
+    replyTo,
+    // Staff compose is human mail — do not mark Auto-Submitted.
+    human: true,
+    transactional: false,
     inReplyTo: inReplyTo || undefined,
     references: references || undefined,
     attachments: mailAttachments.length ? mailAttachments : undefined,
@@ -763,13 +788,18 @@ async function sendMailboxMail({ to, cc, subject, text, inReplyTo, references, a
   if (result && result.skipped) return { skipped: true, reason: result.reason };
 
   try {
+    const messageId =
+      (result && result.messageId) ||
+      `<mailbox-${Date.now().toString(16)}@${fromEmail.split('@')[1] || 'destinationswithdeanna.com'}>`;
     const raw = buildMime({
       from,
       to,
       cc,
       subject,
-      text,
+      text: `${text}\n\n—\n${settings.fromName}\n${settings.siteName}\n${fromEmail || ''}`,
       html,
+      replyTo,
+      messageId,
       inReplyTo,
       references,
       attachments: mailAttachments,

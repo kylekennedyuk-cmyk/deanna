@@ -707,8 +707,10 @@ router.post('/notifications/test', async (req, res, next) => {
     const sendPromise = sendMail({
       to: destination,
       subject: 'Destinations With Deanna email test',
-      html: `<div style="font-family:Arial,sans-serif;padding:32px"><h1 style="color:#1a2b40">Email is working</h1><p>Your website can now send planning and portal notifications via ${settings.host}:${settings.port}.</p></div>`,
-      text: `Email is working. Your website can now send planning and portal notifications via ${settings.host}:${settings.port}.`,
+      html: `<div style="font-family:Arial,sans-serif;padding:32px"><h1 style="color:#1a2b40">Email is working</h1><p>Your website can now send planning and portal notifications via ${settings.host}:${settings.port}.</p><p>Open this message in Gmail → Show original and confirm SPF, DKIM, and DMARC all PASS.</p></div>`,
+      text: `Email is working. Your website can now send planning and portal notifications via ${settings.host}:${settings.port}.\n\nOpen this message in Gmail → Show original and confirm SPF, DKIM, and DMARC all PASS.`,
+      transactional: true,
+      category: 'admin-test',
     });
     sendPromise.catch((err) => {
       if (timedOut) {

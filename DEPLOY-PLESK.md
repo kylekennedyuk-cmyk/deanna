@@ -204,6 +204,8 @@ Outbound mail must send as **`@destinationswithdeanna.com`** through **Prime.ax 
 ### What the website does
 
 - Sets **From**, **Reply-To**, **Message-ID** (`…@destinationswithdeanna.com`), and **envelope From / Return-Path** to the authenticated mailbox domain.
+- Sends **multipart/alternative** (text/plain + text/html) on every outbound path.
+- Marks portal notifications as transactional (`Auto-Submitted: auto-generated`) — not bulk list mail. Staff mailbox compose stays human (no Auto-Submitted).
 - Refuses foreign From domains (e.g. Gmail) so SPF/DMARC cannot be broken by a mismatched header.
 - Prefer **Plesk server-side DKIM**. Optional app-side DKIM only via env `DKIM_SELECTOR` + `DKIM_PRIVATE_KEY` (never commit the key).
 
@@ -223,6 +225,14 @@ DMARC (strict alignment is already in use — keep it once DKIM signing works):
 |------|------|---------|
 | TXT | `_dmarc` | `v=DMARC1; p=quarantine; adkim=s; aspf=s; rua=mailto:dee@destinationswithdeanna.com; fo=1` |
 
+**Strict alignment (`adkim=s; aspf=s`)** means:
+
+- SPF: the **envelope From / Return-Path** domain must be exactly `destinationswithdeanna.com` (not a cousin domain).
+- DKIM: the signature `d=` must be exactly `destinationswithdeanna.com`.
+- The visible **From:** address must be on that same exact domain.
+
+If Plesk rewrites Return-Path to something else (or signs with a different `d=`), DMARC fails even when SPF/DKIM “pass” individually — Gmail then tends to spam-folder or quarantine.
+
 DKIM (from Plesk — do not invent the public key):
 
 1. Plesk → Domains → `destinationswithdeanna.com` → **Mail Settings**
@@ -241,17 +251,54 @@ npm run mail:verify-dns
 npm run mail:verify
 ```
 
-### What Prime.ax must do (cannot be fixed in this repo)
+`mail:verify-dns` prints a **Gmail-focused** pass/fail section, including **FCrDNS** (PTR hostname must resolve back to `87.106.199.222`).
+
+### Gmail deliverability checklist
+
+iCloud often accepts mail when SPF/DKIM look fine. **Gmail (and Outlook) also score shared IP reputation and reverse DNS.** Code cannot clear a bad IP alone.
+
+1. **Google Postmaster Tools** — add and verify `destinationswithdeanna.com` at [postmaster.google.com](https://postmaster.google.com/). Watch spam rate and IP/domain reputation after volume exists.
+2. **Send a real test to Gmail** → open the message → ⋮ → **Show original**.
+   - Expect **SPF: PASS**, **DKIM: PASS** (`d=destinationswithdeanna.com`, typically `s=default`), **DMARC: PASS**.
+   - Confirm **Return-Path** is `@destinationswithdeanna.com` (needed for strict `aspf=s`).
+3. **Fix PTR at the IP provider (IONOS / Prime — not Cloudflare)**  
+   Live problem: `87.106.199.222` PTR → `prime.sx`, and `prime.sx` resolves to **Cloudflare CDN IPs**, not the mail server (**broken FCrDNS**). Ask Prime/IONOS to set PTR to **`cp.prime.ax`** (which already A-points to `87.106.199.222`).
+4. **Plesk** — confirm DKIM signing is enabled for the domain so every outbound SMTP message gets a signature.
+5. **Shared IP reputation** — `cp.prime.ax` / `87.106.199.222` is a shared host. Neighbour abuse hurts Gmail placement even when auth passes.
+6. **Microsoft / Outlook** — IP is known for **S3150** blocklist hits. Use [sender.office.com](https://sender.office.com/), Microsoft SNDS, and have Prime pursue delist. Expect Outlook to stay broken until the provider clears the IP.
+
+#### Softening DMARC while testing (optional — tradeoffs)
+
+Current policy is `p=quarantine` with strict alignment. That is good once auth is solid, but it can hide the difference between “auth failed” and “IP reputation” during debugging.
+
+| Policy | Effect | When to use |
+|--------|--------|-------------|
+| `p=none` | Receivers still evaluate DMARC; failures are reported (if `rua=`) but usually not forced to spam by DMARC alone | Short-term while fixing PTR / confirming Show original PASS |
+| `p=quarantine` (current) | Failed DMARC often → spam/quarantine | Once Show original consistently shows DMARC PASS |
+| `p=reject` | Failed DMARC often → bounce | Only after long clean history |
+
+**Do not leave `p=none` permanently** if you care about spoofing protection. Changing DMARC is a **Cloudflare TXT** edit on `_dmarc` — not an app deploy.
+
+### What Prime.ax / IONOS must do (cannot be fixed in this repo)
 
 1. **Hotmail/Outlook S3150** blocking IP `87.106.199.222` is a **provider reputation** issue. Code/DNS improve authentication alignment; Prime must request delist via [sender.office.com](https://sender.office.com/), enroll the IP in Microsoft **SNDS**, and keep the shared pool clean.
-2. Fix **reverse DNS**: PTR for `87.106.199.222` currently points at `prime.sx` (Cloudflare front-end), not `cp.prime.ax` / a mail hostname. Ask Prime to set PTR to match the SMTP HELO (e.g. `cp.prime.ax`).
+2. Fix **reverse DNS**: PTR for `87.106.199.222` currently points at `prime.sx` (Cloudflare front-end), not `cp.prime.ax` / a mail hostname. Ask Prime/IONOS to set PTR to match the SMTP HELO (e.g. `cp.prime.ax`).
 3. Confirm **DKIM signing is enabled** on the domain in Plesk so outbound messages get a `DKIM-Signature` with `d=destinationswithdeanna.com` and selector `default`.
 
 ### Not a DMARC problem
 
 Bounces for invalid recipient domains (example historically: `marianresortsandspa.com` with no MX/A) are **recipient-side DNS** failures. SPF/DKIM/DMARC cannot fix those.
 
----
+### Why iCloud inbox but Gmail spam?
+
+Typical pattern for this host:
+
+- **Auth records exist** (SPF / DKIM / DMARC) — so it is **not** “missing SPF entirely”.
+- **PTR / FCrDNS is wrong** (`prime.sx` → CDN), which Gmail treats as a strong negative.
+- **Shared IP reputation** on Prime.ax + known **Microsoft S3150** on the same IP explain Outlook pain and contribute to Gmail spam placement.
+- iCloud’s filters are often more forgiving when cryptographic auth passes.
+
+Fix PTR + confirm Show original PASS first; then pursue provider reputation if Gmail still junks authenticated mail.
 
 ## Updating the site later
 
@@ -311,6 +358,7 @@ Force sync is destructive for the affected page content and should never be part
 | Login fails after redeploy | Do not delete `data/`; the SQLite DB and sessions live there |
 | 502 / proxy errors | Confirm the Node app is enabled and listening on the port Plesk expects |
 | Emails not sending | Configure Admin → Email & notifications and use **Send test email**; check spam |
+| Emails land in Gmail spam (iCloud OK) | Usually broken PTR/FCrDNS + shared IP reputation — not missing SPF. Run `npm run mail:verify-dns`; ask IONOS/Prime to set PTR to `cp.prime.ax`; verify Show original PASS (see **Gmail deliverability checklist**) |
 | SMTP password “forgotten” | `SETTINGS_ENCRYPTION_KEY` was changed — set the password again in admin |
 | Hotmail/Outlook S3150 / IP blocked | Provider reputation on `87.106.199.222` — Prime.ax must delist (see **Email authentication** above). DNS/code alone will not clear S3150 |
 | SPF/DKIM/DMARC fail | Run `npm run mail:verify-dns`; From must be `@destinationswithdeanna.com`; enable Plesk DKIM and publish `default._domainkey` in Cloudflare |

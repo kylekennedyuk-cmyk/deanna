@@ -66,9 +66,10 @@ See [DEPLOY-PLESK.md](./DEPLOY-PLESK.md) — designed for minimal effort.
 ### Email / deliverability
 
 - Configure SMTP in **Admin → Email & notifications** (`prime.ax`, mailbox on `@destinationswithdeanna.com`).
-- DNS records (SPF / DKIM / DMARC) and Prime.ax IP-reputation notes: [DEPLOY-PLESK.md → Email authentication](./DEPLOY-PLESK.md#email-authentication-spf--dkim--dmarc).
-- Check public DNS (no secrets): `npm run mail:verify-dns`
+- DNS records (SPF / DKIM / DMARC), Gmail checklist, PTR/FCrDNS, and Prime.ax IP-reputation notes: [DEPLOY-PLESK.md → Email authentication](./DEPLOY-PLESK.md#email-authentication-spf--dkim--dmarc).
+- Check public DNS (no secrets; includes Gmail FCrDNS): `npm run mail:verify-dns`
 - Check SMTP/IMAP with saved settings: `npm run mail:verify`
+- Code cannot fix Microsoft S3150 or Gmail IP reputation alone — ask IONOS/Prime to set PTR to `cp.prime.ax` and pursue delist/SNDS.
 
 ## Style guide & QA
 
