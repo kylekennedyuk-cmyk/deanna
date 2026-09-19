@@ -11,6 +11,7 @@ const {
   isHoneypotFilled,
   validateContactPayload,
   logSpamReject,
+  verifyTurnstileToken,
   CONTACT_MIN_MS,
 } = require('../../utils/formSpam');
 
@@ -191,6 +192,27 @@ router.post('/contact', contactLimiter, async (req, res, next) => {
       return res.redirect('/contact?sent=1');
     }
 
+    const settings = await getSettings();
+    const turnstile = await verifyTurnstileToken(
+      req.body['cf-turnstile-response'],
+      settings,
+      req.ip
+    );
+    if (!turnstile.ok) {
+      logSpamReject('contact', turnstile.reason || 'turnstile_failed', req, {
+        codes: turnstile.codes || [],
+      });
+      const page = await prisma.page.findUnique({ where: { slug: 'contact' } });
+      return res.status(400).render('pages/contact', {
+        title: (page && page.title) || 'Contact',
+        seoDesc: page && page.seoDesc,
+        sections: page ? parseSections(page) : [],
+        sent: false,
+        formError: 'Please complete the security check and try again.',
+        formTs: issueFormTimestamp(),
+      });
+    }
+
     const validated = validateContactPayload(req.body);
     if (!validated.ok) {
       if (validated.spamReason) {
@@ -209,7 +231,6 @@ router.post('/contact', contactLimiter, async (req, res, next) => {
     }
 
     const { name, email, message } = validated;
-    const settings = await getSettings();
     const recipient =
       settings.support_email ||
       process.env.SUPPORT_EMAIL ||

@@ -1,15 +1,17 @@
 /**
  * Layered anti-spam helpers for public enquiry forms (contact + planner submit).
- *
- * Optional follow-up: Cloudflare Turnstile / hCaptcha via SiteSetting keys
- * (e.g. turnstile_site_key / turnstile_secret_key) if spam volume stays high.
+ * Layers: honeypot, signed time trap, rate limits, content heuristics,
+ * and optional Cloudflare Turnstile when enabled in Site Settings.
  */
 const crypto = require('crypto');
 const rateLimit = require('express-rate-limit');
+const { decryptSecret } = require('../config/settings');
 const { safeLog } = require('./safeLog');
 
 const HONEYPOT_FIELD = 'company_website';
 const FORM_TS_FIELD = 'form_ts';
+const TURNSTILE_FIELD = 'cf-turnstile-response';
+const TURNSTILE_VERIFY_URL = 'https://challenges.cloudflare.com/turnstile/v0/siteverify';
 
 const CONTACT_MIN_MS = 3 * 1000;
 const PLANNER_MIN_MS = 12 * 1000;
@@ -105,8 +107,71 @@ function stripSpamFields(body = {}) {
   const cleaned = { ...body };
   delete cleaned[HONEYPOT_FIELD];
   delete cleaned[FORM_TS_FIELD];
+  delete cleaned[TURNSTILE_FIELD];
   delete cleaned._csrf;
   return cleaned;
+}
+
+function isTurnstileActive(settings = {}) {
+  return (
+    settings.turnstile_enabled === 'true' &&
+    Boolean(String(settings.turnstile_site_key || '').trim()) &&
+    Boolean(String(settings.turnstile_secret_key || '').trim())
+  );
+}
+
+async function verifyTurnstileToken(token, settings = {}, remoteip = '') {
+  if (!isTurnstileActive(settings)) {
+    return { ok: true, skipped: true };
+  }
+
+  const response = String(token || '').trim();
+  if (!response) {
+    return { ok: false, reason: 'turnstile_missing' };
+  }
+
+  const secret = decryptSecret(settings.turnstile_secret_key || '');
+  if (!secret) {
+    return { ok: false, reason: 'turnstile_secret_invalid' };
+  }
+
+  try {
+    const params = new URLSearchParams();
+    params.set('secret', secret);
+    params.set('response', response);
+    if (remoteip) params.set('remoteip', remoteip);
+
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 8000);
+    let verifyRes;
+    try {
+      verifyRes = await fetch(TURNSTILE_VERIFY_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: params.toString(),
+        signal: controller.signal,
+      });
+    } finally {
+      clearTimeout(timer);
+    }
+
+    if (!verifyRes.ok) {
+      return { ok: false, reason: 'turnstile_http_error' };
+    }
+
+    const data = await verifyRes.json();
+    if (!data || data.success !== true) {
+      const codes = Array.isArray(data && data['error-codes']) ? data['error-codes'] : [];
+      return { ok: false, reason: 'turnstile_failed', codes };
+    }
+    return { ok: true };
+  } catch (err) {
+    safeLog(
+      'warn',
+      `form_spam turnstile verify error: ${err && err.message ? err.message : 'unknown'}`
+    );
+    return { ok: false, reason: 'turnstile_verify_error' };
+  }
 }
 
 function countLinks(text) {
@@ -266,12 +331,15 @@ const plannerSubmitLimiter = createEnquiryLimiter({
 module.exports = {
   HONEYPOT_FIELD,
   FORM_TS_FIELD,
+  TURNSTILE_FIELD,
   CONTACT_MIN_MS,
   PLANNER_MIN_MS,
   issueFormTimestamp,
   checkFormTimestamp,
   isHoneypotFilled,
   stripSpamFields,
+  isTurnstileActive,
+  verifyTurnstileToken,
   validateContactPayload,
   validatePlannerContact,
   logSpamReject,

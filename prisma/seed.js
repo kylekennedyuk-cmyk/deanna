@@ -67,6 +67,9 @@ async function main() {
       'whatsapp_message',
       "Hi Deanna, I'd like help planning a Disneyland Paris holiday.",
     ],
+    ['turnstile_enabled', 'false'],
+    ['turnstile_site_key', ''],
+    ['turnstile_secret_key', ''],
   ];
 
   for (const [key, value] of defaults) {

@@ -374,9 +374,15 @@ router.get('/settings', async (req, res, next) => {
   try {
     const rows = await prisma.siteSetting.findMany();
     const settings = Object.fromEntries(rows.map((r) => [r.key, r.value]));
+    const turnstileSecretConfigured = Boolean(
+      settings.turnstile_secret_key && String(settings.turnstile_secret_key).trim()
+    );
+    // Never send the secret to the browser — blank the field like SMTP passwords.
+    const displayed = { ...settings, turnstile_secret_key: '' };
     res.render('admin/settings', {
       title: 'Settings',
-      settings,
+      settings: displayed,
+      turnstileSecretConfigured,
       saved: req.query.saved === '1',
     });
   } catch (err) {
@@ -417,6 +423,8 @@ router.post('/settings', async (req, res, next) => {
       'whatsapp_enabled',
       'whatsapp_number',
       'whatsapp_message',
+      'turnstile_enabled',
+      'turnstile_site_key',
     ];
     for (const key of keys) {
       if (req.body[key] === undefined) continue;
@@ -426,6 +434,16 @@ router.post('/settings', async (req, res, next) => {
         create: { key, value: String(req.body[key]) },
       });
     }
+
+    const secretInput = String(req.body.turnstile_secret_key || '').trim();
+    if (secretInput) {
+      await prisma.siteSetting.upsert({
+        where: { key: 'turnstile_secret_key' },
+        update: { value: encryptSecret(secretInput) },
+        create: { key: 'turnstile_secret_key', value: encryptSecret(secretInput) },
+      });
+    }
+
     res.redirect('/admin/settings?saved=1');
   } catch (err) {
     next(err);

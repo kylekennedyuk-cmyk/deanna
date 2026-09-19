@@ -178,6 +178,31 @@
       </div>
     </section>
 
+    <section class="card">
+      <h2 class="text-2xl">Spam protection (Cloudflare Turnstile)</h2>
+      <p class="mt-2 text-sm text-primary-700">Optional CAPTCHA on the contact form and planner submit. Leave disabled until you add keys — honeypot, rate limits and timing checks still apply.</p>
+      <p class="mt-3 rounded-xl border border-primary-100 bg-primary-50/60 px-4 py-3 text-sm text-primary-800">Get free keys at <a class="font-semibold underline" href="https://dash.cloudflare.com/" target="_blank" rel="noopener noreferrer">dash.cloudflare.com</a> → <strong>Turnstile</strong> → Add site. Use the site key (public) and secret key below.</p>
+      <div class="mt-5 space-y-4">
+        <div>
+          <label class="label" for="turnstile_enabled">Turnstile</label>
+          <select class="field" id="turnstile_enabled" name="turnstile_enabled">
+            <option value="false" <%= settings.turnstile_enabled === 'true' ? '' : 'selected' %>>Disabled</option>
+            <option value="true" <%= settings.turnstile_enabled === 'true' ? 'selected' : '' %>>Enabled</option>
+          </select>
+          <p class="help">Only activates when enabled and both keys are saved.</p>
+        </div>
+        <div>
+          <label class="label" for="turnstile_site_key">Site key (public)</label>
+          <input class="field" id="turnstile_site_key" name="turnstile_site_key" value="<%= settings.turnstile_site_key || '' %>" autocomplete="off" placeholder="0x4AAAAA…" />
+        </div>
+        <div>
+          <label class="label" for="turnstile_secret_key">Secret key</label>
+          <input class="field" id="turnstile_secret_key" name="turnstile_secret_key" type="password" value="" autocomplete="new-password" placeholder="<%= typeof turnstileSecretConfigured !== 'undefined' && turnstileSecretConfigured ? 'Secret saved — leave blank to keep it' : '0x4AAAAA…' %>" />
+          <p class="help">Stored encrypted. Leave blank when saving other settings to keep the existing secret.</p>
+        </div>
+      </div>
+    </section>
+
     <button class="btn-primary" type="submit">Save site settings</button>
   </form>
 </section>

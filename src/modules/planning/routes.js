@@ -11,6 +11,7 @@ const {
   stripSpamFields,
   validatePlannerContact,
   logSpamReject,
+  verifyTurnstileToken,
   PLANNER_MIN_MS,
 } = require('../../utils/formSpam');
 
@@ -133,6 +134,27 @@ router.post('/submit', plannerSubmitLimiter, async (req, res, next) => {
       return res.redirect('/planner?received=1');
     }
 
+    const settingsEarly = await getSettings();
+    const turnstile = await verifyTurnstileToken(
+      req.body['cf-turnstile-response'],
+      settingsEarly,
+      req.ip
+    );
+    if (!turnstile.ok) {
+      logSpamReject('planner', turnstile.reason || 'turnstile_failed', req, {
+        codes: turnstile.codes || [],
+      });
+      return res.status(400).render('planner/wizard', {
+        title: 'Holiday Planner',
+        steps: STEPS,
+        step: 8,
+        data,
+        error: 'Please complete the security check and try again.',
+        received: false,
+        formTs: draft.formTs || issueFormTimestamp(),
+      });
+    }
+
     const validated = validatePlannerContact(data);
     if (!validated.ok) {
       if (validated.spamReason) {
@@ -191,7 +213,7 @@ router.post('/submit', plannerSubmitLimiter, async (req, res, next) => {
       },
     });
 
-    const settings = await getSettings();
+    const settings = settingsEarly;
     const support =
       settings.support_email ||
       process.env.SUPPORT_EMAIL ||
