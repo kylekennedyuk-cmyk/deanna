@@ -1,18 +1,20 @@
 const express = require('express');
-const rateLimit = require('express-rate-limit');
 const { prisma } = require('../../config/database');
 const { sendNotification } = require('../../config/email');
 const { getSettings } = require('../../config/settings');
-const { ensureLoggedIn } = require('../../middleware/auth');
+const {
+  plannerStepLimiter,
+  plannerSubmitLimiter,
+  issueFormTimestamp,
+  checkFormTimestamp,
+  isHoneypotFilled,
+  stripSpamFields,
+  validatePlannerContact,
+  logSpamReject,
+  PLANNER_MIN_MS,
+} = require('../../utils/formSpam');
 
 const router = express.Router();
-
-const plannerLimiter = rateLimit({
-  windowMs: 60 * 60 * 1000,
-  max: 20,
-  standardHeaders: true,
-  legacyHeaders: false,
-});
 
 const STEPS = [
   { id: 1, key: 'basics', title: 'Trip basics' },
@@ -27,29 +29,52 @@ const STEPS = [
 
 function getDraft(req) {
   if (!req.session.plannerDraft) {
-    req.session.plannerDraft = { step: 1, data: {} };
+    req.session.plannerDraft = {
+      step: 1,
+      data: {},
+      openedAt: Date.now(),
+      formTs: issueFormTimestamp(),
+    };
+  }
+  if (!req.session.plannerDraft.openedAt) {
+    req.session.plannerDraft.openedAt = Date.now();
+  }
+  if (!req.session.plannerDraft.formTs) {
+    req.session.plannerDraft.formTs = issueFormTimestamp();
   }
   return req.session.plannerDraft;
 }
 
-router.get('/', (req, res) => {
-  const draft = getDraft(req);
-  const step = Math.min(Math.max(Number(req.query.step) || draft.step || 1, 1), 8);
-  draft.step = step;
-  res.render('planner/wizard', {
+function renderWizard(res, { step, data, error = null, received = false, formTs }) {
+  return res.render('planner/wizard', {
     title: 'Holiday Planner',
     steps: STEPS,
     step,
+    data,
+    error,
+    received,
+    formTs: formTs || issueFormTimestamp(),
+  });
+}
+
+router.get('/', (req, res) => {
+  const received = req.query.received === '1';
+  const draft = getDraft(req);
+  const step = Math.min(Math.max(Number(req.query.step) || draft.step || 1, 1), 8);
+  draft.step = step;
+  return renderWizard(res, {
+    step,
     data: draft.data,
     error: null,
+    received,
+    formTs: draft.formTs,
   });
 });
 
-router.post('/step/:step', plannerLimiter, (req, res) => {
+router.post('/step/:step', plannerStepLimiter, (req, res) => {
   const step = Number(req.params.step);
   const draft = getDraft(req);
-  const cleaned = { ...req.body };
-  delete cleaned._csrf;
+  const cleaned = stripSpamFields(req.body);
   delete cleaned.action;
   delete cleaned.paceChip;
   delete cleaned.flexChip;
@@ -72,24 +97,65 @@ router.get('/submit', (req, res) => {
   res.redirect('/planner?step=8');
 });
 
-router.post('/submit', plannerLimiter, async (req, res, next) => {
+router.post('/submit', plannerSubmitLimiter, async (req, res, next) => {
   try {
     const draft = getDraft(req);
-    const data = { ...draft.data, ...req.body };
+    const bodyClean = stripSpamFields(req.body);
+    const data = { ...draft.data, ...bodyClean };
     const crypto = require('crypto');
     const bcrypt = require('bcryptjs');
 
-    if (!data.name || !data.email) {
+    if (isHoneypotFilled(req.body)) {
+      logSpamReject('planner', 'honeypot', req);
+      delete req.session.plannerDraft;
+      return res.redirect('/planner?received=1');
+    }
+
+    const timing = checkFormTimestamp(req.body.form_ts || draft.formTs, { minMs: PLANNER_MIN_MS });
+    const openedAge = Date.now() - Number(draft.openedAt || 0);
+    if (!timing.ok || openedAge < PLANNER_MIN_MS) {
+      const reason = !timing.ok ? timing.reason : 'too_fast_session';
+      logSpamReject('planner', reason, req, { openedAgeMs: openedAge });
+      if (reason === 'too_old') {
+        draft.formTs = issueFormTimestamp();
+        draft.openedAt = Date.now();
+        return res.status(400).render('planner/wizard', {
+          title: 'Holiday Planner',
+          steps: STEPS,
+          step: 8,
+          data,
+          error: 'This form expired. Please submit your plan again.',
+          received: false,
+          formTs: draft.formTs,
+        });
+      }
+      delete req.session.plannerDraft;
+      return res.redirect('/planner?received=1');
+    }
+
+    const validated = validatePlannerContact(data);
+    if (!validated.ok) {
+      if (validated.spamReason) {
+        logSpamReject('planner', validated.spamReason, req);
+        delete req.session.plannerDraft;
+        return res.redirect('/planner?received=1');
+      }
       return res.status(400).render('planner/wizard', {
         title: 'Holiday Planner',
         steps: STEPS,
         step: 8,
         data,
-        error: 'Please include your name and email so Deanna can reply.',
+        error: validated.softError,
+        received: false,
+        formTs: issueFormTimestamp(),
       });
     }
 
-    const email = String(data.email).trim().toLowerCase();
+    data.name = validated.name;
+    data.email = validated.email;
+    if (validated.phone) data.phone = validated.phone;
+
+    const email = validated.email;
     let customer = null;
     let needsAccountSetup = false;
 
@@ -101,10 +167,10 @@ router.post('/submit', plannerLimiter, async (req, res, next) => {
         const tempPass = await bcrypt.hash(`temp-${Date.now()}-${crypto.randomBytes(8).toString('hex')}`, 12);
         customer = await prisma.user.create({
           data: {
-            name: String(data.name).trim(),
+            name: validated.name,
             email,
             username: email,
-            phone: data.phone ? String(data.phone).trim() : null,
+            phone: validated.phone || null,
             passwordHash: tempPass,
             role: 'customer',
           },

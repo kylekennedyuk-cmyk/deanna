@@ -610,3 +610,19 @@
 .bg-ivory\/95 {
   background-color: color-mix(in srgb, var(--brand-bg, #fbf8f3) 92%, white) !important;
 }
+
+
+/* Off-screen honeypot — avoid display:none alone (bots often skip those). */
+.hp-field {
+  position: absolute;
+  left: -10000px;
+  top: auto;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+  padding: 0;
+  margin: 0;
+}

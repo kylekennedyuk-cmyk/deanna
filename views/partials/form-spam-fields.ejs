@@ -1,0 +1,16 @@
+<%
+  const hpId = typeof idPrefix !== 'undefined' && idPrefix ? idPrefix : 'hp';
+  const ts = typeof formTs !== 'undefined' && formTs ? formTs : '';
+%>
+<div class="hp-field" aria-hidden="true">
+  <label for="<%= hpId %>-company-website">Company website</label>
+  <input
+    type="text"
+    name="company_website"
+    id="<%= hpId %>-company-website"
+    value=""
+    tabindex="-1"
+    autocomplete="off"
+  />
+</div>
+<input type="hidden" name="form_ts" value="<%= ts %>" />

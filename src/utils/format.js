@@ -162,7 +162,7 @@ function formatDateTime(value) {
 }
 
 function preferenceEntries(prefs = {}) {
-  const skip = new Set(['stepSaved', 'action', 'terms', '_csrf']);
+  const skip = new Set(['stepSaved', 'action', 'terms', '_csrf', 'company_website', 'form_ts']);
   return Object.entries(prefs)
     .filter(([key, value]) => !skip.has(key) && value !== undefined && value !== null && String(value).trim() !== '')
     .map(([key, value]) => ({

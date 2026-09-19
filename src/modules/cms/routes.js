@@ -4,6 +4,15 @@ const { sendNotification } = require('../../config/email');
 const { getSettings } = require('../../config/settings');
 const { pages: defaultPages } = require('../../content/publicPages');
 const { resolveHomeSections } = require('../../content/homeDefaults');
+const {
+  contactLimiter,
+  issueFormTimestamp,
+  checkFormTimestamp,
+  isHoneypotFilled,
+  validateContactPayload,
+  logSpamReject,
+  CONTACT_MIN_MS,
+} = require('../../utils/formSpam');
 
 const router = express.Router();
 
@@ -150,24 +159,56 @@ router.get('/contact', async (req, res, next) => {
       seoDesc: page && page.seoDesc,
       sections: page ? parseSections(page) : [],
       sent: req.query.sent === '1',
+      formError: null,
+      formTs: issueFormTimestamp(),
     });
   } catch (err) {
     next(err);
   }
 });
 
-router.post('/contact', async (req, res, next) => {
+router.post('/contact', contactLimiter, async (req, res, next) => {
   try {
-    const name = String(req.body.name || '').trim();
-    const email = String(req.body.email || '').trim();
-    const message = String(req.body.message || '').trim();
-    if (!name || !email || !message) {
-      return res.status(400).render('pages/error', {
-        title: 'Please complete the form',
-        message: 'Name, email and message are required.',
-        status: 400,
+    if (isHoneypotFilled(req.body)) {
+      logSpamReject('contact', 'honeypot', req);
+      return res.redirect('/contact?sent=1');
+    }
+
+    const timing = checkFormTimestamp(req.body.form_ts, { minMs: CONTACT_MIN_MS });
+    if (!timing.ok) {
+      logSpamReject('contact', timing.reason, req);
+      if (timing.reason === 'too_old') {
+        const page = await prisma.page.findUnique({ where: { slug: 'contact' } });
+        return res.status(400).render('pages/contact', {
+          title: (page && page.title) || 'Contact',
+          seoDesc: page && page.seoDesc,
+          sections: page ? parseSections(page) : [],
+          sent: false,
+          formError: 'This form expired. Please send your message again.',
+          formTs: issueFormTimestamp(),
+        });
+      }
+      return res.redirect('/contact?sent=1');
+    }
+
+    const validated = validateContactPayload(req.body);
+    if (!validated.ok) {
+      if (validated.spamReason) {
+        logSpamReject('contact', validated.spamReason, req);
+        return res.redirect('/contact?sent=1');
+      }
+      const page = await prisma.page.findUnique({ where: { slug: 'contact' } });
+      return res.status(400).render('pages/contact', {
+        title: (page && page.title) || 'Contact',
+        seoDesc: page && page.seoDesc,
+        sections: page ? parseSections(page) : [],
+        sent: false,
+        formError: validated.softError,
+        formTs: issueFormTimestamp(),
       });
     }
+
+    const { name, email, message } = validated;
     const settings = await getSettings();
     const recipient =
       settings.support_email ||

@@ -44,10 +44,13 @@
 
   <% if (sent) { %>
     <div class="rounded-card border border-success-100 bg-success-50 px-4 py-3 text-success-700">Thank you — your message has been sent to Deanna.</div>
+  <% } else if (typeof formError !== 'undefined' && formError) { %>
+    <div class="rounded-card border border-danger-100 bg-danger-50 px-4 py-3 text-danger-700" role="alert"><%= formError %></div>
   <% } %>
 
-  <form method="post" action="/contact" class="card space-y-4">
+  <form method="post" action="/contact" class="card space-y-4 relative">
     <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+    <%- include('../partials/form-spam-fields', { idPrefix: 'contact', formTs: typeof formTs !== 'undefined' ? formTs : '' }) %>
     <div>
       <label class="label" for="name">Name</label>
       <input class="field" id="name" name="name" required />
