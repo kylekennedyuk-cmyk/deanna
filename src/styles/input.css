@@ -686,3 +686,14 @@
 .safe-email--btn {
   color: #fff;
 }
+
+/* Portal mailbox — render HTML parts (branded mail) instead of plain <pre> only */
+.mail-html-frame {
+  display: block;
+  width: 100%;
+  min-height: 240px;
+  border: 0;
+  border-radius: 0.75rem;
+  background: #fff;
+  overflow: auto;
+}

@@ -58,6 +58,26 @@ function textFromParsed(parsed) {
   );
 }
 
+/** Soften inbound HTML for iframe display (scripts blocked by sandbox too). */
+function sanitizeEmailHtml(html) {
+  return String(html || '')
+    .replace(/<script[\s\S]*?<\/script>/gi, '')
+    .replace(/<iframe[\s\S]*?<\/iframe>/gi, '')
+    .replace(/<object[\s\S]*?<\/object>/gi, '')
+    .replace(/<embed[\s\S]*?>/gi, '')
+    .replace(/\son\w+\s*=\s*(['"])[\s\S]*?\1/gi, '')
+    .replace(/\son\w+\s*=\s*[^\s>]+/gi, '')
+    .replace(/javascript:/gi, '')
+    .replace(/data:text\/html/gi, 'data:blocked');
+}
+
+/** Encode HTML for use in an iframe srcdoc="..." attribute. */
+function htmlToSrcdocAttr(html) {
+  return String(html || '')
+    .replace(/&/g, '&amp;')
+    .replace(/"/g, '&quot;');
+}
+
 async function resolveImapSettings() {
   const stored = await getSettings();
   const smtp = await resolveEmailSettings();
@@ -496,6 +516,8 @@ async function getMessage(folder, uid) {
 
       const parsed = await simpleParser(msg.source);
       const text = textFromParsed(parsed);
+      const rawHtml = String(parsed.html || '').trim();
+      const html = rawHtml ? sanitizeEmailHtml(rawHtml) : '';
       const folderMeta = folders.find((f) => f.path === path);
 
       if (!(msg.flags && msg.flags.has('\\Seen'))) {
@@ -533,6 +555,8 @@ async function getMessage(folder, uid) {
             : String(parsed.references)
           : '',
         text,
+        html,
+        htmlSrcdoc: html ? htmlToSrcdocAttr(html) : '',
         draft: Boolean(msg.flags && msg.flags.has('\\Draft')),
         attachments: (parsed.attachments || []).map((file) => ({
           filename: file.filename || 'attachment',

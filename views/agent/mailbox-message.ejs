@@ -45,7 +45,18 @@
       </dl>
 
       <div class="border-t border-primary-100 pt-5">
-        <pre class="whitespace-pre-wrap font-sans text-base leading-relaxed text-primary-900"><%= message.text || '(No text content)' %></pre>
+        <% if (message.htmlSrcdoc) { %>
+          <iframe
+            class="mail-html-frame"
+            title="Message body"
+            sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox"
+            referrerpolicy="no-referrer"
+            srcdoc="<%- message.htmlSrcdoc %>"
+            onload="try{var d=this.contentDocument||this.contentWindow.document;var h=Math.max(d.body.scrollHeight,d.documentElement.scrollHeight);this.style.height=Math.min(Math.max(h+24,240),3200)+'px';}catch(e){}"
+          ></iframe>
+        <% } else { %>
+          <pre class="whitespace-pre-wrap font-sans text-base leading-relaxed text-primary-900"><%= message.text || '(No text content)' %></pre>
+        <% } %>
       </div>
 
       <% if (message.attachments && message.attachments.length) { %>
