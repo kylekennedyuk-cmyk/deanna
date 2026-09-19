@@ -248,6 +248,10 @@
         </label>
       <% } %>
 
+      <% if (step === 8) { %>
+        <%- include('../partials/form-turnstile') %>
+      <% } %>
+
       <div class="hidden flex-wrap gap-3 pt-2 lg:flex">
         <% if (step > 1 && step < 8) { %>
           <button class="btn-ghost" type="submit" name="action" value="back">Back</button>

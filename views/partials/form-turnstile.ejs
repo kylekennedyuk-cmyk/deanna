@@ -1,0 +1,13 @@
+<%
+  const siteSettings = typeof settings !== 'undefined' && settings ? settings : {};
+  const turnstileOn = siteSettings.turnstile_enabled === 'true'
+    && String(siteSettings.turnstile_site_key || '').trim()
+    && String(siteSettings.turnstile_secret_key || '').trim();
+  const turnstileSiteKey = String(siteSettings.turnstile_site_key || '').trim();
+%>
+<% if (turnstileOn) { %>
+  <div class="cf-turnstile-wrap" data-turnstile-widget>
+    <div class="cf-turnstile" data-sitekey="<%= turnstileSiteKey %>" data-theme="light"></div>
+  </div>
+  <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+<% } %>

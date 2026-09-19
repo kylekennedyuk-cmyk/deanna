@@ -1,11 +1,6 @@
 <%
   const hpId = typeof idPrefix !== 'undefined' && idPrefix ? idPrefix : 'hp';
   const ts = typeof formTs !== 'undefined' && formTs ? formTs : '';
-  const siteSettings = typeof settings !== 'undefined' && settings ? settings : {};
-  const turnstileOn = siteSettings.turnstile_enabled === 'true'
-    && String(siteSettings.turnstile_site_key || '').trim()
-    && String(siteSettings.turnstile_secret_key || '').trim();
-  const turnstileSiteKey = String(siteSettings.turnstile_site_key || '').trim();
 %>
 <%# Honeypot: inline styles are required so it stays hidden even if app.css is stale/cached. %>
 <div
@@ -26,10 +21,3 @@
   />
 </div>
 <input type="hidden" name="form_ts" value="<%= ts %>" />
-<% if (turnstileOn) { %>
-  <div class="cf-turnstile-wrap" data-turnstile-widget>
-    <div class="cf-turnstile" data-sitekey="<%= turnstileSiteKey %>" data-theme="light"></div>
-    <p class="help mt-2">Quick check so Deanna only gets real messages.</p>
-  </div>
-  <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
-<% } %>
