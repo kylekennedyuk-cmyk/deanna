@@ -15,16 +15,14 @@
 %>
 <aside class="portal-sidebar" id="portal-sidebar" data-portal-sidebar aria-label="Portal navigation">
   <div class="portal-sidebar__brand">
-    <a href="<%= portalHome %>" class="portal-sidebar__brand-link">
-      <% if (settings.logo_url && (settings.logo_mode === 'logo' || settings.logo_mode === 'both')) { %>
-        <img src="<%= settings.logo_url %>" alt="" class="portal-sidebar__logo" />
+    <a href="<%= portalHome %>" class="portal-sidebar__brand-link" aria-label="<%= siteName %> <%= portalLabel %> home">
+      <% if (settings.logo_url) { %>
+        <img src="<%= settings.logo_url %>" alt="<%= siteName %>" class="portal-sidebar__logo" />
+      <% } else { %>
+        <span class="portal-sidebar__mark" aria-hidden="true"><%= String(portalLabel || 'D').charAt(0) %></span>
       <% } %>
-      <span class="portal-sidebar__brand-text">
-        <span class="portal-sidebar__brand-name"><%= siteName %></span>
-        <span class="portal-sidebar__brand-role"><%= portalLabel %> portal</span>
-      </span>
     </a>
-    <button type="button" class="portal-sidebar__close lg:hidden" data-portal-sidebar-close aria-label="Close menu">
+    <button type="button" class="portal-sidebar__close" data-portal-sidebar-close aria-label="Close menu">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="h-5 w-5" aria-hidden="true"><path stroke-linecap="round" d="M6 6l12 12M18 6L6 18" /></svg>
     </button>
   </div>

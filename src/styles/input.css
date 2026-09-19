@@ -750,33 +750,41 @@
   display: flex;
   min-height: 100vh;
   width: 100%;
+  overflow-x: hidden;
 }
 
 .portal-sidebar {
   position: fixed;
-  inset: 0 auto 0 0;
-  z-index: 45;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  z-index: 60;
   display: flex;
-  width: 16.5rem;
+  width: min(16.5rem, 88vw);
   flex-direction: column;
   background: color-mix(in srgb, var(--brand-primary, #1a2b40) 96%, #000);
   color: #f4f0e8;
-  transform: translateX(-105%);
-  transition: transform 0.22s ease;
+  transform: translate3d(-100%, 0, 0);
+  visibility: hidden;
+  pointer-events: none;
+  transition: transform 0.22s ease, visibility 0.22s ease;
   box-shadow: 8px 0 32px rgba(8, 14, 24, 0.18);
 }
 
 .portal-dashboard.is-sidebar-open .portal-sidebar,
 .portal-sidebar.is-open {
-  transform: translateX(0);
+  transform: translate3d(0, 0, 0);
+  visibility: visible;
+  pointer-events: auto;
 }
 
 .portal-sidebar-backdrop {
   position: fixed;
   inset: 0;
-  z-index: 40;
+  z-index: 55;
   background: rgba(10, 16, 26, 0.45);
   backdrop-filter: blur(2px);
+  pointer-events: auto;
 }
 
 .portal-sidebar-backdrop[hidden] {
@@ -785,54 +793,43 @@
 
 .portal-sidebar__brand {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   gap: 0.75rem;
-  padding: 1.15rem 1rem 1rem;
+  padding: 1rem;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .portal-sidebar__brand-link {
-  display: flex;
+  display: inline-flex;
   min-width: 0;
   align-items: center;
-  gap: 0.7rem;
   color: inherit;
   text-decoration: none;
 }
 
 .portal-sidebar__logo {
-  height: 2.25rem;
+  height: 2.35rem;
   width: auto;
-  max-width: 5.5rem;
+  max-width: 7rem;
   border-radius: 0.5rem;
   background: #fff;
   object-fit: contain;
-  padding: 0.2rem;
+  padding: 0.25rem;
 }
 
-.portal-sidebar__brand-text {
-  display: flex;
-  min-width: 0;
-  flex-direction: column;
-  gap: 0.1rem;
-}
-
-.portal-sidebar__brand-name {
+.portal-sidebar__mark {
+  display: inline-flex;
+  height: 2.35rem;
+  width: 2.35rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.65rem;
+  background: color-mix(in srgb, var(--brand-secondary, #d1a24a) 85%, #fff);
+  color: var(--brand-primary, #1a2b40);
   font-family: Fraunces, Georgia, serif;
-  font-size: 0.95rem;
-  font-weight: 600;
-  line-height: 1.2;
-  letter-spacing: -0.02em;
-  color: #fff;
-}
-
-.portal-sidebar__brand-role {
-  font-size: 0.7rem;
-  font-weight: 500;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: color-mix(in srgb, var(--brand-secondary, #d1a24a) 75%, #fff);
+  font-size: 1.1rem;
+  font-weight: 700;
 }
 
 .portal-sidebar__close {
@@ -931,14 +928,14 @@
 .portal-topbar {
   position: sticky;
   top: 0;
-  z-index: 30;
+  z-index: 40;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 1rem;
+  gap: 0.75rem;
   padding: 0.75rem 1rem;
   border-bottom: 1px solid color-mix(in srgb, var(--brand-primary, #1a2b40) 10%, transparent);
-  background: color-mix(in srgb, var(--brand-bg, #fbf8f3) 88%, #fff);
+  background: color-mix(in srgb, var(--brand-bg, #fbf8f3) 92%, #fff);
   backdrop-filter: blur(10px);
 }
 
@@ -951,8 +948,9 @@
 
 .portal-topbar__menu-btn {
   display: inline-flex;
-  height: 2.4rem;
-  width: 2.4rem;
+  height: 2.5rem;
+  width: 2.5rem;
+  flex-shrink: 0;
   align-items: center;
   justify-content: center;
   border: 1px solid color-mix(in srgb, var(--brand-primary, #1a2b40) 14%, transparent);
@@ -960,6 +958,7 @@
   background: #fff;
   color: var(--brand-primary, #1a2b40);
   cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
   transition: border-color 0.15s ease, background-color 0.15s ease;
 }
 
@@ -1028,11 +1027,20 @@
 }
 
 @media (min-width: 1024px) {
+  .portal-frame {
+    overflow-x: visible;
+  }
+
   .portal-sidebar {
     position: sticky;
     top: 0;
+    left: auto;
+    bottom: auto;
     height: 100vh;
+    width: 16.5rem;
     transform: none;
+    visibility: visible;
+    pointer-events: auto;
     flex-shrink: 0;
     box-shadow: none;
     border-right: 1px solid rgba(255, 255, 255, 0.06);
