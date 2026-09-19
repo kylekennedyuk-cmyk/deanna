@@ -1,7 +1,22 @@
+<%
+  const pathForShellEnd = typeof currentPath !== 'undefined' && currentPath ? String(currentPath) : '';
+  const endIsPortalDashboard = typeof currentUser !== 'undefined'
+    && currentUser
+    && (currentUser.role === 'admin' || currentUser.role === 'agent')
+    && (pathForShellEnd.indexOf('/admin') === 0 || pathForShellEnd.indexOf('/agent') === 0);
+%>
+<% if (endIsPortalDashboard) { %>
+      </main>
+    </div>
+  </div>
+<% } else { %>
 </main>
 <%- include('../partials/footer') %>
+<% } %>
 <div id="toast-root" class="pointer-events-none fixed inset-x-0 bottom-0 z-50 flex justify-center p-4" aria-live="polite"></div>
+<% if (!endIsPortalDashboard) { %>
 <%- include('../partials/whatsapp-button') %>
+<% } %>
 <script src="/js/ui.js" defer></script>
 </body>
 </html>

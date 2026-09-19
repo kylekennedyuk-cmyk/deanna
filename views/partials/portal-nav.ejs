@@ -9,89 +9,135 @@
     if (href === '/admin' || href === '/agent' || href === '/customer') return pathNow === href;
     return pathNow === href || pathNow.indexOf(href + '/') === 0 || pathNow.indexOf(href + '?') === 0;
   }
-  const workspaceCount = (counts.plans || 0) + (counts.messages || 0) + (counts.mailbox || 0);
-  const manageCount = counts.changeRequests || 0;
+  function icon(paths) {
+    return '<svg class="portal-sidebar__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="' + paths + '"/></svg>';
+  }
 %>
-<nav class="portal-nav" aria-label="Portal">
-  <div class="portal-nav__bar">
-    <div class="portal-nav__primary">
-      <a href="<%= portalHome %>" class="portal-nav__link<%= portalActive(portalHome) ? ' is-active' : '' %>">
-        <%= portalLabel %>
+<aside class="portal-sidebar" id="portal-sidebar" data-portal-sidebar aria-label="Portal navigation">
+  <div class="portal-sidebar__brand">
+    <a href="<%= portalHome %>" class="portal-sidebar__brand-link">
+      <% if (settings.logo_url && (settings.logo_mode === 'logo' || settings.logo_mode === 'both')) { %>
+        <img src="<%= settings.logo_url %>" alt="" class="portal-sidebar__logo" />
+      <% } %>
+      <span class="portal-sidebar__brand-text">
+        <span class="portal-sidebar__brand-name"><%= siteName %></span>
+        <span class="portal-sidebar__brand-role"><%= portalLabel %> portal</span>
+      </span>
+    </a>
+    <button type="button" class="portal-sidebar__close lg:hidden" data-portal-sidebar-close aria-label="Close menu">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="h-5 w-5" aria-hidden="true"><path stroke-linecap="round" d="M6 6l12 12M18 6L6 18" /></svg>
+    </button>
+  </div>
+
+  <nav class="portal-sidebar__nav" aria-label="Portal">
+    <div class="portal-sidebar__section">
+      <p class="portal-sidebar__heading">Overview</p>
+      <a href="<%= portalHome %>" class="portal-sidebar__link<%= portalActive(portalHome) ? ' is-active' : '' %>">
+        <%- icon('M3 10.5L12 4l9 6.5M5 10v9h4v-5h6v5h4v-9') %>
+        <span class="portal-sidebar__label">Dashboard</span>
         <%- include('count-badge', { count: counts.total, label: counts.total + ' total notifications', compact: true }) %>
       </a>
-
-      <% if (typeof backHref !== 'undefined' && backHref) { %>
-        <a href="<%= backHref %>" class="portal-nav__link portal-nav__link--muted">← <%= typeof backLabel !== 'undefined' && backLabel ? backLabel : 'Back' %></a>
-      <% } %>
-
-      <% if (role === 'admin' || role === 'agent') { %>
-        <% if (role === 'admin') { %>
-          <div class="portal-menu" data-portal-menu>
-            <button type="button" class="portal-menu__trigger" aria-expanded="false" aria-haspopup="true" data-portal-menu-trigger>
-              Website
-              <span class="portal-menu__chevron" aria-hidden="true"></span>
-            </button>
-            <div class="portal-menu__panel" role="menu" hidden data-portal-menu-panel>
-              <a href="/admin/pages" class="portal-menu__item<%= portalActive('/admin/pages') ? ' is-active' : '' %>" role="menuitem">Pages</a>
-              <a href="/agent/site" class="portal-menu__item<%= portalActive('/agent/site') ? ' is-active' : '' %>" role="menuitem">Site content</a>
-              <a href="/admin/media" class="portal-menu__item<%= portalActive('/admin/media') ? ' is-active' : '' %>" role="menuitem">Media</a>
-              <a href="/admin/navigation" class="portal-menu__item<%= portalActive('/admin/navigation') ? ' is-active' : '' %>" role="menuitem">Navigation</a>
-            </div>
-          </div>
-        <% } else { %>
-          <a href="/agent/site" class="portal-nav__link<%= portalActive('/agent/site') ? ' is-active' : '' %>">Edit site</a>
-        <% } %>
-
-        <div class="portal-menu" data-portal-menu>
-          <button type="button" class="portal-menu__trigger" aria-expanded="false" aria-haspopup="true" data-portal-menu-trigger>
-            Workspace
-            <%- include('count-badge', { count: workspaceCount, label: workspaceCount + ' workspace notifications', compact: true }) %>
-            <span class="portal-menu__chevron" aria-hidden="true"></span>
-          </button>
-          <div class="portal-menu__panel" role="menu" hidden data-portal-menu-panel>
-            <% if (role === 'admin') { %>
-              <a href="/agent" class="portal-menu__item<%= portalActive('/agent') ? ' is-active' : '' %>" role="menuitem">Agent home</a>
-            <% } %>
-            <a href="/agent/plans?filter=active" class="portal-menu__item<%= portalActive('/agent/plans') ? ' is-active' : '' %>" role="menuitem">
-              Plans
-              <%- include('count-badge', { count: counts.plans, label: counts.plans + ' plans needing action', compact: true }) %>
-            </a>
-            <a href="/agent/inbox" class="portal-menu__item<%= portalActive('/agent/inbox') ? ' is-active' : '' %>" role="menuitem">
-              Inbox
-              <%- include('count-badge', { count: counts.messages, label: counts.messages + ' unread plan messages', compact: true }) %>
-            </a>
-            <a href="/agent/mailbox" class="portal-menu__item<%= portalActive('/agent/mailbox') ? ' is-active' : '' %>" role="menuitem">
-              Mailbox
-              <%- include('count-badge', { count: counts.mailbox, label: counts.mailbox + ' unread emails', compact: true }) %>
-            </a>
-          </div>
-        </div>
-
-        <div class="portal-menu" data-portal-menu>
-          <button type="button" class="portal-menu__trigger" aria-expanded="false" aria-haspopup="true" data-portal-menu-trigger>
-            <%= role === 'admin' ? 'Manage' : 'More' %>
-            <%- include('count-badge', { count: manageCount, label: manageCount + ' open site change requests', compact: true }) %>
-            <span class="portal-menu__chevron" aria-hidden="true"></span>
-          </button>
-          <div class="portal-menu__panel" role="menu" hidden data-portal-menu-panel>
-            <% if (role === 'admin') { %>
-              <a href="/admin/users" class="portal-menu__item<%= portalActive('/admin/users') ? ' is-active' : '' %>" role="menuitem">Users</a>
-              <a href="/admin/settings" class="portal-menu__item<%= portalActive('/admin/settings') ? ' is-active' : '' %>" role="menuitem">Settings</a>
-              <a href="/admin/notifications" class="portal-menu__item<%= portalActive('/admin/notifications') ? ' is-active' : '' %>" role="menuitem">Email</a>
-              <a href="/admin/change-requests" class="portal-menu__item<%= portalActive('/admin/change-requests') ? ' is-active' : '' %>" role="menuitem">
-                Site changes
-                <%- include('count-badge', { count: counts.changeRequests, label: counts.changeRequests + ' open site change requests', compact: true }) %>
-              </a>
-              <a href="/admin/deals" class="portal-menu__item<%= portalActive('/admin/deals') ? ' is-active' : '' %>" role="menuitem">Deals</a>
-            <% } else { %>
-              <a href="/agent/change-requests" class="portal-menu__item<%= portalActive('/agent/change-requests') ? ' is-active' : '' %>" role="menuitem">Site changes</a>
-            <% } %>
-            <a href="/agent/password" class="portal-menu__item<%= portalActive('/agent/password') ? ' is-active' : '' %>" role="menuitem">Password</a>
-          </div>
-        </div>
-      <% } %>
     </div>
 
-    <a href="/" class="portal-nav__link portal-nav__link--end">View website</a>
+    <% if (role === 'admin' || role === 'agent') { %>
+      <% if (role === 'admin') { %>
+        <div class="portal-sidebar__section">
+          <p class="portal-sidebar__heading">Website</p>
+          <a href="/admin/pages" class="portal-sidebar__link<%= portalActive('/admin/pages') ? ' is-active' : '' %>">
+            <%- icon('M8 4h8a2 2 0 012 2v12a2 2 0 01-2 2H8a2 2 0 01-2-2V6a2 2 0 012-2zm0 4h8M8 12h5') %>
+            <span class="portal-sidebar__label">Pages</span>
+          </a>
+          <a href="/agent/site" class="portal-sidebar__link<%= portalActive('/agent/site') ? ' is-active' : '' %>">
+            <%- icon('M4 19h16M7 16V8l5-3 5 3v8') %>
+            <span class="portal-sidebar__label">Site content</span>
+          </a>
+          <a href="/admin/media" class="portal-sidebar__link<%= portalActive('/admin/media') ? ' is-active' : '' %>">
+            <%- icon('M4 6a2 2 0 012-2h12a2 2 0 012 2v12a2 2 0 01-2 2H6a2 2 0 01-2-2V6zm3 11l3.5-4.5 2.5 3 3.5-4.5L19 17H7z') %>
+            <span class="portal-sidebar__label">Media</span>
+          </a>
+          <a href="/admin/navigation" class="portal-sidebar__link<%= portalActive('/admin/navigation') ? ' is-active' : '' %>">
+            <%- icon('M4 7h16M4 12h10M4 17h16') %>
+            <span class="portal-sidebar__label">Navigation</span>
+          </a>
+        </div>
+      <% } else { %>
+        <div class="portal-sidebar__section">
+          <p class="portal-sidebar__heading">Website</p>
+          <a href="/agent/site" class="portal-sidebar__link<%= portalActive('/agent/site') ? ' is-active' : '' %>">
+            <%- icon('M4 19h16M7 16V8l5-3 5 3v8') %>
+            <span class="portal-sidebar__label">Edit site</span>
+          </a>
+        </div>
+      <% } %>
+
+      <div class="portal-sidebar__section">
+        <p class="portal-sidebar__heading">Workspace</p>
+        <% if (role === 'admin') { %>
+          <a href="/agent" class="portal-sidebar__link<%= portalActive('/agent') ? ' is-active' : '' %>">
+            <%- icon('M12 12a4 4 0 100-8 4 4 0 000 8zm-7 9a7 7 0 0114 0') %>
+            <span class="portal-sidebar__label">Agent home</span>
+          </a>
+        <% } %>
+        <a href="/agent/plans?filter=active" class="portal-sidebar__link<%= portalActive('/agent/plans') ? ' is-active' : '' %>">
+          <%- icon('M8 4h8a2 2 0 012 2v14l-6-3-6 3V6a2 2 0 012-2z') %>
+          <span class="portal-sidebar__label">Plans</span>
+          <%- include('count-badge', { count: counts.plans, label: counts.plans + ' plans needing action', compact: true }) %>
+        </a>
+        <a href="/agent/inbox" class="portal-sidebar__link<%= portalActive('/agent/inbox') ? ' is-active' : '' %>">
+          <%- icon('M4 6h16v12H4V6zm0 0l8 6 8-6') %>
+          <span class="portal-sidebar__label">Inbox</span>
+          <%- include('count-badge', { count: counts.messages, label: counts.messages + ' unread plan messages', compact: true }) %>
+        </a>
+        <a href="/agent/mailbox" class="portal-sidebar__link<%= portalActive('/agent/mailbox') ? ' is-active' : '' %>">
+          <%- icon('M3 7a2 2 0 012-2h14a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V7zm0 1l9 6 9-6') %>
+          <span class="portal-sidebar__label">Mailbox</span>
+          <%- include('count-badge', { count: counts.mailbox, label: counts.mailbox + ' unread emails', compact: true }) %>
+        </a>
+      </div>
+
+      <div class="portal-sidebar__section">
+        <p class="portal-sidebar__heading"><%= role === 'admin' ? 'Manage' : 'Account' %></p>
+        <% if (role === 'admin') { %>
+          <a href="/admin/users" class="portal-sidebar__link<%= portalActive('/admin/users') ? ' is-active' : '' %>">
+            <%- icon('M16 11a4 4 0 10-8 0 4 4 0 008 0zM4 20a6 6 0 0116 0M18 8a3 3 0 11-3-3') %>
+            <span class="portal-sidebar__label">Users</span>
+          </a>
+          <a href="/admin/settings" class="portal-sidebar__link<%= portalActive('/admin/settings') ? ' is-active' : '' %>">
+            <%- icon('M12 15.5a3.5 3.5 0 100-7 3.5 3.5 0 000 7zM4.5 12l1.2-2.1 2.3-.4.9-2.1L12 6.5l3.1.9.9 2.1 2.3.4L19.5 12l-1.2 2.1-2.3.4-.9 2.1-3.1.9-3.1-.9-.9-2.1-2.3-.4L4.5 12z') %>
+            <span class="portal-sidebar__label">Settings</span>
+          </a>
+          <a href="/admin/notifications" class="portal-sidebar__link<%= portalActive('/admin/notifications') ? ' is-active' : '' %>">
+            <%- icon('M6 8a6 6 0 0112 0c0 7 3 7 3 9H3c0-2 3-2 3-9zm4 13a2 2 0 004 0') %>
+            <span class="portal-sidebar__label">Email</span>
+          </a>
+          <a href="/admin/change-requests" class="portal-sidebar__link<%= portalActive('/admin/change-requests') ? ' is-active' : '' %>">
+            <%- icon('M4 7h12M4 12h16M4 17h10M16 5l4 4-4 4') %>
+            <span class="portal-sidebar__label">Site changes</span>
+            <%- include('count-badge', { count: counts.changeRequests, label: counts.changeRequests + ' open site change requests', compact: true }) %>
+          </a>
+          <a href="/admin/deals" class="portal-sidebar__link<%= portalActive('/admin/deals') ? ' is-active' : '' %>">
+            <%- icon('M12 3l2.2 4.5 5 .7-3.6 3.5.9 5-4.5-2.4L7.5 16.7l.9-5L4.8 8.2l5-.7L12 3z') %>
+            <span class="portal-sidebar__label">Deals</span>
+          </a>
+        <% } else { %>
+          <a href="/agent/change-requests" class="portal-sidebar__link<%= portalActive('/agent/change-requests') ? ' is-active' : '' %>">
+            <%- icon('M4 7h12M4 12h16M4 17h10M16 5l4 4-4 4') %>
+            <span class="portal-sidebar__label">Site changes</span>
+          </a>
+        <% } %>
+        <a href="/agent/password" class="portal-sidebar__link<%= portalActive('/agent/password') ? ' is-active' : '' %>">
+          <%- icon('M7 11V8a5 5 0 0110 0v3M6 11h12v9H6v-9zm6 4v2') %>
+          <span class="portal-sidebar__label">Password</span>
+        </a>
+      </div>
+    <% } %>
+  </nav>
+
+  <div class="portal-sidebar__footer">
+    <a href="/" class="portal-sidebar__link portal-sidebar__link--muted">
+      <%- icon('M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14') %>
+      <span class="portal-sidebar__label">View website</span>
+    </a>
   </div>
-</nav>
+</aside>
+<div class="portal-sidebar-backdrop" data-portal-sidebar-backdrop hidden></div>

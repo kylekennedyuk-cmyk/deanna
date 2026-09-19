@@ -14,7 +14,6 @@
   const isBooked = isBookedStatus(plan.status);
 %>
 <section class="section-sm">
-  <%- include('../partials/portal-nav', { backHref: '/agent/plans?filter=active', backLabel: 'Plans' }) %>
   <% if (saved) { %><div class="mb-4 rounded-card border border-success-100 bg-success-50 px-4 py-3 text-success-700">Saved.</div><% } %>
   <% if (typeof deleted !== 'undefined' && deleted) { %><div class="mb-4 rounded-card border border-success-100 bg-success-50 px-4 py-3 text-success-700">Message deleted.</div><% } %>
   <% if (typeof emailed !== 'undefined' && emailed) { %><div class="mb-4 rounded-card border border-success-100 bg-success-50 px-4 py-3 text-success-700">Saved. Email notification is sending to <%= plan.customer.email %>.</div><% } %>

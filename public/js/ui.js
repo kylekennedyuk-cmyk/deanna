@@ -408,56 +408,43 @@
   initMailHtmlBodies();
   initPlainMailBodies();
 
-  function closePortalMenu(menu) {
-    if (!menu) return;
-    const trigger = menu.querySelector('[data-portal-menu-trigger]');
-    const panel = menu.querySelector('[data-portal-menu-panel]');
-    if (trigger) trigger.setAttribute('aria-expanded', 'false');
-    if (panel) panel.hidden = true;
-  }
+  function initPortalSidebar() {
+    const sidebar = document.querySelector('[data-portal-sidebar]');
+    if (!sidebar) return;
 
-  function closeAllPortalMenus(except) {
-    document.querySelectorAll('[data-portal-menu]').forEach((menu) => {
-      if (except && menu === except) return;
-      closePortalMenu(menu);
-    });
-  }
+    const backdrop = document.querySelector('[data-portal-sidebar-backdrop]');
+    const toggles = document.querySelectorAll('[data-portal-sidebar-toggle]');
+    const closers = document.querySelectorAll('[data-portal-sidebar-close], [data-portal-sidebar-backdrop]');
 
-  function openPortalMenu(menu) {
-    closeAllPortalMenus(menu);
-    const trigger = menu.querySelector('[data-portal-menu-trigger]');
-    const panel = menu.querySelector('[data-portal-menu-panel]');
-    if (trigger) trigger.setAttribute('aria-expanded', 'true');
-    if (panel) panel.hidden = false;
-  }
+    const setOpen = (open) => {
+      document.body.classList.toggle('is-sidebar-open', open);
+      sidebar.classList.toggle('is-open', open);
+      if (backdrop) backdrop.hidden = !open;
+      toggles.forEach((t) => t.setAttribute('aria-expanded', open ? 'true' : 'false'));
+      document.body.style.overflow = open && window.matchMedia('(max-width: 1023px)').matches ? 'hidden' : '';
+    };
 
-  function initPortalMenus() {
-    document.querySelectorAll('[data-portal-menu]').forEach((menu) => {
-      if (menu.dataset.portalMenuBound === '1') return;
-      menu.dataset.portalMenuBound = '1';
-      const trigger = menu.querySelector('[data-portal-menu-trigger]');
-      if (!trigger) return;
-
-      trigger.addEventListener('click', (event) => {
+    toggles.forEach((t) => {
+      t.addEventListener('click', (event) => {
         event.preventDefault();
-        event.stopPropagation();
-        const open = trigger.getAttribute('aria-expanded') === 'true';
-        if (open) closePortalMenu(menu);
-        else openPortalMenu(menu);
+        setOpen(!sidebar.classList.contains('is-open'));
       });
     });
 
-    document.addEventListener('click', (event) => {
-      if (event.target.closest('[data-portal-menu]')) return;
-      closeAllPortalMenus();
+    closers.forEach((c) => {
+      c.addEventListener('click', () => setOpen(false));
     });
 
     document.addEventListener('keydown', (event) => {
-      if (event.key === 'Escape') closeAllPortalMenus();
+      if (event.key === 'Escape') setOpen(false);
+    });
+
+    window.matchMedia('(min-width: 1024px)').addEventListener('change', (event) => {
+      if (event.matches) setOpen(false);
     });
   }
 
-  initPortalMenus();
+  initPortalSidebar();
 
   window.DWD = { showToast };
 })();

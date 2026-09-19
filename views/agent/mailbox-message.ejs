@@ -5,7 +5,6 @@
   const deleteLabel = isTrash ? 'Delete forever' : 'Delete';
 %>
 <section class="section-sm max-w-4xl">
-  <%- include('../partials/portal-nav', { backHref: '/agent/mailbox?folder=' + encodeURIComponent(activeFolder || 'INBOX'), backLabel: 'Mailbox' }) %>
 
   <% if (error && !message) { %>
     <div class="mb-5 rounded-card border border-danger-100 bg-danger-50 px-4 py-3 text-danger-700" role="alert"><%= error %></div>
