@@ -141,6 +141,25 @@
     return `${user}@${domain}`;
   }
 
+  /** Canvas fillStyle rejects some modern CSS color() values — normalize via pixel readback. */
+  function canvasSafeColor(cssColor, fallback) {
+    const probe = document.createElement('canvas');
+    probe.width = 1;
+    probe.height = 1;
+    const ctx = probe.getContext('2d', { willReadFrequently: true });
+    if (!ctx) return fallback;
+    ctx.fillStyle = fallback;
+    try {
+      if (cssColor) ctx.fillStyle = cssColor;
+    } catch {
+      ctx.fillStyle = fallback;
+    }
+    ctx.fillRect(0, 0, 1, 1);
+    const pixel = ctx.getImageData(0, 0, 1, 1).data;
+    if (!pixel[3]) return fallback;
+    return `rgba(${pixel[0]}, ${pixel[1]}, ${pixel[2]}, ${(pixel[3] / 255).toFixed(3)})`;
+  }
+
   function paintSafeEmail(btn) {
     const canvas = btn.querySelector('.safe-email__canvas');
     if (!canvas) return;
@@ -151,19 +170,20 @@
     const fontWeight = styles.fontWeight || '600';
     const fontSize = styles.fontSize || '14px';
     const fontFamily = styles.fontFamily || 'Outfit, system-ui, sans-serif';
-    const color = styles.color || '#845425';
+    const fallback = btn.classList.contains('safe-email--btn') ? '#ffffff' : '#845425';
+    const color = canvasSafeColor(styles.color, fallback);
     const underline = btn.classList.contains('safe-email--link');
+    const font = `${fontWeight} ${fontSize} ${fontFamily}`;
 
     const dpr = Math.max(1, window.devicePixelRatio || 1);
     const measure = document.createElement('canvas').getContext('2d');
-    measure.font = `${fontWeight} ${fontSize} ${fontFamily}`;
-    const metrics = measure.measureText(address);
-    const textWidth = Math.ceil(metrics.width);
+    measure.font = font;
+    const textWidth = Math.max(1, Math.ceil(measure.measureText(address).width));
     const sizePx = parseFloat(fontSize) || 14;
     const padX = underline ? 0 : 2;
-    const padY = 2;
+    const padY = 3;
     const cssW = Math.max(1, textWidth + padX * 2);
-    const cssH = Math.max(1, Math.ceil(sizePx * 1.35) + padY * 2);
+    const cssH = Math.max(18, Math.ceil(sizePx * 1.4) + padY * 2);
 
     canvas.width = Math.ceil(cssW * dpr);
     canvas.height = Math.ceil(cssH * dpr);
@@ -173,7 +193,7 @@
     const ctx = canvas.getContext('2d');
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, cssW, cssH);
-    ctx.font = `${fontWeight} ${fontSize} ${fontFamily}`;
+    ctx.font = font;
     ctx.fillStyle = color;
     ctx.textBaseline = 'middle';
     ctx.fillText(address, padX, cssH / 2);
@@ -189,15 +209,21 @@
     }
   }
 
-  document.querySelectorAll('button.safe-email').forEach((btn) => {
-    paintSafeEmail(btn);
-    btn.addEventListener('click', () => {
-      const address = resolveSafeEmail(btn);
-      if (!address) return;
-      window.location.href = `mailto:${address}`;
+  function initSafeEmails() {
+    document.querySelectorAll('button.safe-email').forEach((btn) => {
+      paintSafeEmail(btn);
+      if (btn.dataset.safeEmailBound === '1') return;
+      btn.dataset.safeEmailBound = '1';
+      btn.addEventListener('click', () => {
+        const address = resolveSafeEmail(btn);
+        if (!address) return;
+        window.location.href = `mailto:${address}`;
+      });
     });
-  });
+  }
 
+  const fontsReady = document.fonts && document.fonts.ready ? document.fonts.ready : Promise.resolve();
+  fontsReady.then(initSafeEmails).catch(initSafeEmails);
   window.addEventListener('resize', () => {
     document.querySelectorAll('button.safe-email').forEach(paintSafeEmail);
   });

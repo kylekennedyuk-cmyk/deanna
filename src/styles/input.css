@@ -652,13 +652,15 @@
   display: inline-flex;
   align-items: center;
   max-width: 100%;
+  min-height: 1.25rem;
   padding: 0;
   border: 0;
   background: transparent;
   cursor: pointer;
   vertical-align: baseline;
-  line-height: 0;
-  color: color-mix(in srgb, var(--brand-secondary, #d1a24a) 72%, #1a2b40);
+  line-height: 1.25;
+  /* Solid hex so canvas fillStyle always works (color-mix serializes to color() in some browsers) */
+  color: #845425;
   font: inherit;
   font-weight: 600;
 }
