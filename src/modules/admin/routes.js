@@ -3,7 +3,7 @@ const bcrypt = require('bcryptjs');
 const path = require('path');
 const fs = require('fs');
 const { prisma } = require('../../config/database');
-const { createTransport, closeCachedTransport, sendMail, normalizeSmtpHost } = require('../../config/email');
+const { createTransport, closeCachedTransport, sendMail, normalizeSmtpHost, extractEmailAddress, emailDomain, MAIL_DOMAIN } = require('../../config/email');
 const { encryptSecret, decryptSecret, getSettings, setSettings } = require('../../config/settings');
 const { requireRole } = require('../../middleware/auth');
 const { resolveHomeSections } = require('../../content/homeDefaults');
@@ -598,19 +598,49 @@ router.post('/notifications', async (req, res, next) => {
   try {
     const port = String(req.body.smtp_port || '587').trim();
     const secureChecked = req.body.smtp_secure === 'on' || port === '465';
+    const smtpUser = String(req.body.smtp_user || '').trim();
+    let smtpFromEmail = String(req.body.smtp_from_email || '').trim();
+    const userAddr = extractEmailAddress(smtpUser);
+    const fromAddr = extractEmailAddress(smtpFromEmail);
+    const userDomain = emailDomain(userAddr);
+    const fromDomain = emailDomain(fromAddr);
+
+    if (userDomain && userDomain !== MAIL_DOMAIN) {
+      return res.redirect(
+        `/admin/notifications?error=${encodeURIComponent(
+          `SMTP username must be a ${MAIL_DOMAIN} mailbox (got ${userDomain}).`
+        )}`
+      );
+    }
+    if (fromAddr && fromDomain && fromDomain !== MAIL_DOMAIN) {
+      return res.redirect(
+        `/admin/notifications?error=${encodeURIComponent(
+          `From email must be on ${MAIL_DOMAIN} so SPF/DKIM/DMARC can align.`
+        )}`
+      );
+    }
+    if (userAddr && fromAddr && userDomain && fromDomain && userDomain !== fromDomain) {
+      return res.redirect(
+        `/admin/notifications?error=${encodeURIComponent(
+          'From email domain must match the SMTP username domain.'
+        )}`
+      );
+    }
+    if (!fromAddr && userAddr) smtpFromEmail = userAddr;
+
     const values = {
       email_notifications_enabled:
         req.body.email_notifications_enabled === 'on' ? 'true' : 'false',
       smtp_host: normalizeSmtpHost(req.body.smtp_host || ''),
       smtp_port: port,
       smtp_secure: secureChecked ? 'true' : 'false',
-      smtp_user: String(req.body.smtp_user || '').trim(),
+      smtp_user: smtpUser,
       smtp_from_name: String(req.body.smtp_from_name || '').trim(),
-      smtp_from_email: String(req.body.smtp_from_email || '').trim(),
+      smtp_from_email: smtpFromEmail,
       smtp_reply_to: String(req.body.smtp_reply_to || '').trim(),
       // Keep IMAP aligned with SMTP host when using the same provider
       imap_host: normalizeSmtpHost(req.body.smtp_host || process.env.IMAP_HOST || ''),
-      imap_user: String(req.body.smtp_user || '').trim(),
+      imap_user: smtpUser,
       email_new_request_subject: String(req.body.email_new_request_subject || '').trim(),
       email_new_request_heading: String(req.body.email_new_request_heading || '').trim(),
       email_new_request_intro: String(req.body.email_new_request_intro || '').trim(),

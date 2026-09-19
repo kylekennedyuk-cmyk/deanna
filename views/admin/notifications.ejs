@@ -48,9 +48,20 @@
         <div>
           <label class="label" for="smtp_from_email">From email</label>
           <input class="field" id="smtp_from_email" name="smtp_from_email" type="email" value="<%= settings.smtp_from_email || '' %>" placeholder="dee@destinationswithdeanna.com" />
-          <p class="help">Should match the mailbox you authenticate with.</p>
+          <p class="help">Must be the same mailbox (or same domain) as Username — required for SPF/DMARC alignment. Never use Gmail or another provider’s address here.</p>
         </div>
         <div class="md:col-span-2"><label class="label" for="smtp_reply_to">Reply-to email</label><input class="field" id="smtp_reply_to" name="smtp_reply_to" type="email" value="<%= settings.smtp_reply_to || settings.support_email || '' %>" placeholder="dee@destinationswithdeanna.com" /></div>
+      </div>
+
+      <div class="mt-6 rounded-card border border-primary-100 bg-primary-50/50 p-4 text-sm text-primary-800">
+        <p class="font-semibold text-primary-950">Deliverability (SPF / DKIM / DMARC)</p>
+        <ul class="mt-2 list-disc space-y-1 pl-5">
+          <li>Send only as <strong>@destinationswithdeanna.com</strong> via <strong>prime.ax</strong> (SMTP host). The app sets From, Reply-To, Message-ID, and envelope From to that domain.</li>
+          <li><strong>Prefer server-side DKIM</strong> in Plesk: Mail Settings → “Use DKIM spam protection…”, then publish the <code>default._domainkey</code> TXT in Cloudflare (DNS is external).</li>
+          <li>App-side DKIM is optional via <code>DKIM_SELECTOR</code> + <code>DKIM_PRIVATE_KEY</code> env vars only — never paste private keys into the dashboard or git.</li>
+          <li>Hotmail/Outlook <strong>S3150</strong> blocks of IP <code>87.106.199.222</code> are a <strong>Prime.ax reputation</strong> issue; DNS/code help alignment but Prime must delist/fix the IP.</li>
+          <li>Check DNS anytime: <code>npm run mail:verify-dns</code> (no secrets). Full records: see <code>DEPLOY-PLESK.md</code> → Email authentication.</li>
+        </ul>
       </div>
     </section>
 

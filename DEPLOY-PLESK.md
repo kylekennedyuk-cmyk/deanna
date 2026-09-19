@@ -197,6 +197,62 @@ SMTP can be configured entirely in the dashboard. The password is encrypted with
 
 ---
 
+## Email authentication (SPF / DKIM / DMARC)
+
+Outbound mail must send as **`@destinationswithdeanna.com`** through **Prime.ax / Plesk** (`SMTP` host `prime.ax`, mailbox e.g. `dee@destinationswithdeanna.com`). DNS for this domain is on **Cloudflare** (external to Plesk).
+
+### What the website does
+
+- Sets **From**, **Reply-To**, **Message-ID** (`…@destinationswithdeanna.com`), and **envelope From / Return-Path** to the authenticated mailbox domain.
+- Refuses foreign From domains (e.g. Gmail) so SPF/DMARC cannot be broken by a mismatched header.
+- Prefer **Plesk server-side DKIM**. Optional app-side DKIM only via env `DKIM_SELECTOR` + `DKIM_PRIVATE_KEY` (never commit the key).
+
+### Copy-paste DNS records (Cloudflare)
+
+Publish **one** SPF TXT (do not create multiple SPF records):
+
+| Type | Name | Content |
+|------|------|---------|
+| TXT | `@` | `v=spf1 ip4:87.106.199.222 a mx a:cp.prime.ax -all` |
+
+Current live SPF `v=spf1 +a +mx +a:cp.prime.ax -all` already authorizes the sending IP via apex A / MX / `cp.prime.ax`. The `ip4:` form above is clearer and recommended.
+
+DMARC (strict alignment is already in use — keep it once DKIM signing works):
+
+| Type | Name | Content |
+|------|------|---------|
+| TXT | `_dmarc` | `v=DMARC1; p=quarantine; adkim=s; aspf=s; rua=mailto:dee@destinationswithdeanna.com; fo=1` |
+
+DKIM (from Plesk — do not invent the public key):
+
+1. Plesk → Domains → `destinationswithdeanna.com` → **Mail Settings**
+2. Enable **Use DKIM spam protection system to sign outgoing email messages**
+3. Open **How to configure external DNS** and copy the TXT values into Cloudflare:
+
+| Type | Name | Content |
+|------|------|---------|
+| TXT | `default._domainkey` | *(paste Plesk public key — already published if DKIM was enabled)* |
+| TXT | `_domainkey` | `o=-` *(Plesk policy; optional)* |
+
+### Verify
+
+```bash
+npm run mail:verify-dns
+npm run mail:verify
+```
+
+### What Prime.ax must do (cannot be fixed in this repo)
+
+1. **Hotmail/Outlook S3150** blocking IP `87.106.199.222` is a **provider reputation** issue. Code/DNS improve authentication alignment; Prime must request delist via [sender.office.com](https://sender.office.com/), enroll the IP in Microsoft **SNDS**, and keep the shared pool clean.
+2. Fix **reverse DNS**: PTR for `87.106.199.222` currently points at `prime.sx` (Cloudflare front-end), not `cp.prime.ax` / a mail hostname. Ask Prime to set PTR to match the SMTP HELO (e.g. `cp.prime.ax`).
+3. Confirm **DKIM signing is enabled** on the domain in Plesk so outbound messages get a `DKIM-Signature` with `d=destinationswithdeanna.com` and selector `default`.
+
+### Not a DMARC problem
+
+Bounces for invalid recipient domains (example historically: `marianresortsandspa.com` with no MX/A) are **recipient-side DNS** failures. SPF/DKIM/DMARC cannot fix those.
+
+---
+
 ## Updating the site later
 
 1. Pull the latest code (Plesk **Git** → Pull, or `git pull origin main` over SSH)
@@ -256,6 +312,8 @@ Force sync is destructive for the affected page content and should never be part
 | 502 / proxy errors | Confirm the Node app is enabled and listening on the port Plesk expects |
 | Emails not sending | Configure Admin → Email & notifications and use **Send test email**; check spam |
 | SMTP password “forgotten” | `SETTINGS_ENCRYPTION_KEY` was changed — set the password again in admin |
+| Hotmail/Outlook S3150 / IP blocked | Provider reputation on `87.106.199.222` — Prime.ax must delist (see **Email authentication** above). DNS/code alone will not clear S3150 |
+| SPF/DKIM/DMARC fail | Run `npm run mail:verify-dns`; From must be `@destinationswithdeanna.com`; enable Plesk DKIM and publish `default._domainkey` in Cloudflare |
 | Uploads fail | Ensure `public/uploads` is writable |
 | Planner closed / maintenance page | Turn those off in Admin → Settings |
 | 3CX chat / call widget | Admin → Settings → **Live chat & calls (3CX)**. Enable, paste phonesystem URL + party id from 3CX Live Chat embed. Optional Talk URL and call number. Widget is public-site only |

@@ -63,6 +63,13 @@ Open http://localhost:3000
 
 See [DEPLOY-PLESK.md](./DEPLOY-PLESK.md) — designed for minimal effort.
 
+### Email / deliverability
+
+- Configure SMTP in **Admin → Email & notifications** (`prime.ax`, mailbox on `@destinationswithdeanna.com`).
+- DNS records (SPF / DKIM / DMARC) and Prime.ax IP-reputation notes: [DEPLOY-PLESK.md → Email authentication](./DEPLOY-PLESK.md#email-authentication-spf--dkim--dmarc).
+- Check public DNS (no secrets): `npm run mail:verify-dns`
+- Check SMTP/IMAP with saved settings: `npm run mail:verify`
+
 ## Style guide & QA
 
 - [STYLE-GUIDE.md](./STYLE-GUIDE.md) — fonts, tokens, components

@@ -1,5 +1,9 @@
+const crypto = require('crypto');
 const nodemailer = require('nodemailer');
 const { decryptSecret, getSettings } = require('./settings');
+
+/** Default sending domain for Destinations With Deanna (SPF/DKIM/DMARC). */
+const MAIL_DOMAIN = 'destinationswithdeanna.com';
 
 function escapeHtml(value) {
   return String(value ?? '')
@@ -8,6 +12,74 @@ function escapeHtml(value) {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#039;');
+}
+
+/** Extract bare email address from `Name <addr>` or plain addr. */
+function extractEmailAddress(value) {
+  const raw = String(value || '').trim();
+  if (!raw) return '';
+  const angled = raw.match(/<([^>]+)>/);
+  return (angled ? angled[1] : raw).trim().toLowerCase();
+}
+
+function emailDomain(address) {
+  const addr = extractEmailAddress(address);
+  const at = addr.lastIndexOf('@');
+  if (at < 0) return '';
+  return addr.slice(at + 1).toLowerCase();
+}
+
+/**
+ * Prefer From that SPF/DKIM can align with: same mailbox as SMTP auth when possible,
+ * and never invent a From on a foreign domain.
+ */
+function resolveAlignedFromEmail(settings) {
+  const configured = extractEmailAddress(settings.fromEmail);
+  const smtpUser = extractEmailAddress(settings.user);
+  const smtpDomain = emailDomain(smtpUser);
+  const configuredDomain = emailDomain(configured);
+
+  if (configured && smtpUser && configured === smtpUser) return configured;
+
+  if (configured && smtpDomain && configuredDomain === smtpDomain) return configured;
+
+  if (smtpUser && smtpDomain) {
+    if (configured && configuredDomain && configuredDomain !== smtpDomain) {
+      console.warn(
+        `[email] From ${configured} domain does not match SMTP user ${smtpUser}; using SMTP mailbox for SPF/DMARC alignment`
+      );
+    }
+    return smtpUser;
+  }
+
+  if (configured && configuredDomain === MAIL_DOMAIN) return configured;
+
+  if (configured) {
+    console.warn(
+      `[email] Refusing foreign From domain ${configuredDomain || '(none)'}; falling back to support mailbox on ${MAIL_DOMAIN}`
+    );
+  }
+  return `dee@${MAIL_DOMAIN}`;
+}
+
+/** Optional app-side DKIM (prefer Plesk/Prime server signing). Private key from env only. */
+function resolveDkimOptions(fromDomain) {
+  const privateKeyRaw = process.env.DKIM_PRIVATE_KEY || '';
+  const selector = String(process.env.DKIM_SELECTOR || '').trim();
+  if (!privateKeyRaw || !selector) return null;
+
+  const domainName = String(process.env.DKIM_DOMAIN || fromDomain || MAIL_DOMAIN)
+    .trim()
+    .toLowerCase();
+  const privateKey = privateKeyRaw.includes('\\n')
+    ? privateKeyRaw.replace(/\\n/g, '\n')
+    : privateKeyRaw;
+
+  return {
+    domainName,
+    keySelector: selector,
+    privateKey,
+  };
 }
 
 const EMAIL_PARAGRAPH_STYLE =
@@ -138,8 +210,17 @@ function transportBlockReason(settings) {
   if (!settings.pass) {
     return 'SMTP password is missing. Enter the mailbox password and save.';
   }
-  if (!settings.fromEmail) {
-    return 'From email is missing. Use the same mailbox address you authenticate with.';
+  const alignedFrom = resolveAlignedFromEmail(settings);
+  if (!alignedFrom || !emailDomain(alignedFrom)) {
+    return 'From email is missing. Use the same mailbox address you authenticate with (e.g. dee@destinationswithdeanna.com).';
+  }
+  const fromDomain = emailDomain(alignedFrom);
+  const userDomain = emailDomain(settings.user);
+  if (userDomain && fromDomain && userDomain !== fromDomain) {
+    return `From domain (${fromDomain}) must match the SMTP username domain (${userDomain}) so SPF/DMARC can align.`;
+  }
+  if (fromDomain && fromDomain !== MAIL_DOMAIN) {
+    return `From address must be on ${MAIL_DOMAIN} (got ${fromDomain}). Do not send as a foreign domain.`;
   }
   return null;
 }
@@ -177,7 +258,9 @@ function closeCachedTransport() {
 }
 
 function buildTransport(settings) {
-  return nodemailer.createTransport({
+  const fromEmail = resolveAlignedFromEmail(settings);
+  const dkim = resolveDkimOptions(emailDomain(fromEmail));
+  const options = {
     host: settings.host,
     port: settings.port,
     secure: settings.secure,
@@ -202,7 +285,10 @@ function buildTransport(settings) {
       minVersion: 'TLSv1.2',
       rejectUnauthorized: true,
     },
-  });
+  };
+  // Prefer Plesk/Prime DKIM signing; env DKIM_* is an optional app-side fallback.
+  if (dkim) options.dkim = dkim;
+  return nodemailer.createTransport(options);
 }
 
 /** Alternate configs to try when the primary SMTP endpoint is flaky. */
@@ -276,9 +362,29 @@ function sleep(ms) {
 }
 
 async function sendMailOnce(transport, settings, payload) {
+  const fromEmail = resolveAlignedFromEmail(settings);
+  const fromDomain = emailDomain(fromEmail) || MAIL_DOMAIN;
+  const replyTo =
+    extractEmailAddress(payload.replyTo) ||
+    extractEmailAddress(settings.replyTo) ||
+    fromEmail;
+  const messageId = `<${crypto.randomBytes(16).toString('hex')}@${fromDomain}>`;
+  const envelopeTo = []
+    .concat(payload.to || [])
+    .concat(payload.cc || [])
+    .flatMap((entry) => String(entry || '').split(/[,;]/))
+    .map((part) => extractEmailAddress(part))
+    .filter(Boolean);
+
   return transport.sendMail({
-    from: `"${settings.fromName}" <${settings.fromEmail}>`,
-    replyTo: payload.replyTo || settings.replyTo || undefined,
+    from: `"${settings.fromName}" <${fromEmail}>`,
+    replyTo: replyTo || undefined,
+    // Explicit MAIL FROM / Return-Path so SPF checks the domain we publish.
+    envelope: {
+      from: fromEmail,
+      to: envelopeTo.length ? envelopeTo : undefined,
+    },
+    messageId,
     to: payload.to,
     cc: payload.cc || undefined,
     subject: payload.subject,
@@ -507,12 +613,16 @@ function sendNotificationAsync(type, payload) {
 }
 
 module.exports = {
+  MAIL_DOMAIN,
   brandedLayout,
   closeCachedTransport,
   createTransport,
+  emailDomain,
   escapeHtml,
+  extractEmailAddress,
   normalizeSmtpHost,
   plainTextToEmailHtml,
+  resolveAlignedFromEmail,
   resolveEmailSettings,
   sendMail,
   sendNotification,
