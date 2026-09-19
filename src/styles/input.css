@@ -646,3 +646,41 @@
   clip: rect(0, 0, 0, 0) !important;
   border: 0 !important;
 }
+
+/* Canvas-drawn email — no selectable / scrapeable address text in the DOM */
+.safe-email {
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  vertical-align: baseline;
+  line-height: 0;
+  color: color-mix(in srgb, var(--brand-secondary, #d1a24a) 72%, #1a2b40);
+  font: inherit;
+  font-weight: 600;
+}
+
+.safe-email--link:hover .safe-email__canvas {
+  filter: brightness(0.92);
+}
+
+.safe-email--link:focus-visible {
+  outline: 2px solid var(--brand-secondary, #d1a24a);
+  outline-offset: 3px;
+  border-radius: 0.25rem;
+}
+
+.safe-email__canvas {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  pointer-events: none;
+  user-select: none;
+}
+
+.safe-email--btn {
+  color: #fff;
+}

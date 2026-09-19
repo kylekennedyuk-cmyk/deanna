@@ -123,5 +123,84 @@
     showToast(params.get('created') === '1' ? 'Plan submitted' : 'Saved');
   }
 
+  function decodeEmailPart(value) {
+    try {
+      return atob(value || '')
+        .split('')
+        .reverse()
+        .join('');
+    } catch {
+      return '';
+    }
+  }
+
+  function resolveSafeEmail(btn) {
+    const user = decodeEmailPart(btn.dataset.u);
+    const domain = decodeEmailPart(btn.dataset.d);
+    if (!user || !domain) return '';
+    return `${user}@${domain}`;
+  }
+
+  function paintSafeEmail(btn) {
+    const canvas = btn.querySelector('.safe-email__canvas');
+    if (!canvas) return;
+    const address = resolveSafeEmail(btn);
+    if (!address) return;
+
+    const styles = window.getComputedStyle(btn);
+    const fontWeight = styles.fontWeight || '600';
+    const fontSize = styles.fontSize || '14px';
+    const fontFamily = styles.fontFamily || 'Outfit, system-ui, sans-serif';
+    const color = styles.color || '#845425';
+    const underline = btn.classList.contains('safe-email--link');
+
+    const dpr = Math.max(1, window.devicePixelRatio || 1);
+    const measure = document.createElement('canvas').getContext('2d');
+    measure.font = `${fontWeight} ${fontSize} ${fontFamily}`;
+    const metrics = measure.measureText(address);
+    const textWidth = Math.ceil(metrics.width);
+    const sizePx = parseFloat(fontSize) || 14;
+    const padX = underline ? 0 : 2;
+    const padY = 2;
+    const cssW = Math.max(1, textWidth + padX * 2);
+    const cssH = Math.max(1, Math.ceil(sizePx * 1.35) + padY * 2);
+
+    canvas.width = Math.ceil(cssW * dpr);
+    canvas.height = Math.ceil(cssH * dpr);
+    canvas.style.width = `${cssW}px`;
+    canvas.style.height = `${cssH}px`;
+
+    const ctx = canvas.getContext('2d');
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, cssW, cssH);
+    ctx.font = `${fontWeight} ${fontSize} ${fontFamily}`;
+    ctx.fillStyle = color;
+    ctx.textBaseline = 'middle';
+    ctx.fillText(address, padX, cssH / 2);
+
+    if (underline) {
+      const y = Math.min(cssH - 1, Math.round(cssH * 0.88));
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(padX, y);
+      ctx.lineTo(padX + textWidth, y);
+      ctx.stroke();
+    }
+  }
+
+  document.querySelectorAll('button.safe-email').forEach((btn) => {
+    paintSafeEmail(btn);
+    btn.addEventListener('click', () => {
+      const address = resolveSafeEmail(btn);
+      if (!address) return;
+      window.location.href = `mailto:${address}`;
+    });
+  });
+
+  window.addEventListener('resize', () => {
+    document.querySelectorAll('button.safe-email').forEach(paintSafeEmail);
+  });
+
   window.DWD = { showToast };
 })();

@@ -1,0 +1,24 @@
+<%
+  const rawEmail = String(typeof email !== 'undefined' ? email : '').trim();
+  const atIdx = rawEmail.lastIndexOf('@');
+  const localPart = atIdx > 0 ? rawEmail.slice(0, atIdx) : '';
+  const domainPart = atIdx > 0 ? rawEmail.slice(atIdx + 1) : '';
+  const enc = function (value) {
+    return Buffer.from(String(value).split('').reverse().join(''), 'utf8').toString('base64');
+  };
+  const spokenDomain = domainPart.replace(/\./g, ' dot ');
+  const labelPrefix = typeof label !== 'undefined' && label ? String(label) : 'Email';
+  const extraClass = typeof className !== 'undefined' && className ? String(className) : '';
+%>
+<% if (localPart && domainPart) { %>
+<button
+  type="button"
+  class="safe-email<%= extraClass ? ' ' + extraClass : '' %>"
+  data-u="<%= enc(localPart) %>"
+  data-d="<%= enc(domainPart) %>"
+  aria-label="<%= labelPrefix %> <%= localPart %> at <%= spokenDomain %>"
+  draggable="false"
+>
+  <canvas class="safe-email__canvas" aria-hidden="true"></canvas>
+</button>
+<% } %>

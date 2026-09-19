@@ -29,7 +29,7 @@
         <h3 class="text-xl">Contact details</h3>
         <dl class="mt-4 space-y-3 text-sm">
           <% if (settings.support_email) { %>
-            <div><dt class="text-primary-500">Email</dt><dd><a class="font-semibold text-secondary-700 hover:underline" href="mailto:<%= settings.support_email %>"><%= settings.support_email %></a></dd></div>
+            <div><dt class="text-primary-500">Email</dt><dd><%- include('../partials/safe-email', { email: settings.support_email, className: 'safe-email--link' }) %></dd></div>
           <% } %>
           <% if (settings.phone) { %>
             <div><dt class="text-primary-500">Phone</dt><dd class="font-semibold text-primary-900"><%= settings.phone %></dd></div>
